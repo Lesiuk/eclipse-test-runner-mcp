@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+
+      - name: Extract version
+        id: meta
+        run: |
+          RAW=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "tag=v${RAW%-SNAPSHOT}" >> "$GITHUB_OUTPUT"
+          echo "jar_name=eclipse.mcp.server_${RAW%-SNAPSHOT}.jar" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if already released
+        id: guard
+        run: |
+          gh release view "${{ steps.meta.outputs.tag }}" &>/dev/null \
+            && echo "skip=true" >> "$GITHUB_OUTPUT" \
+            || echo "skip=false" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        if: steps.guard.outputs.skip == 'false'
+        run: mvn verify -B
+
+      - name: Publish release
+        if: steps.guard.outputs.skip == 'false'
+        run: |
+          cp target/eclipse.mcp.server-*.jar "${{ steps.meta.outputs.jar_name }}"
+
+          PREV_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || true)
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="${PREV_TAG}..HEAD"
+          else
+            RANGE="HEAD"
+          fi
+
+          BODY="## Changes"$'\n\n'
+          BODY+="| Commit | Message |"$'\n'
+          BODY+="|--------|---------|"$'\n'
+          BODY+=$(git log "$RANGE" --pretty=format:'| `%h` | %s |')
+
+          gh release create "${{ steps.meta.outputs.tag }}" \
+            "${{ steps.meta.outputs.jar_name }}" \
+            --title "${{ steps.meta.outputs.tag }}" \
+            --notes "$BODY"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

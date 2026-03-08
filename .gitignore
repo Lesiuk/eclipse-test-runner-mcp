@@ -1,0 +1,8 @@
+target/
+*.class
+*.jar
+!.mvn/lombok.jar
+eclipse-sdk/
+.settings/
+.project
+.classpath
