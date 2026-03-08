@@ -14,12 +14,18 @@ The plugin runs as an OSGi bundle inside Eclipse and exposes an HTTP endpoint on
 
 The server speaks MCP over HTTP at `http://127.0.0.1:5188/mcp`.
 
+**GitHub Copilot CLI:**
+
+1. Enter interactive mode and type `/mcp add`
+2. **Server Name** — enter `eclipse`
+3. **Server Type** — select **HTTP**
+4. **URL** — enter `http://127.0.0.1:5188/mcp`
+5. Press <kbd>Ctrl</kbd>+<kbd>S</kbd> to save
+
 **Claude Code:**
 ```
 claude mcp add eclipse --transport http http://127.0.0.1:5188/mcp -s user
 ```
-
-**GitHub Copilot CLI:** in interactive mode, run `/mcp add` → select HTTP → name: `eclipse` → URL: `http://127.0.0.1:5188/mcp`.
 
 ## Tools Reference
 
