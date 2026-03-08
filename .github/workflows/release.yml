@@ -57,6 +57,10 @@ jobs:
           REPO_URL="${{ github.server_url }}/${{ github.repository }}"
           BODY+=$(git log "$RANGE" --pretty=format:"| [\`%h\`](${REPO_URL}/commit/%H) | %s |")
 
+          if [ -n "$PREV_TAG" ]; then
+            BODY+=$'\n\n'"**[Full diff](${REPO_URL}/compare/${PREV_TAG}...${{ steps.meta.outputs.tag }})**"
+          fi
+
           gh release create "${{ steps.meta.outputs.tag }}" \
             "${{ steps.meta.outputs.jar_name }}" \
             --title "${{ steps.meta.outputs.tag }}" \
