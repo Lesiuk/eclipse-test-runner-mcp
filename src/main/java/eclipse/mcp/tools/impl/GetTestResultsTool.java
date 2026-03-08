@@ -6,7 +6,6 @@ import eclipse.mcp.tools.IMcpTool;
 import eclipse.mcp.tools.InputSchema;
 import eclipse.mcp.tools.PropertySchema;
 
-@SuppressWarnings("restriction")
 public class GetTestResultsTool implements IMcpTool {
 
     @Override

@@ -8,7 +8,6 @@ import eclipse.mcp.tools.PropertySchema;
 import java.util.List;
 import java.util.Map;
 
-@SuppressWarnings("restriction")
 public class GetFailureTraceTool implements IMcpTool {
 
     @Override
