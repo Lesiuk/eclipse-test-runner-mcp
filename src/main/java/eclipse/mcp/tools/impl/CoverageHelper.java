@@ -86,7 +86,7 @@ class CoverageHelper {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("class", className);
         result.put("summary", buildSummary(classCoverage));
-        result.put("methods", buildMethods(classCoverage, type));
+        result.put("methods", buildMethods(type));
         result.put("lines", buildLines(classCoverage));
         return result;
     }
@@ -109,7 +109,7 @@ class CoverageHelper {
         return summary;
     }
 
-    private static List<Map<String, Object>> buildMethods(ICoverageNode classCoverage, IType type) {
+    private static List<Map<String, Object>> buildMethods(IType type) {
         List<Map<String, Object>> methods = new ArrayList<>();
 
         // Walk via the IType's methods and query coverage for each
