@@ -33,9 +33,9 @@ Parameters marked with **\*** are required. All others are optional.
 
 ### Test Execution
 
-**`run_test`** `(config*, class*, method, project, dependencies[])` → `{steps, success, compilationErrors[], launchResult{status, totalTests, passed, failed, failures[]}}`
+**`run_test`** `(config*, class*, method, project, dependencies[], coverage)` → `{steps, success, compilationErrors[], launchResult{status, totalTests, passed, failed, failures[]}}`
 
-Full pipeline — refresh projects from disk, build (dependencies first, in order), check for compilation errors, then launch the test. Fails fast if compilation errors are found. Rejects the call if another test is already running.
+Full pipeline — refresh projects from disk, build (dependencies first, in order), check for compilation errors, then launch the test. Fails fast if compilation errors are found. Rejects the call if another test is already running. Pass `coverage=true` to run with EclEmma/JaCoCo code coverage — use `get_coverage` afterwards to retrieve per-class results.
 
 **`launch_test`** `(config*, class*, method, project)` → `{config, project, class, method, testResults{…}}`
 
@@ -52,6 +52,10 @@ Returns results from the most recent test run. Each failure includes the excepti
 **`get_failure_trace`** `(class*, method*)` → `{class, method, trace}`
 
 Full untruncated stack trace for a single test failure. Use after reviewing `get_test_results` when the trimmed trace isn't sufficient.
+
+**`get_coverage`** `(class*)` → `{class, summary{lineCoverage, branchCoverage, methodCoverage}, methods[{name, lineCoverage, branchCoverage, uncoveredLines[]}], lines[{line, status, branches}]}`
+
+Detailed code coverage for a source class after a coverage run. Returns per-method coverage with uncovered line numbers, and per-line status (`COVERED`, `NOT_COVERED`, `PARTLY_COVERED`). Waits for coverage analysis to complete if still loading.
 
 ### Workspace & Diagnostics
 
@@ -84,9 +88,11 @@ Stops running launches. Optionally filtered by configuration name. Returns the n
 ```
 list_test_configs          → discover available JUnit configurations
 run_test                   → edit code, then refresh + build + run
+run_test (coverage=true)   → same, but with code coverage enabled
 launch_test                → re-run without rebuild when code is unchanged
 get_test_results           → re-check results or wait for completion
 get_failure_trace          → drill into a specific failure's full stack trace
+get_coverage               → inspect per-line coverage for a source class
 ```
 
 ## Building from Source
