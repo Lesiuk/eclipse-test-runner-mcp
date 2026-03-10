@@ -1,0 +1,24 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Eclipse Test Runner MCP
+Bundle-SymbolicName: eclipse.mcp.server;singleton:=true
+Bundle-Version: 0.15.0.qualifier
+Bundle-Activator: uk.l3si.eclipse.mcp.Activator
+Bundle-Vendor: Eclipse MCP
+Require-Bundle: org.eclipse.core.runtime,
+ org.eclipse.core.resources,
+ org.eclipse.debug.core,
+ org.eclipse.debug.ui,
+ org.eclipse.ui,
+ org.eclipse.ui.console,
+ org.eclipse.jface.text,
+ com.google.gson,
+ org.eclipse.jdt.core,
+ org.eclipse.jdt.junit.core,
+ org.eclipse.eclemma.core,
+ org.jacoco.core
+Bundle-RequiredExecutionEnvironment: JavaSE-17
+Bundle-ActivationPolicy: lazy
+Export-Package: uk.l3si.eclipse.mcp,
+ uk.l3si.eclipse.mcp.tools
+Import-Package: com.sun.net.httpserver

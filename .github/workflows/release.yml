@@ -21,12 +21,17 @@ jobs:
           java-version: 17
           cache: maven
 
-      - name: Extract version
+      - name: Extract versions
         id: meta
         run: |
-          RAW=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-          echo "tag=v${RAW%-SNAPSHOT}" >> "$GITHUB_OUTPUT"
-          echo "jar_name=eclipse.mcp.server_${RAW%-SNAPSHOT}.jar" >> "$GITHUB_OUTPUT"
+          CORE_VER=$(grep 'Bundle-Version' eclipse.mcp.server/META-INF/MANIFEST.MF | sed 's/.*: *//;s/.qualifier//')
+          DEBUG_VER=$(grep 'Bundle-Version' eclipse.mcp.server.debugging/META-INF/MANIFEST.MF | sed 's/.*: *//;s/.qualifier//')
+          echo "core_version=${CORE_VER}" >> "$GITHUB_OUTPUT"
+          echo "debug_version=${DEBUG_VER}" >> "$GITHUB_OUTPUT"
+          echo "tag=core-${CORE_VER}+debugging-${DEBUG_VER}" >> "$GITHUB_OUTPUT"
+          echo "title=Core ${CORE_VER} / Debugging ${DEBUG_VER}" >> "$GITHUB_OUTPUT"
+          echo "core_jar=eclipse.mcp.server_${CORE_VER}.jar" >> "$GITHUB_OUTPUT"
+          echo "debug_jar=eclipse.mcp.server-debugging_${DEBUG_VER}.jar" >> "$GITHUB_OUTPUT"
 
       - name: Skip if already released
         id: guard
@@ -44,7 +49,10 @@ jobs:
       - name: Publish release
         if: steps.guard.outputs.skip == 'false'
         run: |
-          cp target/eclipse.mcp.server-*.jar "${{ steps.meta.outputs.jar_name }}"
+          cp eclipse.mcp.server/target/eclipse.mcp.server-*.jar \
+             "${{ steps.meta.outputs.core_jar }}"
+          cp eclipse.mcp.server.debugging/target/eclipse.mcp.server.debugging-*.jar \
+             "${{ steps.meta.outputs.debug_jar }}"
 
           PREV_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || true)
           if [ -n "$PREV_TAG" ]; then
@@ -63,9 +71,16 @@ jobs:
             BODY+=$'\n\n'"**[Full diff](${REPO_URL}/compare/${PREV_TAG}...${{ steps.meta.outputs.tag }})**"
           fi
 
+          BODY+=$'\n\n'"## Installation"$'\n\n'
+          BODY+="| JAR | Description |"$'\n'
+          BODY+="|-----|-------------|"$'\n'
+          BODY+="| \`${{ steps.meta.outputs.core_jar }}\` | Core test runner (required) |"$'\n'
+          BODY+="| \`${{ steps.meta.outputs.debug_jar }}\` | Debug tools add-on (optional, requires core) |"
+
           gh release create "${{ steps.meta.outputs.tag }}" \
-            "${{ steps.meta.outputs.jar_name }}" \
-            --title "${{ steps.meta.outputs.tag }}" \
+            "${{ steps.meta.outputs.core_jar }}" \
+            "${{ steps.meta.outputs.debug_jar }}" \
+            --title "${{ steps.meta.outputs.title }}" \
             --notes "$BODY"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

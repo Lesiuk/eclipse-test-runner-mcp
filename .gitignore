@@ -7,3 +7,5 @@ eclipse-sdk/
 .project
 .classpath
 .worktrees/
+.idea/
+docs/
