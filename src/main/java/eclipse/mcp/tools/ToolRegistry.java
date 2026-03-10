@@ -23,6 +23,7 @@ public class ToolRegistry {
         addTool(new GetProblemsTool());
         addTool(new GetFailureTraceTool());
         addTool(new GetConsoleOutputTool());
+        addTool(new GetCoverageTool());
     }
 
     private void addTool(IMcpTool tool) {
