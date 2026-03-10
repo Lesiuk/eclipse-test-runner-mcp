@@ -6,9 +6,20 @@ Eclipse IDE plugin that lets AI coding assistants ([Claude Code](https://docs.an
 
 The plugin runs as an OSGi bundle inside Eclipse and exposes an HTTP endpoint on `127.0.0.1:5188`.
 
-1. Download the latest JAR from the [releases page](https://github.com/Lesiuk/eclipse-test-runner-mcp/releases/latest)
-2. Copy it into `<eclipse-install>/dropins/`
+Each release contains two JARs, versioned independently:
+
+| JAR | Required? | Description |
+|-----|-----------|-------------|
+| `eclipse.mcp.server_VERSION.jar` | **Yes** | Core plugin — test runner, coverage, workspace tools |
+| `eclipse.mcp.server-debugging_VERSION.jar` | No | Debug tools add-on — breakpoints, stepping, variable inspection |
+
+Both JARs are included in every release so you can always grab a compatible pair from a single page, even when only one module has changed. The version in the filename tells you what's new.
+
+1. Download the latest JAR(s) from the [releases page](https://github.com/Lesiuk/eclipse-test-runner-mcp/releases/latest)
+2. Drop them into `<eclipse-install>/dropins/`
 3. Restart Eclipse
+
+Only the core JAR is needed for test running and coverage. Install the debugging JAR alongside it to add breakpoint and debugger tools — including a `debug` launch mode on `run_test`.
 
 ## Connecting an AI Assistant
 
@@ -33,9 +44,9 @@ Parameters marked with **\*** are required. All others are optional.
 
 ### Test Execution
 
-**`run_test`** `(config*, class*, method, project, dependencies[], coverage)` → `{steps, success, compilationErrors[], launchResult{status, totalTests, passed, failed, failures[]}}`
+**`run_test`** `(config*, class*, method, project, dependencies[], mode)` → `{steps, success, compilationErrors[], launchResult{status, totalTests, passed, failed, failures[]}}`
 
-Full pipeline — refresh projects from disk, build (dependencies first, in order), check for compilation errors, then launch the test. Fails fast if compilation errors are found. Rejects the call if another test is already running. Pass `coverage=true` to run with EclEmma/JaCoCo code coverage — use `get_coverage` afterwards to retrieve per-class results.
+Full pipeline — refresh projects from disk, build (dependencies first, in order), check for compilation errors, then launch the test. Fails fast if compilation errors are found. Rejects the call if another test is already running. The `mode` parameter controls how the test launches: `run` (default), `coverage` (EclEmma/JaCoCo — use `get_coverage` afterwards), or `debug` (requires debug add-on — set breakpoints first).
 
 **`launch_test`** `(config*, class*, method, project)` → `{config, project, class, method, testResults{…}}`
 
@@ -83,16 +94,71 @@ Captures stdout and stderr from the most recent launch (or a specific one by nam
 
 Stops running launches. Optionally filtered by configuration name. Returns the number of launches terminated.
 
+### Debugging (requires debug add-on)
+
+**`set_breakpoint`** `(class*, line*, condition)` → `{id, class, line, condition, enabled}`
+
+Set a line breakpoint in a Java class. Optionally set a conditional expression — the debugger only suspends when the condition evaluates to true.
+
+**`remove_breakpoint`** `(id*)` → `{removed, id}`
+
+Remove a breakpoint by its ID.
+
+**`list_breakpoints`** `()` → `{breakpoints[{id, class, line, condition, enabled, hitCount}]}`
+
+List all Java line breakpoints in the workspace — including ones set manually in the Eclipse IDE.
+
+**`get_debug_state`** `()` → `{active, suspended, thread, threadId, location{class, method, line, sourceName}, reason}`
+
+Check whether a debug session is active and if a thread is suspended (e.g. at a breakpoint or after a step).
+
+**`list_threads`** `()` → `{threads[{name, id, state, location}]}`
+
+List all threads in the debug session with their state (running, suspended, terminated).
+
+**`get_stack_trace`** `(thread_id)` → `{thread, frames[{index, class, method, line, sourceName}]}`
+
+Get the stack trace for a suspended thread. Use the frame index with `inspect_variable` or `evaluate_expression` to work in a specific frame's context.
+
+**`inspect_variable`** `(name*, thread_id, frame_index)` → `{name, type, value, fields[], elements[]}`
+
+Inspect a variable in the current stack frame. Supports dot-path navigation (`obj.field`) and array indexing (`list[0]`). Objects show field names for drill-down; arrays show length and elements.
+
+**`evaluate_expression`** `(expression*, thread_id, frame_index)` → `{expression, type, value, fields[]}`
+
+Evaluate a Java expression in the context of a suspended stack frame. Can read values, call methods, or modify variables.
+
+**`step`** `(action*, thread_id)` → `{action, thread, location{class, method, line, sourceName}}`
+
+Step through code: `over` (next line), `into` (enter method call), or `return` (exit current method). Waits for the step to complete and returns the new location.
+
+**`resume`** `(thread_id)` → `{resumed, thread}`
+
+Resume a suspended thread.
+
 ### Typical Session
 
 ```
 list_test_configs          → discover available JUnit configurations
 run_test                   → edit code, then refresh + build + run
-run_test (coverage=true)   → same, but with code coverage enabled
+run_test (mode=coverage)   → same, but with code coverage enabled
+run_test (mode=debug)      → run with debugger (set breakpoints first)
 launch_test                → re-run without rebuild when code is unchanged
 get_test_results           → re-check results or wait for completion
 get_failure_trace          → drill into a specific failure's full stack trace
 get_coverage               → inspect per-line coverage for a source class
+```
+
+**Debug session example:**
+
+```
+set_breakpoint             → set breakpoint at a suspicious line
+run_test (mode=debug)      → launch test with debugger attached
+get_debug_state            → check if breakpoint was hit
+inspect_variable           → examine variable values at the breakpoint
+evaluate_expression        → evaluate a Java expression in context
+step (action=over)         → step to the next line
+resume                     → let the test finish
 ```
 
 ## Building from Source
@@ -103,7 +169,7 @@ Requires Java 17+ and Maven 3.9+.
 mvn package -B
 ```
 
-Output JAR lands in `target/`. Copy to Eclipse `dropins/` and restart.
+Output JARs land in each plugin's `target/` directory. Copy to Eclipse `dropins/` and restart.
 
 ## [Changelog](CHANGELOG.md)
 
