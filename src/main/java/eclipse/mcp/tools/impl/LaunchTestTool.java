@@ -43,6 +43,6 @@ public class LaunchTestTool implements IMcpTool {
         String projectName = args.getString("project");
 
         TestLaunchHelper.checkNoTestRunning();
-        return TestLaunchHelper.launchTest(configName, className, methodName, projectName);
+        return TestLaunchHelper.launchTest(configName, className, methodName, projectName, false);
     }
 }

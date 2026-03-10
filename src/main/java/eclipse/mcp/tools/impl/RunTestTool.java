@@ -91,7 +91,7 @@ public class RunTestTool implements IMcpTool {
         steps.add("No compilation errors");
 
         // Launch test
-        LaunchTestResult launchResult = TestLaunchHelper.launchTest(configName, className, methodName, projectName);
+        LaunchTestResult launchResult = TestLaunchHelper.launchTest(configName, className, methodName, projectName, false);
         return RunTestResult.builder()
                 .steps(steps)
                 .success(true)

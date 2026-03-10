@@ -9,6 +9,7 @@ import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
 import org.eclipse.debug.core.ILaunchManager;
+import org.eclipse.eclemma.core.CoverageTools;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
@@ -91,7 +92,7 @@ public class TestLaunchHelper {
      * @param projectName if provided, overrides the project on the working copy;
      *                    if null, reads the project from the existing config
      */
-    public static LaunchTestResult launchTest(String configName, String className, String methodName, String projectName) throws Exception {
+    public static LaunchTestResult launchTest(String configName, String className, String methodName, String projectName, boolean coverage) throws Exception {
         ILaunchConfiguration config = findTestConfig(configName);
 
         // Resolve project: user-provided or from existing config
@@ -126,7 +127,8 @@ public class TestLaunchHelper {
         Display display = PlatformUI.getWorkbench().getDisplay();
         display.syncExec(() -> {
             try {
-                launchResult[0] = wc.launch(ILaunchManager.RUN_MODE, null);
+                String mode = coverage ? CoverageTools.LAUNCH_MODE : ILaunchManager.RUN_MODE;
+                launchResult[0] = wc.launch(mode, null);
             } catch (Exception e) {
                 error[0] = e;
             }
