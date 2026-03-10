@@ -38,7 +38,8 @@ public class RunTestTool implements IMcpTool {
              + "When source and tests live in different projects, use 'dependencies' to refresh and build dependency projects in order "
              + "(e.g. build 'mocks' before 'ui_tests'). "
              + "Fails if a test is already running — use 'terminate' to stop it first. "
-             + "Waits for completion and returns test results.";
+             + "Waits for completion and returns test results. "
+             + "Set 'coverage' to true to run with code coverage (EclEmma/JaCoCo). After the run, use 'get_coverage' to retrieve detailed coverage for specific source classes.";
     }
 
     @Override
@@ -54,6 +55,7 @@ public class RunTestTool implements IMcpTool {
                         + "Built in order listed, then the test 'project' is refreshed and built last.",
                         PropertySchema.builder().type("string").build()
                 ))
+                .property("coverage", PropertySchema.bool("Run with code coverage (EclEmma/JaCoCo). When true, launches in coverage mode. Use 'get_coverage' tool afterwards to retrieve detailed coverage for specific classes."))
                 .required(List.of("config", "class"))
                 .build();
     }
@@ -65,6 +67,7 @@ public class RunTestTool implements IMcpTool {
         String methodName = args.getString("method");
         String projectName = args.getString("project");
         List<String> dependencies = args.getStringList("dependencies");
+        boolean coverage = args.getBoolean("coverage");
 
         // Block if a test is already running
         TestLaunchHelper.checkNoTestRunning();
@@ -91,7 +94,7 @@ public class RunTestTool implements IMcpTool {
         steps.add("No compilation errors");
 
         // Launch test
-        LaunchTestResult launchResult = TestLaunchHelper.launchTest(configName, className, methodName, projectName, false);
+        LaunchTestResult launchResult = TestLaunchHelper.launchTest(configName, className, methodName, projectName, coverage);
         return RunTestResult.builder()
                 .steps(steps)
                 .success(true)
