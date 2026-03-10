@@ -14,7 +14,9 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.jface.text,
  com.google.gson,
  org.eclipse.jdt.core,
- org.eclipse.jdt.junit.core
+ org.eclipse.jdt.junit.core,
+ org.eclipse.eclemma.core,
+ org.jacoco.core
 Bundle-RequiredExecutionEnvironment: JavaSE-17
 Bundle-ActivationPolicy: lazy
 Import-Package: com.sun.net.httpserver
