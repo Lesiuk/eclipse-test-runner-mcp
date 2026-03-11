@@ -134,13 +134,21 @@ public class InspectVariableTool implements IMcpTool {
         int bracketDepth = 0;
         for (char c : path.toCharArray()) {
             if (c == '[') bracketDepth++;
-            if (c == ']') bracketDepth--;
+            if (c == ']') {
+                bracketDepth--;
+                if (bracketDepth < 0) {
+                    throw new IllegalArgumentException("Unbalanced brackets in path: '" + path + "'.");
+                }
+            }
             if (c == '.' && bracketDepth == 0) {
                 segments.add(current.toString());
                 current = new StringBuilder();
             } else {
                 current.append(c);
             }
+        }
+        if (bracketDepth != 0) {
+            throw new IllegalArgumentException("Unbalanced brackets in path: '" + path + "'.");
         }
         segments.add(current.toString());
         return segments.toArray(new String[0]);

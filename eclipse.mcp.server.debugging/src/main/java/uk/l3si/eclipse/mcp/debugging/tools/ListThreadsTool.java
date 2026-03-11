@@ -53,7 +53,9 @@ public class ListThreadsTool implements IMcpTool {
                     .name(jt.getName());
             try {
                 infoBuilder.id(jt.getThreadObject().getUniqueId());
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                infoBuilder.error("Could not read thread ID: " + e.getMessage());
+            }
 
             if (jt.isTerminated()) {
                 infoBuilder.state("terminated");
@@ -64,7 +66,9 @@ public class ListThreadsTool implements IMcpTool {
                     if (frames.length > 0 && frames[0] instanceof IJavaStackFrame frame) {
                         infoBuilder.location(frame.getDeclaringTypeName() + "." + frame.getMethodName() + ":" + frame.getLineNumber());
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    infoBuilder.error("Could not read location: " + e.getMessage());
+                }
             } else {
                 infoBuilder.state("running");
             }

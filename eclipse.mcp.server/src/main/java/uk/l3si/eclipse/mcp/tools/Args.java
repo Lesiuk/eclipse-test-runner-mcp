@@ -26,9 +26,9 @@ public class Args {
 
     public String requireString(String key, String description) {
         String value = getString(key);
-        if (value == null) {
+        if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(
-                    "Missing required parameter: '" + key + "' (" + description + ")");
+                    "Missing or blank required parameter: '" + key + "' (" + description + ")");
         }
         return value;
     }

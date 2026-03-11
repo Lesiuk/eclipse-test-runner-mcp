@@ -40,6 +40,11 @@ public class TerminateTool implements IMcpTool {
             count++;
         }
 
+        if (count == 0 && configName != null) {
+            throw new IllegalArgumentException(
+                    "No running launch found with name '" + configName + "'. "
+                    + "Use 'terminate' without 'name' to terminate all, or check the launch configuration name.");
+        }
         return TerminateResult.builder().terminated(count).build();
     }
 

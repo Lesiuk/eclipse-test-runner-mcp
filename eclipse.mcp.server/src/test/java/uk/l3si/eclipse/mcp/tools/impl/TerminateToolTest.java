@@ -23,7 +23,7 @@ public class TerminateToolTest {
     }
 
     @Test
-    void nullConfigNotMatchedByName() throws Exception {
+    void noMatchingLaunchThrowsForNamedConfig() throws Exception {
         ILaunch launch = mock(ILaunch.class);
         when(launch.isTerminated()).thenReturn(false);
         when(launch.getLaunchConfiguration()).thenReturn(null);
@@ -40,9 +40,10 @@ public class TerminateToolTest {
             TerminateTool tool = new TerminateTool();
             JsonObject args = new JsonObject();
             args.addProperty("name", "MyApp");
-            JsonObject result = executeAndSerialize(tool, args);
 
-            assertEquals(0, result.get("terminated").getAsInt());
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                    () -> tool.execute(new Args(args)));
+            assertTrue(ex.getMessage().contains("MyApp"));
             verify(launch, never()).terminate();
         }
     }

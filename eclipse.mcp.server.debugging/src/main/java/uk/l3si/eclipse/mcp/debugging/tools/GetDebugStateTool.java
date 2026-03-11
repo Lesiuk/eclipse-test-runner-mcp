@@ -55,7 +55,9 @@ public class GetDebugStateTool implements IMcpTool {
             try {
                 long threadId = thread.getThreadObject().getUniqueId();
                 resultBuilder.threadId(threadId);
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                resultBuilder.error("Could not read thread ID: " + e.getMessage());
+            }
 
             try {
                 var frames = thread.getStackFrames();
@@ -69,7 +71,9 @@ public class GetDebugStateTool implements IMcpTool {
                     }
                     resultBuilder.location(locationBuilder.build());
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                resultBuilder.error("Could not read stack frame: " + e.getMessage());
+            }
 
             // Include reason if available
             try {
@@ -79,7 +83,7 @@ public class GetDebugStateTool implements IMcpTool {
                 } else {
                     resultBuilder.reason("step");
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
                 resultBuilder.reason("unknown");
             }
         } else {

@@ -8,4 +8,5 @@ public class ThreadInfo {
     private Long id;
     private String state;
     private String location;
+    private String error;
 }

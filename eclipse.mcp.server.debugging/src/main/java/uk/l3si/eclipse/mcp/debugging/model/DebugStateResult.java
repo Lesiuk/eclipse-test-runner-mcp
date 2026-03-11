@@ -10,4 +10,5 @@ public class DebugStateResult {
     private Long threadId;
     private LocationInfo location;
     private String reason;
+    private String error;
 }

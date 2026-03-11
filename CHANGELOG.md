@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.19.0
+
+- `Args.requireString` now rejects blank strings (catches empty/whitespace-only inputs across all tools)
+- `terminate` tool now throws when named config has no matching running launch
+- Update `TerminateToolTest` to expect error on unmatched config name
+
+### Debug module (v0.5.0)
+
+- `inspect_variable` validates balanced brackets in path expressions
+- `get_debug_state` and `list_threads` now report errors instead of silently ignoring them
+- Add `error` field to `DebugStateResult` and `ThreadInfo` models
+
 ## v0.18.0
 
 - Validate test method name exists before launching — reports available methods on mismatch
