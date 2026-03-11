@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.20.0
+
+- Disable "Skip All Breakpoints" before launching tests in debug mode — ensures breakpoints are always hit
+
 ## v0.19.0
 
 - `Args.requireString` now rejects blank strings (catches empty/whitespace-only inputs across all tools)

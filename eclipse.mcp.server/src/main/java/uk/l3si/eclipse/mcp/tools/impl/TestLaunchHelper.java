@@ -124,6 +124,11 @@ public class TestLaunchHelper {
         // Clear container — running a specific class, not a package/project
         wc.removeAttribute(ATTR_CONTAINER);
 
+        // In debug mode, ensure breakpoints are not globally skipped
+        if ("debug".equals(mode)) {
+            DebugPlugin.getDefault().getBreakpointManager().setEnabled(true);
+        }
+
         // Launch on UI thread
         final ILaunch[] launchResult = new ILaunch[1];
         final Exception[] error = new Exception[1];
