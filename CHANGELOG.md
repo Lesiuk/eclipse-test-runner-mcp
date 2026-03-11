@@ -1,12 +1,19 @@
 # Changelog
 
+## v0.17.0
+
+- Replace `Map`/`LinkedHashMap` return types with proper Lombok `@Builder` model classes across all tools
+- Update `CoverageHelperTest` to use Gson serialization pattern consistent with other tests
+
+### Debug module (v0.4.0)
+
+- `ListVariablesTool` now returns `ListVariablesResult` model class instead of `LinkedHashMap`
+
 ## v0.16.0
 
 - Suppress Eclipse focus stealing on breakpoint hit (`PREF_ACTIVATE_WORKBENCH` disabled on startup)
 - Validate breakpoint condition syntax before setting (catches syntax errors early via JDT AST parser)
 - Deduplicate Maven build config — shared surefire, JUnit, and Mockito config moved to parent pom
-- Replace `Map`/`LinkedHashMap` return types with proper Lombok `@Builder` model classes across all tools
-- Update `CoverageHelperTest` to use Gson serialization pattern consistent with other tests
 - Add `.DS_Store` to `.gitignore`
 
 ### Debug module (v0.3.0)
