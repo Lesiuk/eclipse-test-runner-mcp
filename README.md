@@ -52,6 +52,8 @@ claude mcp add eclipse --transport http http://127.0.0.1:5188/mcp -s user
 
 Parameters marked with **\*** are required. All others are optional.
 
+#### Core (`eclipse.mcp.server`)
+
 | Tool | Description |
 |------|-------------|
 | `run_test` | Full pipeline — refresh, build, check errors, launch test |
@@ -65,6 +67,11 @@ Parameters marked with **\*** are required. All others are optional.
 | `get_problems` | Compilation errors (and optionally warnings) |
 | `get_console_output` | stdout/stderr from a launch |
 | `terminate` | Stop running launches |
+
+#### Debugging add-on (`eclipse.mcp.server.debugging`)
+
+| Tool | Description |
+|------|-------------|
 | `set_breakpoint` | Set a line breakpoint (with optional condition) |
 | `remove_breakpoint` | Remove a breakpoint by ID |
 | `list_breakpoints` | All Java line breakpoints in the workspace |
