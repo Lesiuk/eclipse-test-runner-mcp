@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.18.0
+
+- Validate test method name exists before launching — reports available methods on mismatch
+
 ## v0.17.0
 
 - Replace `Map`/`LinkedHashMap` return types with proper Lombok `@Builder` model classes across all tools

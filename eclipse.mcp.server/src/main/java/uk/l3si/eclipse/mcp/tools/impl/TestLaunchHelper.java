@@ -11,6 +11,7 @@ import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
 import org.eclipse.debug.core.ILaunchManager;
 import org.eclipse.eclemma.core.CoverageTools;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.swt.widgets.Display;
@@ -101,9 +102,12 @@ public class TestLaunchHelper {
             resolvedProject = config.getAttribute(ATTR_PROJECT_NAME, (String) null);
         }
 
-        // Validate test class exists in the project
+        // Validate test class and method exist in the project
         if (resolvedProject != null) {
             validateTestClassExists(resolvedProject, className);
+            if (methodName != null) {
+                validateTestMethodExists(resolvedProject, className, methodName);
+            }
         }
 
         // Create working copy with test target overrides
@@ -198,5 +202,37 @@ public class TestLaunchHelper {
                     "Test class '" + className + "' not found in project '" + projectName + "'. "
                     + "Check that the fully qualified class name is correct and the project has been built.");
         }
+    }
+
+    /**
+     * Validate that a test method exists in the given test class.
+     */
+    private static void validateTestMethodExists(String projectName, String className, String methodName) throws Exception {
+        IJavaProject javaProject = JavaCore.create(ResourcesPlugin.getWorkspace().getRoot().getProject(projectName));
+        IType type = javaProject.findType(className);
+        validateMethodOnType(type, className, methodName);
+    }
+
+    /**
+     * Check that the given method name exists on the type. Package-visible for testing.
+     */
+    static void validateMethodOnType(IType type, String className, String methodName) throws Exception {
+        for (IMethod method : type.getMethods()) {
+            if (method.getElementName().equals(methodName)) {
+                return;
+            }
+        }
+        throw new IllegalArgumentException(
+                "Test method '" + methodName + "' not found in class '" + className + "'. "
+                + "Available methods: " + getMethodNames(type));
+    }
+
+    private static String getMethodNames(IType type) throws Exception {
+        StringBuilder sb = new StringBuilder();
+        for (IMethod method : type.getMethods()) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(method.getElementName());
+        }
+        return sb.toString();
     }
 }
