@@ -4,6 +4,9 @@ import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.IMcpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
+import org.eclipse.debug.core.DebugPlugin;
+import org.eclipse.debug.core.model.IBreakpoint;
+
 import java.util.List;
 
 public class LaunchTestTool implements IMcpTool {
@@ -41,6 +44,14 @@ public class LaunchTestTool implements IMcpTool {
         String className = args.requireString("class", "fully qualified test class name");
         String methodName = args.getString("method");
         String projectName = args.getString("project");
+
+        // Fail fast if breakpoints exist — launch_test runs in 'run' mode only
+        IBreakpoint[] breakpoints = DebugPlugin.getDefault().getBreakpointManager().getBreakpoints();
+        if (breakpoints.length > 0) {
+            throw new IllegalStateException(
+                    "launch_test runs in 'run' mode — breakpoints will not be hit. "
+                    + "Use 'run_test' with mode='debug' to debug tests with breakpoints.");
+        }
 
         TestLaunchHelper.checkNoTestRunning();
         return TestLaunchHelper.launchTest(configName, className, methodName, projectName, "run");

@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.24.0
+
+- `launch_test` now rejects calls when breakpoints are set — returns error directing to use `run_test` with `mode='debug'` instead
+- Reject unknown tool parameters — returns error listing valid parameters (prevents silent misuse like passing `mode` to `launch_test`)
+
 ## v0.23.0
 
 - `get_test_results` now returns an error when a debug session is active — prevents deadlock when the test is paused at a breakpoint and can never complete
