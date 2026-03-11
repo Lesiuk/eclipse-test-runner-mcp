@@ -5,7 +5,6 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.model.IBreakpoint;
-import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
@@ -47,9 +46,9 @@ public class BreakpointManager {
         }
 
         int validatedLine = line;
-        ICompilationUnit cu = type.getCompilationUnit();
-        if (cu != null && cu.getSource() != null) {
-            validatedLine = validateBreakpointLocation(cu, line);
+        String source = type.getTypeRoot() != null ? type.getTypeRoot().getSource() : null;
+        if (source != null) {
+            validatedLine = validateBreakpointLocation(source, line);
         }
 
         IJavaLineBreakpoint bp = JDIDebugModel.createLineBreakpoint(
@@ -158,14 +157,14 @@ public class BreakpointManager {
      * (the same infrastructure used by Eclipse's "Toggle Breakpoint" action).
      * Returns the validated line number, which may be adjusted to the nearest executable line.
      */
-    private int validateBreakpointLocation(ICompilationUnit cu, int requestedLine) {
+    private int validateBreakpointLocation(String source, int requestedLine) {
         ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
-        parser.setSource(cu);
-        parser.setResolveBindings(true);
+        parser.setSource(source.toCharArray());
+        parser.setKind(ASTParser.K_COMPILATION_UNIT);
         CompilationUnit astRoot = (CompilationUnit) parser.createAST(null);
 
         ValidBreakpointLocationLocator locator = new ValidBreakpointLocationLocator(
-                astRoot, requestedLine, true, true);
+                astRoot, requestedLine, false, true);
         astRoot.accept(locator);
 
         if (locator.getLocationType() == ValidBreakpointLocationLocator.LOCATION_NOT_FOUND) {
