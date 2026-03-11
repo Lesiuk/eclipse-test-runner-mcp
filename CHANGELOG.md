@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.23.0
+
+- `get_test_results` now returns an error when a debug session is active — prevents deadlock when the test is paused at a breakpoint and can never complete
+
 ## v0.22.0
 
 ### Debug module (v0.6.1)
