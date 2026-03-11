@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.22.0
+
+### Debug module (v0.6.0)
+
+- Validate breakpoint locations using Eclipse's `ValidBreakpointLocationLocator` (same infrastructure as Eclipse's "Toggle Breakpoint" action)
+- Automatically adjusts breakpoint to nearest valid executable line (returns `adjustedFrom` field when adjusted)
+- Rejects lines with no valid breakpoint location with a clear error message
+- Skips validation for binary/library classes without source — breakpoints still work
+
 ## v0.21.0
 
 - Improve `get_failure_trace` tool description to discourage redundant calls — `run_test` and `get_test_results` already return condensed failure messages with exception type, message, and key stack frames

@@ -11,4 +11,5 @@ public class BreakpointResult {
     private int line;
     private String condition;
     private boolean enabled;
+    private Integer adjustedFrom;
 }

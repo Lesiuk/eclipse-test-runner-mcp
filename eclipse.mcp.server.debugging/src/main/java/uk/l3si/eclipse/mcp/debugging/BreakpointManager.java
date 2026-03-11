@@ -5,6 +5,7 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.model.IBreakpoint;
+import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
@@ -13,6 +14,7 @@ import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.debug.core.IJavaLineBreakpoint;
 import org.eclipse.jdt.debug.core.JDIDebugModel;
+import org.eclipse.jdt.internal.debug.core.breakpoints.ValidBreakpointLocationLocator;
 import uk.l3si.eclipse.mcp.debugging.model.BreakpointInfo;
 import uk.l3si.eclipse.mcp.debugging.model.BreakpointResult;
 import uk.l3si.eclipse.mcp.debugging.model.ListBreakpointsResult;
@@ -29,29 +31,47 @@ public class BreakpointManager {
 
     /**
      * Create a line breakpoint and return its marker ID.
+     * Uses Eclipse's ValidBreakpointLocationLocator (same as the Toggle Breakpoint action)
+     * to validate/adjust the line to the nearest executable location.
      */
     public BreakpointResult setBreakpoint(String className, int line, String condition) throws Exception {
         if (condition != null && !condition.isBlank()) {
             validateConditionSyntax(condition);
         }
 
-        IResource resource = findResource(className);
+        IType type = findType(className);
+        IResource resource = type.getUnderlyingResource();
+        if (resource == null) {
+            throw new IllegalArgumentException(
+                    "Class '" + className + "' has no underlying resource (may be a binary class).");
+        }
+
+        int validatedLine = line;
+        ICompilationUnit cu = type.getCompilationUnit();
+        if (cu != null && cu.getSource() != null) {
+            validatedLine = validateBreakpointLocation(cu, line);
+        }
 
         IJavaLineBreakpoint bp = JDIDebugModel.createLineBreakpoint(
-                resource, className, line, -1, -1, 0, true, null);
+                resource, className, validatedLine, -1, -1, 0, true, null);
 
         if (condition != null && !condition.isBlank()) {
             bp.setCondition(condition);
             bp.setConditionEnabled(true);
         }
 
-        return BreakpointResult.builder()
+        BreakpointResult.BreakpointResultBuilder resultBuilder = BreakpointResult.builder()
                 .id(bp.getMarker().getId())
                 .className(className)
-                .line(line)
+                .line(validatedLine)
                 .condition(condition != null && !condition.isBlank() ? condition : null)
-                .enabled(bp.isEnabled())
-                .build();
+                .enabled(bp.isEnabled());
+
+        if (validatedLine != line) {
+            resultBuilder.adjustedFrom(line);
+        }
+
+        return resultBuilder.build();
     }
 
     /**
@@ -134,9 +154,34 @@ public class BreakpointManager {
     }
 
     /**
-     * Find the IResource for a fully qualified class name by searching all Java projects.
+     * Validate a breakpoint location using Eclipse's own ValidBreakpointLocationLocator
+     * (the same infrastructure used by Eclipse's "Toggle Breakpoint" action).
+     * Returns the validated line number, which may be adjusted to the nearest executable line.
      */
-    private IResource findResource(String className) throws Exception {
+    private int validateBreakpointLocation(ICompilationUnit cu, int requestedLine) {
+        ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
+        parser.setSource(cu);
+        parser.setResolveBindings(true);
+        CompilationUnit astRoot = (CompilationUnit) parser.createAST(null);
+
+        ValidBreakpointLocationLocator locator = new ValidBreakpointLocationLocator(
+                astRoot, requestedLine, true, true);
+        astRoot.accept(locator);
+
+        if (locator.getLocationType() == ValidBreakpointLocationLocator.LOCATION_NOT_FOUND) {
+            throw new IllegalArgumentException(
+                    "Line " + requestedLine + " is not a valid breakpoint location. "
+                    + "Breakpoints can only be set on lines containing executable code "
+                    + "(not comments, blank lines, imports, or declarations without initializers).");
+        }
+
+        return locator.getLineLocation();
+    }
+
+    /**
+     * Find the IType for a fully qualified class name by searching all Java projects.
+     */
+    private IType findType(String className) throws Exception {
         IProject[] projects = ResourcesPlugin.getWorkspace().getRoot().getProjects();
         for (IProject project : projects) {
             if (!project.isOpen() || !project.hasNature(JavaCore.NATURE_ID)) {
@@ -145,10 +190,7 @@ public class BreakpointManager {
             IJavaProject javaProject = JavaCore.create(project);
             IType type = javaProject.findType(className);
             if (type != null && type.exists()) {
-                IResource resource = type.getUnderlyingResource();
-                if (resource != null) {
-                    return resource;
-                }
+                return type;
             }
         }
         throw new IllegalArgumentException(
