@@ -8,6 +8,9 @@ import org.eclipse.debug.core.model.IBreakpoint;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.debug.core.IJavaLineBreakpoint;
 import org.eclipse.jdt.debug.core.JDIDebugModel;
 import uk.l3si.eclipse.mcp.debugging.model.BreakpointInfo;
@@ -28,6 +31,10 @@ public class BreakpointManager {
      * Create a line breakpoint and return its marker ID.
      */
     public BreakpointResult setBreakpoint(String className, int line, String condition) throws Exception {
+        if (condition != null && !condition.isBlank()) {
+            validateConditionSyntax(condition);
+        }
+
         IResource resource = findResource(className);
 
         IJavaLineBreakpoint bp = JDIDebugModel.createLineBreakpoint(
@@ -107,6 +114,23 @@ public class BreakpointManager {
             }
         }
         return null;
+    }
+
+    /**
+     * Validate that a breakpoint condition is syntactically valid Java.
+     * Wraps the condition in a method body and parses it as a compilation unit.
+     */
+    static void validateConditionSyntax(String condition) {
+        String source = "class _V { boolean _c() { return " + condition + "; } }";
+        ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
+        parser.setSource(source.toCharArray());
+        parser.setKind(ASTParser.K_COMPILATION_UNIT);
+        CompilationUnit cu = (CompilationUnit) parser.createAST(null);
+        if (cu.getProblems().length > 0) {
+            throw new IllegalArgumentException(
+                    "Breakpoint condition has syntax errors: '" + condition + "'. "
+                    + "Must be a valid Java boolean expression (e.g. 'i == 5', 'name.equals(\"test\")').");
+        }
     }
 
     /**

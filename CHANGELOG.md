@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.16.0
+
+- Suppress Eclipse focus stealing on breakpoint hit (`PREF_ACTIVATE_WORKBENCH` disabled on startup)
+- Validate breakpoint condition syntax before setting (catches syntax errors early via JDT AST parser)
+- Deduplicate Maven build config — shared surefire, JUnit, and Mockito config moved to parent pom
+- Add `.DS_Store` to `.gitignore`
+
+### Debug module (v0.2.0)
+
+- Add breakpoint condition syntax validation in `BreakpointManager`
+- Slim down `pom.xml` — inherits shared build config from parent
+
 ## v0.15.0
 
 - Restructure into multi-module Maven project (core + debug)

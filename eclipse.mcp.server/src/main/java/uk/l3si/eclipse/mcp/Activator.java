@@ -2,6 +2,8 @@ package uk.l3si.eclipse.mcp;
 
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.debug.ui.IDebugUIConstants;
+import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 import uk.l3si.eclipse.mcp.tools.ToolRegistry;
@@ -40,6 +42,7 @@ public class Activator extends AbstractUIPlugin {
         if (server != null) {
             return;
         }
+        suppressDebugActivation();
         server = new McpHttpServer(toolRegistry);
         try {
             server.start();
@@ -47,6 +50,18 @@ public class Activator extends AbstractUIPlugin {
         } catch (Exception ex) {
             log(IStatus.ERROR, "MCP HTTP server failed to start: " + ex.getMessage());
             server = null;
+        }
+    }
+
+    /**
+     * Prevent Eclipse from stealing window focus when a breakpoint is hit.
+     */
+    private void suppressDebugActivation() {
+        try {
+            IPreferenceStore prefs = org.eclipse.debug.ui.DebugUITools.getPreferenceStore();
+            prefs.setValue(IDebugUIConstants.PREF_ACTIVATE_WORKBENCH, false);
+        } catch (Exception e) {
+            log(IStatus.WARNING, "Could not suppress debug activation: " + e.getMessage());
         }
     }
 

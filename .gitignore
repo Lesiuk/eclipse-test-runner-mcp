@@ -8,4 +8,5 @@ eclipse-sdk/
 .classpath
 .worktrees/
 .idea/
+.DS_Store
 docs/
