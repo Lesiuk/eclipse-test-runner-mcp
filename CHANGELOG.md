@@ -1,5 +1,10 @@
 # Changelog
 
+## Debug v0.6.2
+
+- `get_debug_state` now supports `wait_for_suspend` parameter — blocks until a breakpoint is hit or the session terminates, replacing inefficient polling loops
+- Optional `timeout` parameter (default 30s) controls how long to wait before returning current state
+
 ## v0.24.0
 
 - `launch_test` now rejects calls when breakpoints are set — returns error directing to use `run_test` with `mode='debug'` instead

@@ -2,6 +2,9 @@ package uk.l3si.eclipse.mcp.debugging.tools;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import org.eclipse.debug.core.DebugEvent;
+import org.eclipse.debug.core.DebugPlugin;
+import org.eclipse.debug.core.IDebugEventSetListener;
 import org.eclipse.debug.core.model.IBreakpoint;
 import org.eclipse.debug.core.model.IStackFrame;
 import org.eclipse.jdt.debug.core.IJavaDebugTarget;
@@ -10,6 +13,8 @@ import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.tools.Args;
 
@@ -142,6 +147,157 @@ class GetDebugStateToolTest {
 
         JsonObject result = executeAndSerialize();
         assertEquals("step", result.get("reason").getAsString());
+    }
+
+    @Test
+    void waitForSuspendAlreadySuspended() throws Exception {
+        // Should return immediately without registering a listener
+        IJavaDebugTarget target = mock(IJavaDebugTarget.class);
+        when(target.isTerminated()).thenReturn(false);
+        when(debugContext.getCurrentTarget()).thenReturn(target);
+        when(debugContext.isSuspended()).thenReturn(true);
+
+        IJavaThread thread = mock(IJavaThread.class);
+        when(thread.isSuspended()).thenReturn(true);
+        when(thread.getName()).thenReturn("main");
+        IJavaObject threadObj = mock(IJavaObject.class);
+        when(threadObj.getUniqueId()).thenReturn(1L);
+        when(thread.getThreadObject()).thenReturn(threadObj);
+        when(thread.getStackFrames()).thenReturn(new IStackFrame[]{});
+        when(thread.getBreakpoints()).thenReturn(new IBreakpoint[]{});
+        when(debugContext.getCurrentThread()).thenReturn(thread);
+
+        JsonObject args = new JsonObject();
+        args.addProperty("wait_for_suspend", true);
+
+        JsonObject result = GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        assertTrue(result.get("active").getAsBoolean());
+        assertTrue(result.get("suspended").getAsBoolean());
+    }
+
+    @Test
+    void waitForSuspendNoActiveSession() throws Exception {
+        // No debug session — should return immediately with active=false
+        when(debugContext.getCurrentTarget()).thenReturn(null);
+        when(debugContext.isSuspended()).thenReturn(false);
+
+        JsonObject args = new JsonObject();
+        args.addProperty("wait_for_suspend", true);
+
+        JsonObject result = GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        assertFalse(result.get("active").getAsBoolean());
+    }
+
+    @Test
+    void waitForSuspendReceivesSuspendEvent() throws Exception {
+        IJavaDebugTarget target = mock(IJavaDebugTarget.class);
+        when(target.isTerminated()).thenReturn(false);
+        when(debugContext.isSuspended()).thenReturn(false);
+        when(debugContext.getCurrentTarget()).thenReturn(target);
+
+        IJavaThread thread = mock(IJavaThread.class);
+        when(thread.isSuspended()).thenReturn(true);
+        when(thread.getName()).thenReturn("main");
+        IJavaObject threadObj = mock(IJavaObject.class);
+        when(threadObj.getUniqueId()).thenReturn(42L);
+        when(thread.getThreadObject()).thenReturn(threadObj);
+        when(thread.getStackFrames()).thenReturn(new IStackFrame[]{});
+        when(thread.getBreakpoints()).thenReturn(new IBreakpoint[]{mock(IBreakpoint.class)});
+        when(debugContext.getCurrentThread()).thenReturn(thread);
+
+        DebugPlugin plugin = mock(DebugPlugin.class);
+        ArgumentCaptor<IDebugEventSetListener> listenerCaptor = ArgumentCaptor.forClass(IDebugEventSetListener.class);
+
+        try (MockedStatic<DebugPlugin> mocked = mockStatic(DebugPlugin.class)) {
+            mocked.when(DebugPlugin::getDefault).thenReturn(plugin);
+
+            // Fire suspend event when listener is registered
+            doAnswer(invocation -> {
+                IDebugEventSetListener listener = invocation.getArgument(0);
+                listener.handleDebugEvents(new DebugEvent[]{
+                        new DebugEvent(thread, DebugEvent.SUSPEND, DebugEvent.BREAKPOINT)
+                });
+                return null;
+            }).when(plugin).addDebugEventListener(any());
+
+            JsonObject args = new JsonObject();
+            args.addProperty("wait_for_suspend", true);
+            args.addProperty("timeout", "5");
+
+            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+            assertTrue(result.get("active").getAsBoolean());
+            assertTrue(result.get("suspended").getAsBoolean());
+            assertEquals("breakpoint", result.get("reason").getAsString());
+
+            // Verify listener is cleaned up
+            verify(plugin).removeDebugEventListener(any());
+        }
+    }
+
+    @Test
+    void waitForSuspendReceivesTerminateEvent() throws Exception {
+        IJavaDebugTarget target = mock(IJavaDebugTarget.class);
+        when(target.isTerminated()).thenReturn(false);
+        when(debugContext.isSuspended()).thenReturn(false);
+        when(debugContext.getCurrentTarget()).thenReturn(target);
+
+        DebugPlugin plugin = mock(DebugPlugin.class);
+
+        try (MockedStatic<DebugPlugin> mocked = mockStatic(DebugPlugin.class)) {
+            mocked.when(DebugPlugin::getDefault).thenReturn(plugin);
+
+            // Fire terminate event when listener is registered
+            doAnswer(invocation -> {
+                IDebugEventSetListener listener = invocation.getArgument(0);
+                listener.handleDebugEvents(new DebugEvent[]{
+                        new DebugEvent(target, DebugEvent.TERMINATE)
+                });
+                return null;
+            }).when(plugin).addDebugEventListener(any());
+
+            // After terminate, target is terminated
+            when(target.isTerminated()).thenReturn(true);
+
+            JsonObject args = new JsonObject();
+            args.addProperty("wait_for_suspend", true);
+            args.addProperty("timeout", "5");
+
+            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+            assertFalse(result.get("active").getAsBoolean());
+        }
+    }
+
+    @Test
+    void waitForSuspendListenerCleanedUp() throws Exception {
+        IJavaDebugTarget target = mock(IJavaDebugTarget.class);
+        when(target.isTerminated()).thenReturn(false);
+        when(debugContext.isSuspended()).thenReturn(false);
+        when(debugContext.getCurrentTarget()).thenReturn(target);
+        when(debugContext.getCurrentThread()).thenReturn(null);
+
+        DebugPlugin plugin = mock(DebugPlugin.class);
+        ArgumentCaptor<IDebugEventSetListener> listenerCaptor = ArgumentCaptor.forClass(IDebugEventSetListener.class);
+
+        try (MockedStatic<DebugPlugin> mocked = mockStatic(DebugPlugin.class)) {
+            mocked.when(DebugPlugin::getDefault).thenReturn(plugin);
+
+            IJavaThread thread = mock(IJavaThread.class);
+            doAnswer(invocation -> {
+                IDebugEventSetListener listener = invocation.getArgument(0);
+                listener.handleDebugEvents(new DebugEvent[]{
+                        new DebugEvent(thread, DebugEvent.SUSPEND, DebugEvent.BREAKPOINT)
+                });
+                return null;
+            }).when(plugin).addDebugEventListener(any());
+
+            JsonObject args = new JsonObject();
+            args.addProperty("wait_for_suspend", true);
+
+            tool.execute(new Args(args));
+
+            verify(plugin).addDebugEventListener(any());
+            verify(plugin).removeDebugEventListener(any());
+        }
     }
 
     @Test
