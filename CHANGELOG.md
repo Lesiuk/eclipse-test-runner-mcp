@@ -7,8 +7,9 @@
 - Deduplicate Maven build config — shared surefire, JUnit, and Mockito config moved to parent pom
 - Add `.DS_Store` to `.gitignore`
 
-### Debug module (v0.2.0)
+### Debug module (v0.3.0)
 
+- New `list_variables` tool — lists all visible variables with types and values in the current stack frame
 - Add breakpoint condition syntax validation in `BreakpointManager`
 - Slim down `pom.xml` — inherits shared build config from parent
 

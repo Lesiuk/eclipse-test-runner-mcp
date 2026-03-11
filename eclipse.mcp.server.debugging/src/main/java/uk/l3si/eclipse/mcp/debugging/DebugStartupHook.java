@@ -29,6 +29,7 @@ public class DebugStartupHook implements IStartup {
         registry.addTool(new GetDebugStateTool(debugContext));
         registry.addTool(new ListThreadsTool(debugContext));
         registry.addTool(new GetStackTraceTool(debugContext));
+        registry.addTool(new ListVariablesTool(debugContext));
         registry.addTool(new InspectVariableTool(debugContext));
         registry.addTool(new EvaluateExpressionTool(debugContext));
         registry.addTool(new StepTool(debugContext));
