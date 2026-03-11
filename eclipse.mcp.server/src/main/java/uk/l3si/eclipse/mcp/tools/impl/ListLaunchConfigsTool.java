@@ -1,5 +1,6 @@
 package uk.l3si.eclipse.mcp.tools.impl;
 
+import uk.l3si.eclipse.mcp.model.ListTestConfigsResult;
 import uk.l3si.eclipse.mcp.model.TestConfigInfo;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.IMcpTool;
@@ -9,7 +10,6 @@ import org.eclipse.debug.core.ILaunchConfiguration;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 public class ListLaunchConfigsTool implements IMcpTool {
 
@@ -38,7 +38,7 @@ public class ListLaunchConfigsTool implements IMcpTool {
                 .map(this::toConfigInfo)
                 .toList();
 
-        return Map.of("testConfigurations", junitConfigs);
+        return ListTestConfigsResult.builder().testConfigurations(junitConfigs).build();
     }
 
     private TestConfigInfo toConfigInfo(ILaunchConfiguration config) {

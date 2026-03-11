@@ -1,5 +1,8 @@
 package uk.l3si.eclipse.mcp.tools.impl;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import org.eclipse.eclemma.core.CoverageTools;
 import org.eclipse.eclemma.core.analysis.IJavaModelCoverage;
 import org.eclipse.jdt.core.IJavaProject;
@@ -12,14 +15,13 @@ import org.jacoco.core.analysis.ISourceNode;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
-import java.util.List;
-import java.util.Map;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @SuppressWarnings("restriction")
 class CoverageHelperTest {
+
+    private static final Gson GSON = new Gson();
 
     interface SourceCoverageNode extends ICoverageNode, ISourceNode {}
 
@@ -96,7 +98,6 @@ class CoverageHelperTest {
         }
     }
 
-    @SuppressWarnings("unchecked")
     @Test
     void successfulCoverageReturnsSummaryMethodsLines() throws Exception {
         String className = "com.example.Foo";
@@ -182,43 +183,42 @@ class CoverageHelperTest {
             mocked.when(CoverageTools::getJavaModelCoverage).thenReturn(modelCoverage);
             mocked.when(() -> CoverageTools.getCoverageInfo(method)).thenReturn(methodCoverageNode);
 
-            Map<String, Object> result = CoverageHelper.getCoverageForClass(className);
+            JsonObject result = GSON.toJsonTree(CoverageHelper.getCoverageForClass(className)).getAsJsonObject();
 
             // class name
-            assertEquals(className, result.get("class"));
+            assertEquals(className, result.get("className").getAsString());
 
             // summary
-            Map<String, String> summary = (Map<String, String>) result.get("summary");
-            assertEquals("8/10 (80.0%)", summary.get("lineCoverage"));
-            assertEquals("3/4 (75.0%)", summary.get("branchCoverage"));
-            assertEquals("5/5 (100.0%)", summary.get("methodCoverage"));
+            JsonObject summary = result.getAsJsonObject("summary");
+            assertEquals("8/10 (80.0%)", summary.get("lineCoverage").getAsString());
+            assertEquals("3/4 (75.0%)", summary.get("branchCoverage").getAsString());
+            assertEquals("5/5 (100.0%)", summary.get("methodCoverage").getAsString());
 
             // methods
-            List<Map<String, Object>> methods = (List<Map<String, Object>>) result.get("methods");
+            JsonArray methods = result.getAsJsonArray("methods");
             assertEquals(1, methods.size());
-            Map<String, Object> m = methods.get(0);
-            assertEquals("doStuff", m.get("name"));
-            assertEquals("4/5 (80.0%)", m.get("lineCoverage"));
-            assertEquals("2/2 (100.0%)", m.get("branchCoverage"));
+            JsonObject m = methods.get(0).getAsJsonObject();
+            assertEquals("doStuff", m.get("name").getAsString());
+            assertEquals("4/5 (80.0%)", m.get("lineCoverage").getAsString());
+            assertEquals("2/2 (100.0%)", m.get("branchCoverage").getAsString());
 
             // lines (EMPTY skipped, so 3 entries)
-            List<Map<String, Object>> lines = (List<Map<String, Object>>) result.get("lines");
+            JsonArray lines = result.getAsJsonArray("lines");
             assertEquals(3, lines.size());
 
-            assertEquals(10, lines.get(0).get("line"));
-            assertEquals("COVERED", lines.get(0).get("status"));
+            assertEquals(10, lines.get(0).getAsJsonObject().get("line").getAsInt());
+            assertEquals("COVERED", lines.get(0).getAsJsonObject().get("status").getAsString());
 
-            assertEquals(11, lines.get(1).get("line"));
-            assertEquals("NOT_COVERED", lines.get(1).get("status"));
+            assertEquals(11, lines.get(1).getAsJsonObject().get("line").getAsInt());
+            assertEquals("NOT_COVERED", lines.get(1).getAsJsonObject().get("status").getAsString());
 
-            assertEquals(12, lines.get(2).get("line"));
-            assertEquals("PARTLY_COVERED", lines.get(2).get("status"));
-            assertTrue(lines.get(2).containsKey("branches"));
-            assertEquals("1/2", lines.get(2).get("branches"));
+            assertEquals(12, lines.get(2).getAsJsonObject().get("line").getAsInt());
+            assertEquals("PARTLY_COVERED", lines.get(2).getAsJsonObject().get("status").getAsString());
+            assertTrue(lines.get(2).getAsJsonObject().has("branches"));
+            assertEquals("1/2", lines.get(2).getAsJsonObject().get("branches").getAsString());
         }
     }
 
-    @SuppressWarnings("unchecked")
     @Test
     void methodWithUncoveredLinesListsThem() throws Exception {
         String className = "com.example.Bar";
@@ -274,18 +274,18 @@ class CoverageHelperTest {
             mocked.when(CoverageTools::getJavaModelCoverage).thenReturn(modelCoverage);
             mocked.when(() -> CoverageTools.getCoverageInfo(method)).thenReturn(methodCoverage);
 
-            Map<String, Object> result = CoverageHelper.getCoverageForClass(className);
+            JsonObject result = GSON.toJsonTree(CoverageHelper.getCoverageForClass(className)).getAsJsonObject();
 
-            List<Map<String, Object>> methods = (List<Map<String, Object>>) result.get("methods");
+            JsonArray methods = result.getAsJsonArray("methods");
             assertEquals(1, methods.size());
-            Map<String, Object> m = methods.get(0);
-            List<Integer> uncovered = (List<Integer>) m.get("uncoveredLines");
+            JsonObject m = methods.get(0).getAsJsonObject();
+            JsonArray uncovered = m.getAsJsonArray("uncoveredLines");
             assertNotNull(uncovered);
-            assertEquals(List.of(21), uncovered);
+            assertEquals(1, uncovered.size());
+            assertEquals(21, uncovered.get(0).getAsInt());
         }
     }
 
-    @SuppressWarnings("unchecked")
     @Test
     void fullyCoveredMethodHasNoUncoveredLines() throws Exception {
         String className = "com.example.Baz";
@@ -341,15 +341,14 @@ class CoverageHelperTest {
             mocked.when(CoverageTools::getJavaModelCoverage).thenReturn(modelCoverage);
             mocked.when(() -> CoverageTools.getCoverageInfo(method)).thenReturn(methodCoverage);
 
-            Map<String, Object> result = CoverageHelper.getCoverageForClass(className);
+            JsonObject result = GSON.toJsonTree(CoverageHelper.getCoverageForClass(className)).getAsJsonObject();
 
-            List<Map<String, Object>> methods = (List<Map<String, Object>>) result.get("methods");
+            JsonArray methods = result.getAsJsonArray("methods");
             assertEquals(1, methods.size());
-            assertFalse(methods.get(0).containsKey("uncoveredLines"));
+            assertNull(methods.get(0).getAsJsonObject().get("uncoveredLines"));
         }
     }
 
-    @SuppressWarnings("unchecked")
     @Test
     void branchInfoIncludedForPartialLines() throws Exception {
         String className = "com.example.BranchTest";
@@ -385,18 +384,17 @@ class CoverageHelperTest {
         try (MockedStatic<CoverageTools> mocked = mockStatic(CoverageTools.class)) {
             mocked.when(CoverageTools::getJavaModelCoverage).thenReturn(modelCoverage);
 
-            Map<String, Object> result = CoverageHelper.getCoverageForClass(className);
+            JsonObject result = GSON.toJsonTree(CoverageHelper.getCoverageForClass(className)).getAsJsonObject();
 
-            List<Map<String, Object>> lines = (List<Map<String, Object>>) result.get("lines");
+            JsonArray lines = result.getAsJsonArray("lines");
             assertEquals(1, lines.size());
-            Map<String, Object> lineMap = lines.get(0);
-            assertEquals(50, lineMap.get("line"));
-            assertEquals("PARTLY_COVERED", lineMap.get("status"));
-            assertEquals("1/2", lineMap.get("branches"));
+            JsonObject lineObj = lines.get(0).getAsJsonObject();
+            assertEquals(50, lineObj.get("line").getAsInt());
+            assertEquals("PARTLY_COVERED", lineObj.get("status").getAsString());
+            assertEquals("1/2", lineObj.get("branches").getAsString());
         }
     }
 
-    @SuppressWarnings("unchecked")
     @Test
     void zeroCoveredFormatted() throws Exception {
         String className = "com.example.Empty";
@@ -426,12 +424,12 @@ class CoverageHelperTest {
         try (MockedStatic<CoverageTools> mocked = mockStatic(CoverageTools.class)) {
             mocked.when(CoverageTools::getJavaModelCoverage).thenReturn(modelCoverage);
 
-            Map<String, Object> result = CoverageHelper.getCoverageForClass(className);
+            JsonObject result = GSON.toJsonTree(CoverageHelper.getCoverageForClass(className)).getAsJsonObject();
 
-            Map<String, String> summary = (Map<String, String>) result.get("summary");
-            assertEquals("0/0", summary.get("lineCoverage"));
-            assertEquals("0/0", summary.get("branchCoverage"));
-            assertEquals("0/0", summary.get("methodCoverage"));
+            JsonObject summary = result.getAsJsonObject("summary");
+            assertEquals("0/0", summary.get("lineCoverage").getAsString());
+            assertEquals("0/0", summary.get("branchCoverage").getAsString());
+            assertEquals("0/0", summary.get("methodCoverage").getAsString());
         }
     }
 }

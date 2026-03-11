@@ -1,12 +1,12 @@
 package uk.l3si.eclipse.mcp.tools.impl;
 
+import uk.l3si.eclipse.mcp.model.FailureTraceResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.IMcpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
 import java.util.List;
-import java.util.Map;
 
 public class GetFailureTraceTool implements IMcpTool {
 
@@ -42,10 +42,10 @@ public class GetFailureTraceTool implements IMcpTool {
                     "No failure trace found for " + className + "#" + methodName
                     + ". Make sure a test run has completed and this test actually failed.");
         }
-        return Map.of(
-                "class", className,
-                "method", methodName,
-                "trace", trace
-        );
+        return FailureTraceResult.builder()
+                .className(className)
+                .method(methodName)
+                .trace(trace)
+                .build();
     }
 }

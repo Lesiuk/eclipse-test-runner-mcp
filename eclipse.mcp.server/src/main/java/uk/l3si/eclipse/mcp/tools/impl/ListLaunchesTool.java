@@ -1,5 +1,6 @@
 package uk.l3si.eclipse.mcp.tools.impl;
 
+import uk.l3si.eclipse.mcp.model.ListTestRunsResult;
 import uk.l3si.eclipse.mcp.model.TestRunInfo;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.IMcpTool;
@@ -9,7 +10,6 @@ import org.eclipse.debug.core.ILaunch;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 public class ListLaunchesTool implements IMcpTool {
 
@@ -39,7 +39,7 @@ public class ListLaunchesTool implements IMcpTool {
                 .map(this::toRunInfo)
                 .toList();
 
-        return Map.of("testRuns", testRuns);
+        return ListTestRunsResult.builder().testRuns(testRuns).build();
     }
 
     private TestRunInfo toRunInfo(ILaunch launch) {

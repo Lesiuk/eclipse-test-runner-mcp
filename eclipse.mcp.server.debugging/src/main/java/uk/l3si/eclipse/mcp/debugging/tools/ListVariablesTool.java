@@ -2,6 +2,7 @@ package uk.l3si.eclipse.mcp.debugging.tools;
 
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.debugging.model.ArrayElementInfo;
+import uk.l3si.eclipse.mcp.debugging.model.ListVariablesResult;
 import uk.l3si.eclipse.mcp.debugging.model.VariableResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.IMcpTool;
@@ -16,9 +17,7 @@ import org.eclipse.jdt.debug.core.IJavaThread;
 import org.eclipse.jdt.debug.core.IJavaValue;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 public class ListVariablesTool implements IMcpTool {
 
@@ -46,8 +45,8 @@ public class ListVariablesTool implements IMcpTool {
     @Override
     public InputSchema getInputSchema() {
         return InputSchema.builder()
-                .property("thread_id", PropertySchema.builder().type("integer").description("Thread ID. Defaults to current suspended thread.").build())
-                .property("frame_index", PropertySchema.builder().type("integer").description("Stack frame index (0 = top). Defaults to 0.").build())
+                .property("thread_id", PropertySchema.builder().type("integer").description("Thread ID (from list_threads). Defaults to the current suspended thread.").build())
+                .property("frame_index", PropertySchema.builder().type("integer").description("Stack frame index (0 = top, from get_stack_trace). Defaults to 0.").build())
                 .build();
     }
 
@@ -57,19 +56,34 @@ public class ListVariablesTool implements IMcpTool {
         Integer frameIndex = args.getInt("frame_index");
 
         IJavaThread thread = debugContext.resolveThread(threadId);
+        if (!thread.isSuspended()) {
+            throw new IllegalStateException(
+                    "Thread '" + thread.getName() + "' is not suspended. "
+                    + "Variables can only be listed when execution is paused at a breakpoint or after a step.");
+        }
         IJavaStackFrame frame = debugContext.resolveFrame(thread, frameIndex);
 
         List<VariableResult> variables = new ArrayList<>();
         for (IVariable v : frame.getVariables()) {
-            if (v.getValue() instanceof IJavaValue javaValue) {
-                variables.add(formatValue(v.getName(), javaValue));
+            try {
+                if (v.getValue() instanceof IJavaValue javaValue) {
+                    variables.add(formatValue(v.getName(), javaValue));
+                }
+            } catch (DebugException e) {
+                // Include the variable with an error indicator rather than failing entirely
+                variables.add(VariableResult.builder()
+                        .name(v.getName())
+                        .type("unknown")
+                        .value("<error: " + e.getMessage() + ">")
+                        .build());
             }
         }
 
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("frame", frame.getDeclaringTypeName() + "." + frame.getMethodName() + ":" + frame.getLineNumber());
-        result.put("variables", variables);
-        return result;
+        return ListVariablesResult.builder()
+                .frame(frame.getDeclaringTypeName() + "." + frame.getMethodName() + ":" + frame.getLineNumber())
+                .variableCount(variables.size())
+                .variables(variables)
+                .build();
     }
 
     private VariableResult formatValue(String name, IJavaValue value) throws DebugException {

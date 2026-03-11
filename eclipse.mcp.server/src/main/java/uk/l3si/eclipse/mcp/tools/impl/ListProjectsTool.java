@@ -1,5 +1,6 @@
 package uk.l3si.eclipse.mcp.tools.impl;
 
+import uk.l3si.eclipse.mcp.model.ListProjectsResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.IMcpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
@@ -8,7 +9,6 @@ import org.eclipse.core.resources.ResourcesPlugin;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 public class ListProjectsTool implements IMcpTool {
 
@@ -34,6 +34,6 @@ public class ListProjectsTool implements IMcpTool {
                 .map(IProject::getName)
                 .toList();
 
-        return Map.of("projects", openProjects);
+        return ListProjectsResult.builder().projects(openProjects).build();
     }
 }

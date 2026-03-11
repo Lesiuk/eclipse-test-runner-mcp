@@ -1,5 +1,9 @@
 package uk.l3si.eclipse.mcp.tools.impl;
 
+import uk.l3si.eclipse.mcp.model.CoverageResult;
+import uk.l3si.eclipse.mcp.model.CoverageSummary;
+import uk.l3si.eclipse.mcp.model.LineCoverageInfo;
+import uk.l3si.eclipse.mcp.model.MethodCoverageInfo;
 import org.eclipse.eclemma.core.CoverageTools;
 import org.eclipse.eclemma.core.analysis.IJavaCoverageListener;
 import org.eclipse.eclemma.core.analysis.IJavaModelCoverage;
@@ -12,9 +16,7 @@ import org.jacoco.core.analysis.ILine;
 import org.jacoco.core.analysis.ISourceNode;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -53,7 +55,7 @@ class CoverageHelper {
      * Get detailed coverage for a specific class.
      * Returns a map structure with summary, methods, and per-line detail.
      */
-    static Map<String, Object> getCoverageForClass(String className) throws Exception {
+    static CoverageResult getCoverageForClass(String className) throws Exception {
         IJavaModelCoverage modelCoverage = CoverageTools.getJavaModelCoverage();
         if (modelCoverage == null) {
             throw new IllegalStateException(
@@ -83,12 +85,12 @@ class CoverageHelper {
                     + "The class may not be in the coverage scope, or no code paths in this class were exercised.");
         }
 
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("class", className);
-        result.put("summary", buildSummary(classCoverage));
-        result.put("methods", buildMethods(type));
-        result.put("lines", buildLines(classCoverage));
-        return result;
+        return CoverageResult.builder()
+                .className(className)
+                .summary(buildSummary(classCoverage))
+                .methods(buildMethods(type))
+                .lines(buildLines(classCoverage))
+                .build();
     }
 
     private static IType findType(IJavaModelCoverage modelCoverage, String className) throws Exception {
@@ -101,29 +103,27 @@ class CoverageHelper {
         return null;
     }
 
-    private static Map<String, String> buildSummary(ICoverageNode node) {
-        Map<String, String> summary = new LinkedHashMap<>();
-        summary.put("lineCoverage", formatCounter(node.getLineCounter()));
-        summary.put("branchCoverage", formatCounter(node.getBranchCounter()));
-        summary.put("methodCoverage", formatCounter(node.getMethodCounter()));
-        return summary;
+    private static CoverageSummary buildSummary(ICoverageNode node) {
+        return CoverageSummary.builder()
+                .lineCoverage(formatCounter(node.getLineCounter()))
+                .branchCoverage(formatCounter(node.getBranchCounter()))
+                .methodCoverage(formatCounter(node.getMethodCounter()))
+                .build();
     }
 
-    private static List<Map<String, Object>> buildMethods(IType type) {
-        List<Map<String, Object>> methods = new ArrayList<>();
+    private static List<MethodCoverageInfo> buildMethods(IType type) {
+        List<MethodCoverageInfo> methods = new ArrayList<>();
 
-        // Walk via the IType's methods and query coverage for each
         try {
             for (IMethod method : type.getMethods()) {
                 ICoverageNode methodCoverage = CoverageTools.getCoverageInfo(method);
                 if (methodCoverage == null) continue;
 
-                Map<String, Object> methodMap = new LinkedHashMap<>();
-                methodMap.put("name", method.getElementName());
-                methodMap.put("lineCoverage", formatCounter(methodCoverage.getLineCounter()));
-                methodMap.put("branchCoverage", formatCounter(methodCoverage.getBranchCounter()));
+                MethodCoverageInfo.MethodCoverageInfoBuilder builder = MethodCoverageInfo.builder()
+                        .name(method.getElementName())
+                        .lineCoverage(formatCounter(methodCoverage.getLineCounter()))
+                        .branchCoverage(formatCounter(methodCoverage.getBranchCounter()));
 
-                // Collect uncovered lines for this method
                 if (methodCoverage instanceof ISourceNode methodSource) {
                     List<Integer> uncovered = new ArrayList<>();
                     int first = methodSource.getFirstLine();
@@ -138,11 +138,11 @@ class CoverageHelper {
                         }
                     }
                     if (!uncovered.isEmpty()) {
-                        methodMap.put("uncoveredLines", uncovered);
+                        builder.uncoveredLines(uncovered);
                     }
                 }
 
-                methods.add(methodMap);
+                methods.add(builder.build());
             }
         } catch (Exception e) {
             // If we can't enumerate methods, return what we have
@@ -151,8 +151,8 @@ class CoverageHelper {
         return methods;
     }
 
-    private static List<Map<String, Object>> buildLines(ICoverageNode classCoverage) {
-        List<Map<String, Object>> lines = new ArrayList<>();
+    private static List<LineCoverageInfo> buildLines(ICoverageNode classCoverage) {
+        List<LineCoverageInfo> lines = new ArrayList<>();
 
         if (!(classCoverage instanceof ISourceNode sourceNode)) {
             return lines;
@@ -169,16 +169,16 @@ class CoverageHelper {
             int status = line.getStatus();
             if (status == ICounter.EMPTY) continue;
 
-            Map<String, Object> lineMap = new LinkedHashMap<>();
-            lineMap.put("line", lineNum);
-            lineMap.put("status", statusToString(status));
+            LineCoverageInfo.LineCoverageInfoBuilder builder = LineCoverageInfo.builder()
+                    .line(lineNum)
+                    .status(statusToString(status));
 
             ICounter branchCounter = line.getBranchCounter();
             if (branchCounter.getTotalCount() > 0) {
-                lineMap.put("branches", branchCounter.getCoveredCount() + "/" + branchCounter.getTotalCount());
+                builder.branches(branchCounter.getCoveredCount() + "/" + branchCounter.getTotalCount());
             }
 
-            lines.add(lineMap);
+            lines.add(builder.build());
         }
 
         return lines;
