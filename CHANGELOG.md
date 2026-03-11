@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.21.0
+
+- Improve `get_failure_trace` tool description to discourage redundant calls — `run_test` and `get_test_results` already return condensed failure messages with exception type, message, and key stack frames
+
 ## v0.20.0
 
 - Disable "Skip All Breakpoints" before launching tests in debug mode — ensures breakpoints are always hit
