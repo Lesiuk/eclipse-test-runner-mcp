@@ -17,8 +17,10 @@ public class GetFailureTraceTool implements IMcpTool {
 
     @Override
     public String getDescription() {
-        return "Get the full stack trace for a specific test failure. "
-             + "Use this after run_test or get_test_results shows a failure and you need the complete stack trace to diagnose it. "
+        return "Get the FULL unabridged stack trace for a specific test failure. "
+             + "You usually do NOT need this — run_test and get_test_results already return a condensed failure message with the "
+             + "exception type, message, and key stack frames. Only use this when the condensed message is insufficient to diagnose "
+             + "the root cause and you need the complete raw stack trace. "
              + "Pass the fully qualified class name and test method name from the failure.";
     }
 
