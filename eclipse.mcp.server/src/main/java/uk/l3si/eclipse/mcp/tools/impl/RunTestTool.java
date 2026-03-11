@@ -39,7 +39,6 @@ public class RunTestTool implements IMcpTool {
     public String getDescription() {
         return "Refresh, build, then run a JUnit test. Use this after editing Java files externally — "
              + "it refreshes projects from the filesystem, rebuilds, checks for compilation errors, and then runs the test. "
-             + "If code has NOT changed and you just want to re-run tests, use 'launch_test' instead (faster, skips refresh/build). "
              + "Requires an existing JUnit launch configuration (regular JUnit or JUnit Plug-in Test) which provides "
              + "all runtime settings (VM args, classpath, environment). Overrides the test target to run the specified class/method. "
              + "When source and tests live in different projects, use 'dependencies' to refresh and build dependency projects in order "

@@ -21,7 +21,7 @@ public class ListLaunchConfigsTool implements IMcpTool {
     @Override
     public String getDescription() {
         return "List all JUnit launch configurations in Eclipse (both regular JUnit and JUnit Plug-in Test). "
-             + "Returns name and type for each. Use these config names with 'run_test' or 'launch_test'.";
+             + "Returns name and type for each. Use these config names with 'run_test'.";
     }
 
     @Override

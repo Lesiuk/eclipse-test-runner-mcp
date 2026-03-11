@@ -25,7 +25,6 @@ public class ToolRegistry {
         addTool(new ListLaunchesTool());
         addTool(new TerminateTool());
         addTool(new RunTestTool(launchModes));
-        addTool(new LaunchTestTool());
         addTool(new GetTestResultsTool());
         addTool(new GetProblemsTool());
         addTool(new GetFailureTraceTool());

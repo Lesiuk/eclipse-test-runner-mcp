@@ -7,7 +7,7 @@
 
 Eclipse IDE plugin that lets AI coding assistants ([Claude Code](https://docs.anthropic.com/en/docs/claude-code), [GitHub Copilot](https://github.com/features/copilot)) run JUnit tests, inspect results, check compilation errors, and read console output through the [Model Context Protocol](https://modelcontextprotocol.io/).
 
-- **Run & re-run JUnit tests** — full build pipeline or quick re-launch
+- **Run JUnit tests** — full build pipeline with refresh, build, and error checking
 - **Code coverage** — per-line and per-method coverage via EclEmma/JaCoCo
 - **Interactive debugging** — breakpoints, stepping, variable inspection, expression evaluation
 - **Workspace diagnostics** — compilation errors, console output, project listing
@@ -57,7 +57,6 @@ Parameters marked with **\*** are required. All others are optional.
 | Tool | Description |
 |------|-------------|
 | `run_test` | Full pipeline — refresh, build, check errors, launch test |
-| `launch_test` | Quick re-run without refresh or rebuild |
 | `get_test_results` | Results from the most recent test run |
 | `get_failure_trace` | Full stack trace for a single test failure |
 | `get_coverage` | Per-line and per-method code coverage for a class |
@@ -91,7 +90,6 @@ list_test_configs          → discover available JUnit configurations
 run_test                   → edit code, then refresh + build + run
 run_test (mode=coverage)   → same, but with code coverage enabled
 run_test (mode=debug)      → run with debugger (set breakpoints first)
-launch_test                → re-run without rebuild when code is unchanged
 get_test_results           → re-check results or wait for completion
 get_failure_trace          → drill into a specific failure's full stack trace
 get_coverage               → inspect per-line coverage for a source class
@@ -119,11 +117,7 @@ resume                     → let the test finish
 
 Full pipeline — refresh projects from disk, build (dependencies first, in order), check for compilation errors, then launch the test. Fails fast if compilation errors are found. Rejects the call if another test is already running. The `mode` parameter controls how the test launches: `run` (default), `coverage` (EclEmma/JaCoCo — use `get_coverage` afterwards), or `debug` (requires debug add-on — set breakpoints first).
 
-**`launch_test`** `(config*, class*, method, project)` → `{config, project, class, method, testResults{…}}`
-
-Runs a test immediately without refreshing or rebuilding. Intended for quick re-runs when source code hasn't changed since the last build. Also rejects if a test is already running.
-
-Both tools use an existing launch configuration as a template — inheriting VM arguments, classpath, and environment — while overriding just the test target (class/method).
+Uses an existing launch configuration as a template — inheriting VM arguments, classpath, and environment — while overriding just the test target (class/method).
 
 #### Test Results
 

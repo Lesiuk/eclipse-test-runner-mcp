@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.25.0
+
+- Remove `launch_test` tool — `run_test` is now the single tool for running tests, eliminating ambiguity for LLM tool selection
+- Remove `launch_test` reference from `run_test` and `list_test_configs` descriptions
+
 ## Debug v0.6.2
 
 - `get_debug_state` now supports `wait_for_suspend` parameter — blocks until a breakpoint is hit or the session terminates, replacing inefficient polling loops
