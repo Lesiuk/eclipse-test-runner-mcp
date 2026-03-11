@@ -71,6 +71,7 @@ Parameters marked with **\*** are required. All others are optional.
 | `get_debug_state` | Check if debugger is active/suspended |
 | `list_threads` | All threads in the debug session |
 | `get_stack_trace` | Stack trace for a suspended thread |
+| `list_variables` | List all visible variables in the current stack frame |
 | `inspect_variable` | Inspect a variable (supports dot-paths and indexing) |
 | `evaluate_expression` | Evaluate a Java expression in a suspended frame |
 | `step` | Step over, into, or return |
@@ -95,6 +96,7 @@ get_coverage               → inspect per-line coverage for a source class
 set_breakpoint             → set breakpoint at a suspicious line
 run_test (mode=debug)      → launch test with debugger attached
 get_debug_state            → check if breakpoint was hit
+list_variables             → see all variables in scope
 inspect_variable           → examine variable values at the breakpoint
 evaluate_expression        → evaluate a Java expression in context
 step (action=over)         → step to the next line
@@ -181,6 +183,10 @@ List all threads in the debug session with their state (running, suspended, term
 **`get_stack_trace`** `(thread_id)` → `{thread, frames[{index, class, method, line, sourceName}]}`
 
 Get the stack trace for a suspended thread. Use the frame index with `inspect_variable` or `evaluate_expression` to work in a specific frame's context.
+
+**`list_variables`** `(thread_id, frame_index)` → `{frame, variableCount, variables[{name, type, value, fields[], length, elements[], truncated}]}`
+
+List all visible variables in the current stack frame with their types and shallow values. Shows local variables, method parameters, and `this` fields. For objects, shows field names; for arrays, shows length and first few elements. Use `inspect_variable` to drill deeper.
 
 **`inspect_variable`** `(name*, thread_id, frame_index)` → `{name, type, value, fields[], elements[]}`
 
