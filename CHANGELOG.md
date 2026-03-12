@@ -1,5 +1,10 @@
 # Changelog
 
+## Debug v0.6.3
+
+- `get_debug_state` now defaults to `wait_for_suspend=true` — automatically blocks until a breakpoint is hit or the session ends, eliminating the need for LLMs to remember to pass the parameter
+- Add `Args.getBoolean(key, defaultValue)` overload for boolean parameters with non-false defaults
+
 ## v0.25.0
 
 - Remove `launch_test` tool — `run_test` is now the single tool for running tests, eliminating ambiguity for LLM tool selection

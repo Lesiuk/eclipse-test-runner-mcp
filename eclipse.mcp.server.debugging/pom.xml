@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>eclipse.mcp.server.debugging</artifactId>
-    <version>0.6.2-SNAPSHOT</version>
+    <version>0.6.3-SNAPSHOT</version>
     <packaging>eclipse-plugin</packaging>
 
     <dependencies>

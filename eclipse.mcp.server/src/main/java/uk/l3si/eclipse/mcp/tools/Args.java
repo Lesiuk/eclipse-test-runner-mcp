@@ -74,6 +74,13 @@ public class Args {
                 && json.get(key).getAsBoolean();
     }
 
+    public boolean getBoolean(String key, boolean defaultValue) {
+        if (!json.has(key) || json.get(key).isJsonNull()) {
+            return defaultValue;
+        }
+        return json.get(key).getAsBoolean();
+    }
+
     public List<String> getStringList(String key) {
         if (!json.has(key) || json.get(key).isJsonNull()) return null;
         JsonArray array = json.getAsJsonArray(key);

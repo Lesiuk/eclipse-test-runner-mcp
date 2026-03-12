@@ -38,15 +38,16 @@ public class GetDebugStateTool implements IMcpTool {
     public String getDescription() {
         return "Check the current debug session state. Returns whether a debug session is active, "
              + "if a thread is suspended (e.g. at a breakpoint), which thread and at what location. "
-             + "Use wait_for_suspend=true to block until a breakpoint is hit instead of polling.";
+             + "By default, blocks until a breakpoint is hit or the session ends (wait_for_suspend=true). "
+             + "Set wait_for_suspend=false only if you need a non-blocking snapshot.";
     }
 
     @Override
     public InputSchema getInputSchema() {
         return InputSchema.builder()
                 .property("wait_for_suspend", PropertySchema.bool(
-                        "If true, blocks until a thread suspends (e.g. hits a breakpoint) or the session terminates. "
-                        + "Use after resume or run_test in debug mode instead of polling."))
+                        "Whether to block until a thread suspends (e.g. hits a breakpoint) or the session terminates. "
+                        + "Defaults to true. Set to false only for non-blocking state checks."))
                 .property("timeout", PropertySchema.builder()
                         .type("integer")
                         .description("Timeout in seconds when wait_for_suspend is true (default: "
@@ -57,7 +58,7 @@ public class GetDebugStateTool implements IMcpTool {
 
     @Override
     public Object execute(Args args) throws Exception {
-        boolean waitForSuspend = args.getBoolean("wait_for_suspend");
+        boolean waitForSuspend = args.getBoolean("wait_for_suspend", true);
 
         if (waitForSuspend) {
             waitForSuspendEvent(args);
