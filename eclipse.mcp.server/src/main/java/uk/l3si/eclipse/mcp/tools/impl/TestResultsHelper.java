@@ -24,7 +24,7 @@ import java.util.List;
 class TestResultsHelper {
 
     private static final long POST_TERMINATION_GRACE_MS = 5 * 1000;
-    private static final long POLL_INTERVAL_MS = 500;
+    private static final long POLL_INTERVAL_MS = 100;
 
     static TestRunResult waitAndCollect(ILaunch launch) throws InterruptedException {
         JUnitModel model = JUnitCorePlugin.getModel();
@@ -145,8 +145,6 @@ class TestResultsHelper {
         long terminatedAt = -1;
 
         while (true) {
-            Thread.sleep(POLL_INTERVAL_MS);
-
             sessions = model.getTestRunSessions();
             if (!sessions.isEmpty()) {
                 TestRunSession latest = sessions.get(0);
@@ -156,6 +154,7 @@ class TestResultsHelper {
             }
 
             if (!launch.isTerminated()) {
+                Thread.sleep(POLL_INTERVAL_MS);
                 continue;
             }
 
@@ -163,6 +162,7 @@ class TestResultsHelper {
             if (System.currentTimeMillis() - terminatedAt > POST_TERMINATION_GRACE_MS) {
                 break;
             }
+            Thread.sleep(POLL_INTERVAL_MS);
         }
 
         return existing;
