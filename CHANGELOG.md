@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.27.0
+
+- Add `find_references` tool — find all references to a Java class, method, or field across all open Eclipse workspace projects using Eclipse's semantic search engine
+- Results grouped by file with line numbers and source line context
+- Validates class and member existence, lists available members on mismatch
+- Handles method overloads (searches all overloads together)
+
 ## v0.26.0
 
 - Reject `run_test` in debug mode when no breakpoints are set — returns error directing to use `set_breakpoint` first

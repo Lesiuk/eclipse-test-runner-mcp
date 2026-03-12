@@ -30,6 +30,7 @@ public class ToolRegistry {
         addTool(new GetFailureTraceTool());
         addTool(new GetConsoleOutputTool());
         addTool(new GetCoverageTool());
+        addTool(new FindReferencesTool());
     }
 
     public synchronized void addTool(IMcpTool tool) {
