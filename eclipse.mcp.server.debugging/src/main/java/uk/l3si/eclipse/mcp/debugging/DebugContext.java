@@ -30,6 +30,11 @@ public class DebugContext implements IDebugEventSetListener {
         for (DebugEvent event : events) {
             Object source = event.getSource();
             switch (event.getKind()) {
+                case DebugEvent.CREATE -> {
+                    if (source instanceof IJavaDebugTarget target) {
+                        currentTarget = target;
+                    }
+                }
                 case DebugEvent.SUSPEND -> {
                     if (source instanceof IJavaThread thread) {
                         currentThread = thread;

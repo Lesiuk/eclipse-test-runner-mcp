@@ -50,6 +50,27 @@ class DebugContextTest {
     }
 
     @Test
+    void createEventSetsCurrentTarget() {
+        IJavaDebugTarget target = mock(IJavaDebugTarget.class);
+
+        DebugEvent event = new DebugEvent(target, DebugEvent.CREATE);
+        debugContext.handleDebugEvents(new DebugEvent[]{event});
+
+        assertSame(target, debugContext.getCurrentTarget());
+        assertNull(debugContext.getCurrentThread());
+    }
+
+    @Test
+    void createEventIgnoresNonJavaTarget() {
+        IDebugTarget nonJavaTarget = mock(IDebugTarget.class);
+
+        DebugEvent event = new DebugEvent(nonJavaTarget, DebugEvent.CREATE);
+        debugContext.handleDebugEvents(new DebugEvent[]{event});
+
+        assertNull(debugContext.getCurrentTarget());
+    }
+
+    @Test
     void resumeEventClearsCurrentThread() {
         // First suspend to set current thread
         IJavaThread thread = mock(IJavaThread.class);
