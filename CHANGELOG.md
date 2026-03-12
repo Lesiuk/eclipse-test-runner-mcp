@@ -1,9 +1,12 @@
 # Changelog
 
+## v0.32.0
+
+- Reduce test session poll interval from 500ms to 100ms and check immediately before sleeping — fast tests no longer wait unnecessarily
+
 ## v0.31.0
 
 - Round `elapsedSeconds` in test results to 2 decimal places
-- Reduce test session poll interval from 500ms to 100ms and check immediately before sleeping — fast tests no longer wait unnecessarily
 
 ## v0.30.0
 
