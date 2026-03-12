@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.28.0
+
+- Fix: remove global lock from tool execution — `ToolRegistry.callTool()` was `synchronized`, blocking all concurrent tool calls while any single tool was running. When `run_test` blocked waiting for test completion, `get_test_results`, `list_test_runs`, `terminate` etc. would all queue behind the lock and timeout on the client side. The synchronized block now only covers tool lookup and parameter validation; execution runs lock-free.
+
 ## v0.27.0
 
 - Add `find_references` tool — find all references to a Java class, method, or field across all open Eclipse workspace projects using Eclipse's semantic search engine
