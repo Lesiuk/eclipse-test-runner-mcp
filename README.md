@@ -10,6 +10,7 @@ Eclipse IDE plugin that lets AI coding assistants ([Claude Code](https://docs.an
 - **Run JUnit tests** — full build pipeline with refresh, build, and error checking
 - **Code coverage** — per-line and per-method coverage via EclEmma/JaCoCo
 - **Interactive debugging** — breakpoints, stepping, variable inspection, expression evaluation
+- **Code intelligence** — find references to classes, methods, and fields across the workspace
 - **Workspace diagnostics** — compilation errors, console output, project listing
 
 ## Installation
@@ -66,6 +67,7 @@ Parameters marked with **\*** are required. All others are optional.
 | `get_problems` | Compilation errors (and optionally warnings) |
 | `get_console_output` | stdout/stderr from a launch |
 | `terminate` | Stop running launches |
+| `find_references` | Find all references to a class, method, or field |
 
 #### Debugging add-on (`eclipse.mcp.server.debugging`)
 
@@ -158,6 +160,12 @@ Captures stdout and stderr from the most recent launch (or a specific one by nam
 **`terminate`** `(name)` → `{terminated}`
 
 Stops running launches. Optionally filtered by configuration name. Returns the number of launches terminated.
+
+#### Code Intelligence
+
+**`find_references`** `(class*, member)` → `{element, totalReferences, files[{class, references[{line, source}]}]}`
+
+Find all references to a Java class, method, or field across all open workspace projects. Uses Eclipse's semantic search engine — finds actual usages, not just name matches. If `member` is omitted, finds references to the class itself. Handles method overloads (searches all overloads together). Results grouped by file with line numbers and source line context.
 
 #### Debugging (requires debug add-on)
 
