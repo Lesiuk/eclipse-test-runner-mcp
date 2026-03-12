@@ -7,6 +7,7 @@
 ## Debug v0.6.3
 
 - `get_debug_state` now defaults to `wait_for_suspend=true` — automatically blocks until a breakpoint is hit or the session ends, eliminating the need for LLMs to remember to pass the parameter
+- Replace event listener + CountDownLatch wait mechanism with simple polling of `DebugContext` state (fixes `TypeError: fetch failed` caused by blocking on non-Eclipse threads)
 - Add `Args.getBoolean(key, defaultValue)` overload for boolean parameters with non-false defaults
 
 ## v0.25.0

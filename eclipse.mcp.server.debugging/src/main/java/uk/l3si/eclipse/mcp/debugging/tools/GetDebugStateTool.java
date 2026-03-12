@@ -7,17 +7,9 @@ import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.IMcpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
-import org.eclipse.debug.core.DebugEvent;
-import org.eclipse.debug.core.DebugPlugin;
-import org.eclipse.debug.core.IDebugEventSetListener;
-import org.eclipse.debug.core.model.IDebugTarget;
 import org.eclipse.jdt.debug.core.IJavaDebugTarget;
 import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
-
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class GetDebugStateTool implements IMcpTool {
 
@@ -61,14 +53,15 @@ public class GetDebugStateTool implements IMcpTool {
         boolean waitForSuspend = args.getBoolean("wait_for_suspend", true);
 
         if (waitForSuspend) {
-            waitForSuspendEvent(args);
+            waitForSuspend(args);
         }
 
         return buildState();
     }
 
-    private void waitForSuspendEvent(Args args) throws Exception {
-        // Already suspended — no need to wait
+    private static final int POLL_INTERVAL_MS = 500;
+
+    private void waitForSuspend(Args args) throws Exception {
         if (debugContext.isSuspended()) {
             return;
         }
@@ -80,45 +73,16 @@ public class GetDebugStateTool implements IMcpTool {
 
         int timeoutSeconds = args.getInt("timeout") != null
                 ? args.getInt("timeout") : DEFAULT_TIMEOUT_SECONDS;
+        long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
 
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicBoolean terminated = new AtomicBoolean(false);
-
-        IDebugEventSetListener listener = events -> {
-            for (DebugEvent event : events) {
-                if (event.getKind() == DebugEvent.SUSPEND
-                        && event.getSource() instanceof IJavaThread) {
-                    latch.countDown();
-                    return;
-                }
-                if (event.getKind() == DebugEvent.TERMINATE
-                        && event.getSource() instanceof IDebugTarget) {
-                    terminated.set(true);
-                    latch.countDown();
-                    return;
-                }
-            }
-        };
-
-        DebugPlugin plugin = DebugPlugin.getDefault();
-        if (plugin == null) {
-            return;
-        }
-        plugin.addDebugEventListener(listener);
-        try {
-            // Re-check after registering listener to avoid race condition
+        while (System.currentTimeMillis() < deadline) {
+            Thread.sleep(POLL_INTERVAL_MS);
             if (debugContext.isSuspended()) {
                 return;
             }
-            IJavaDebugTarget currentTarget = debugContext.getCurrentTarget();
-            if (currentTarget == null || currentTarget.isTerminated()) {
+            target = debugContext.getCurrentTarget();
+            if (target == null || target.isTerminated()) {
                 return;
-            }
-            latch.await(timeoutSeconds, TimeUnit.SECONDS);
-        } finally {
-            DebugPlugin dp = DebugPlugin.getDefault();
-            if (dp != null) {
-                dp.removeDebugEventListener(listener);
             }
         }
     }
