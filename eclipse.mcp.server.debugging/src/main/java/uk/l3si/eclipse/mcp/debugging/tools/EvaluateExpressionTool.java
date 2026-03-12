@@ -3,7 +3,7 @@ package uk.l3si.eclipse.mcp.debugging.tools;
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.debugging.model.ExpressionResult;
 import uk.l3si.eclipse.mcp.tools.Args;
-import uk.l3si.eclipse.mcp.tools.IMcpTool;
+import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.debug.core.DebugEvent;
@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-public class EvaluateExpressionTool implements IMcpTool {
+public class EvaluateExpressionTool implements McpTool {
 
     private static final long EVAL_TIMEOUT_MS = 30_000;
 

@@ -13,7 +13,7 @@ import java.util.Set;
 
 public class ToolRegistry {
 
-    private final LinkedHashMap<String, IMcpTool> toolsByName = new LinkedHashMap<>();
+    private final LinkedHashMap<String, McpTool> toolsByName = new LinkedHashMap<>();
     private final LinkedHashMap<String, String> launchModes = new LinkedHashMap<>();
 
     public ToolRegistry() {
@@ -33,7 +33,7 @@ public class ToolRegistry {
         addTool(new FindReferencesTool());
     }
 
-    public synchronized void addTool(IMcpTool tool) {
+    public synchronized void addTool(McpTool tool) {
         toolsByName.put(tool.getName(), tool);
     }
 
@@ -47,7 +47,7 @@ public class ToolRegistry {
 
     public synchronized List<Map<String, Object>> listToolSchemas() {
         List<Map<String, Object>> schemas = new ArrayList<>();
-        for (IMcpTool tool : toolsByName.values()) {
+        for (McpTool tool : toolsByName.values()) {
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("name", tool.getName());
             entry.put("description", tool.getDescription());
@@ -58,7 +58,7 @@ public class ToolRegistry {
     }
 
     public Object callTool(String name, JsonObject arguments) throws Exception {
-        IMcpTool tool;
+        McpTool tool;
         synchronized (this) {
             tool = toolsByName.get(name);
             if (tool == null) {
@@ -69,7 +69,7 @@ public class ToolRegistry {
         return tool.execute(new Args(arguments));
     }
 
-    private void validateParameters(String toolName, IMcpTool tool, JsonObject arguments) {
+    private void validateParameters(String toolName, McpTool tool, JsonObject arguments) {
         if (arguments == null || arguments.isEmpty()) return;
         Set<String> known = tool.getInputSchema().getPropertyNames();
         Set<String> unknown = new LinkedHashSet<>();

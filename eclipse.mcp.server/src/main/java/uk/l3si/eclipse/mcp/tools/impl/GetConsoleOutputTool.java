@@ -2,7 +2,7 @@ package uk.l3si.eclipse.mcp.tools.impl;
 
 import uk.l3si.eclipse.mcp.model.ConsoleOutputResult;
 import uk.l3si.eclipse.mcp.tools.Args;
-import uk.l3si.eclipse.mcp.tools.IMcpTool;
+import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.debug.core.DebugPlugin;
@@ -15,7 +15,7 @@ import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.console.ConsolePlugin;
 import org.eclipse.ui.console.TextConsole;
 
-public class GetConsoleOutputTool implements IMcpTool {
+public class GetConsoleOutputTool implements McpTool {
 
     @Override
     public String getName() {

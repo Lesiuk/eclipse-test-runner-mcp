@@ -4,7 +4,7 @@ import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.debugging.model.FrameInfo;
 import uk.l3si.eclipse.mcp.debugging.model.StackTraceResult;
 import uk.l3si.eclipse.mcp.tools.Args;
-import uk.l3si.eclipse.mcp.tools.IMcpTool;
+import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.debug.core.model.IStackFrame;
@@ -14,7 +14,7 @@ import org.eclipse.jdt.debug.core.IJavaThread;
 import java.util.ArrayList;
 import java.util.List;
 
-public class GetStackTraceTool implements IMcpTool {
+public class GetStackTraceTool implements McpTool {
 
     private final DebugContext debugContext;
 

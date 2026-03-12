@@ -3,7 +3,7 @@ package uk.l3si.eclipse.mcp.tools.impl;
 import uk.l3si.eclipse.mcp.model.ListTestRunsResult;
 import uk.l3si.eclipse.mcp.model.TestRunInfo;
 import uk.l3si.eclipse.mcp.tools.Args;
-import uk.l3si.eclipse.mcp.tools.IMcpTool;
+import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunch;
@@ -11,7 +11,7 @@ import org.eclipse.debug.core.ILaunch;
 import java.util.Arrays;
 import java.util.List;
 
-public class ListLaunchesTool implements IMcpTool {
+public class ListLaunchesTool implements McpTool {
 
     @Override
     public String getName() {

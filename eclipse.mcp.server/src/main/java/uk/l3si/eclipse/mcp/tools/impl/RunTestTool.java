@@ -4,7 +4,7 @@ import uk.l3si.eclipse.mcp.model.LaunchTestResult;
 import uk.l3si.eclipse.mcp.model.ProblemInfo;
 import uk.l3si.eclipse.mcp.model.RunTestResult;
 import uk.l3si.eclipse.mcp.tools.Args;
-import uk.l3si.eclipse.mcp.tools.IMcpTool;
+import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.core.resources.IMarker;
@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class RunTestTool implements IMcpTool {
+public class RunTestTool implements McpTool {
 
     private final Map<String, String> launchModes;
 

@@ -2,7 +2,7 @@ package uk.l3si.eclipse.mcp.tools.impl;
 
 import uk.l3si.eclipse.mcp.model.ListProjectsResult;
 import uk.l3si.eclipse.mcp.tools.Args;
-import uk.l3si.eclipse.mcp.tools.IMcpTool;
+import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -10,7 +10,7 @@ import org.eclipse.core.resources.ResourcesPlugin;
 import java.util.Arrays;
 import java.util.List;
 
-public class ListProjectsTool implements IMcpTool {
+public class ListProjectsTool implements McpTool {
 
     @Override
     public String getName() {

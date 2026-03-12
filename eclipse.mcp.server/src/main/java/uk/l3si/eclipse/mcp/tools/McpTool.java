@@ -1,6 +1,6 @@
 package uk.l3si.eclipse.mcp.tools;
 
-public interface IMcpTool {
+public interface McpTool {
 
     String getName();
 

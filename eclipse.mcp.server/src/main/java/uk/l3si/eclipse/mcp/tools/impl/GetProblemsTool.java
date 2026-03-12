@@ -3,7 +3,7 @@ package uk.l3si.eclipse.mcp.tools.impl;
 import uk.l3si.eclipse.mcp.model.ProblemInfo;
 import uk.l3si.eclipse.mcp.model.ProblemsResult;
 import uk.l3si.eclipse.mcp.tools.Args;
-import uk.l3si.eclipse.mcp.tools.IMcpTool;
+import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.core.resources.IMarker;
@@ -14,7 +14,7 @@ import org.eclipse.core.resources.ResourcesPlugin;
 import java.util.ArrayList;
 import java.util.List;
 
-public class GetProblemsTool implements IMcpTool {
+public class GetProblemsTool implements McpTool {
 
     static final String JAVA_PROBLEM_MARKER = "org.eclipse.jdt.core.problem";
 

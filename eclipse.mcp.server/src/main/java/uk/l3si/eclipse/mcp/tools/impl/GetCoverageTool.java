@@ -1,13 +1,13 @@
 package uk.l3si.eclipse.mcp.tools.impl;
 
 import uk.l3si.eclipse.mcp.tools.Args;
-import uk.l3si.eclipse.mcp.tools.IMcpTool;
+import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
 import java.util.List;
 
-public class GetCoverageTool implements IMcpTool {
+public class GetCoverageTool implements McpTool {
 
     @Override
     public String getName() {

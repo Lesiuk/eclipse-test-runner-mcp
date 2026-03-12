@@ -2,13 +2,13 @@ package uk.l3si.eclipse.mcp.tools.impl;
 
 import uk.l3si.eclipse.mcp.model.FailureTraceResult;
 import uk.l3si.eclipse.mcp.tools.Args;
-import uk.l3si.eclipse.mcp.tools.IMcpTool;
+import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
 import java.util.List;
 
-public class GetFailureTraceTool implements IMcpTool {
+public class GetFailureTraceTool implements McpTool {
 
     @Override
     public String getName() {

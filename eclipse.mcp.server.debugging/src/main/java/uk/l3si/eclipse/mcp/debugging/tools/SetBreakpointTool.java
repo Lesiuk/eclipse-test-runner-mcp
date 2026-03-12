@@ -2,13 +2,13 @@ package uk.l3si.eclipse.mcp.debugging.tools;
 
 import uk.l3si.eclipse.mcp.debugging.BreakpointManager;
 import uk.l3si.eclipse.mcp.tools.Args;
-import uk.l3si.eclipse.mcp.tools.IMcpTool;
+import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
 import java.util.List;
 
-public class SetBreakpointTool implements IMcpTool {
+public class SetBreakpointTool implements McpTool {
 
     private final BreakpointManager breakpointManager;
 

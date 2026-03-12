@@ -4,7 +4,7 @@ import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.debugging.model.ThreadInfo;
 import uk.l3si.eclipse.mcp.debugging.model.ThreadListResult;
 import uk.l3si.eclipse.mcp.tools.Args;
-import uk.l3si.eclipse.mcp.tools.IMcpTool;
+import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import org.eclipse.debug.core.model.IThread;
 import org.eclipse.jdt.debug.core.IJavaDebugTarget;
@@ -14,7 +14,7 @@ import org.eclipse.jdt.debug.core.IJavaThread;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ListThreadsTool implements IMcpTool {
+public class ListThreadsTool implements McpTool {
 
     private final DebugContext debugContext;
 

@@ -3,12 +3,12 @@ package uk.l3si.eclipse.mcp.debugging.tools;
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.debugging.model.ResumeResult;
 import uk.l3si.eclipse.mcp.tools.Args;
-import uk.l3si.eclipse.mcp.tools.IMcpTool;
+import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.jdt.debug.core.IJavaThread;
 
-public class ResumeTool implements IMcpTool {
+public class ResumeTool implements McpTool {
 
     private final DebugContext debugContext;
 

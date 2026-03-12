@@ -2,13 +2,13 @@ package uk.l3si.eclipse.mcp.tools.impl;
 
 import uk.l3si.eclipse.mcp.model.TerminateResult;
 import uk.l3si.eclipse.mcp.tools.Args;
-import uk.l3si.eclipse.mcp.tools.IMcpTool;
+import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunch;
 
-public class TerminateTool implements IMcpTool {
+public class TerminateTool implements McpTool {
 
     @Override
     public String getName() {

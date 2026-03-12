@@ -21,7 +21,7 @@ import uk.l3si.eclipse.mcp.model.FindReferencesResult;
 import uk.l3si.eclipse.mcp.model.ReferenceFileGroup;
 import uk.l3si.eclipse.mcp.model.ReferenceMatch;
 import uk.l3si.eclipse.mcp.tools.Args;
-import uk.l3si.eclipse.mcp.tools.IMcpTool;
+import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
@@ -30,7 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class FindReferencesTool implements IMcpTool {
+public class FindReferencesTool implements McpTool {
 
     @Override
     public String getName() {

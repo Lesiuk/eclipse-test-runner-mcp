@@ -4,7 +4,7 @@ import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.debugging.model.ArrayElementInfo;
 import uk.l3si.eclipse.mcp.debugging.model.VariableResult;
 import uk.l3si.eclipse.mcp.tools.Args;
-import uk.l3si.eclipse.mcp.tools.IMcpTool;
+import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.debug.core.DebugException;
@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class InspectVariableTool implements IMcpTool {
+public class InspectVariableTool implements McpTool {
 
     private static final Pattern ARRAY_ACCESS = Pattern.compile("(.+?)\\[(\\d+)]");
     private static final int MAX_ARRAY_PREVIEW = 10;

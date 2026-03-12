@@ -5,7 +5,7 @@ import uk.l3si.eclipse.mcp.debugging.model.ArrayElementInfo;
 import uk.l3si.eclipse.mcp.debugging.model.ListVariablesResult;
 import uk.l3si.eclipse.mcp.debugging.model.VariableResult;
 import uk.l3si.eclipse.mcp.tools.Args;
-import uk.l3si.eclipse.mcp.tools.IMcpTool;
+import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.debug.core.DebugException;
@@ -19,7 +19,7 @@ import org.eclipse.jdt.debug.core.IJavaValue;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ListVariablesTool implements IMcpTool {
+public class ListVariablesTool implements McpTool {
 
     private static final int MAX_ARRAY_PREVIEW = 5;
 
