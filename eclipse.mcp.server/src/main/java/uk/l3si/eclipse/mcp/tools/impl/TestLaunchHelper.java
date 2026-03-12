@@ -124,9 +124,14 @@ public class TestLaunchHelper {
         // Clear container — running a specific class, not a package/project
         wc.removeAttribute(ATTR_CONTAINER);
 
-        // In debug mode, ensure breakpoints are not globally skipped
+        // In debug mode, require at least one breakpoint and ensure they are not globally skipped
         if ("debug".equals(mode)) {
-            DebugPlugin.getDefault().getBreakpointManager().setEnabled(true);
+            var bpManager = DebugPlugin.getDefault().getBreakpointManager();
+            if (bpManager.getBreakpoints().length == 0) {
+                throw new IllegalStateException(
+                        "No breakpoints set. Set at least one breakpoint with 'set_breakpoint' before launching in debug mode.");
+            }
+            bpManager.setEnabled(true);
         }
 
         // Launch on UI thread
