@@ -57,12 +57,15 @@ public class ToolRegistry {
         return schemas;
     }
 
-    public synchronized Object callTool(String name, JsonObject arguments) throws Exception {
-        IMcpTool tool = toolsByName.get(name);
-        if (tool == null) {
-            throw new IllegalArgumentException("Unknown tool: " + name);
+    public Object callTool(String name, JsonObject arguments) throws Exception {
+        IMcpTool tool;
+        synchronized (this) {
+            tool = toolsByName.get(name);
+            if (tool == null) {
+                throw new IllegalArgumentException("Unknown tool: " + name);
+            }
+            validateParameters(name, tool, arguments);
         }
-        validateParameters(name, tool, arguments);
         return tool.execute(new Args(arguments));
     }
 
