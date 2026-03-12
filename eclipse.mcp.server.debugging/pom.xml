@@ -8,7 +8,7 @@
     <parent>
         <groupId>uk.l3si.eclipse.mcp</groupId>
         <artifactId>eclipse.mcp.parent</artifactId>
-        <version>0.28.0-SNAPSHOT</version>
+        <version>0.29.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>eclipse.mcp.server.debugging</artifactId>

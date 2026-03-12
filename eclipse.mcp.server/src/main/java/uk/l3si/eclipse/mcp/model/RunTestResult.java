@@ -5,9 +5,8 @@ import lombok.Builder;
 
 @Builder
 public class RunTestResult {
-    private List<String> steps;
-    private boolean success;
-    private Integer errorCount;
+    private boolean refreshed;
+    private boolean compiled;
     private List<ProblemInfo> compilationErrors;
     private LaunchTestResult launchResult;
 }

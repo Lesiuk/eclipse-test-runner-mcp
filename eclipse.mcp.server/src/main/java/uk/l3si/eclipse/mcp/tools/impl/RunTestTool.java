@@ -84,25 +84,23 @@ public class RunTestTool implements McpTool {
         List<String> refreshProjects = resolveRefreshProjects(dependencies, projectName);
 
         // Refresh and build
-        List<String> steps = refreshAndBuild(refreshProjects);
+        refreshAndBuild(refreshProjects);
 
         // Check for compilation errors across all refreshed projects
         List<ProblemInfo> compilationErrors = checkCompilationErrors(refreshProjects);
         if (!compilationErrors.isEmpty()) {
             return RunTestResult.builder()
-                    .steps(steps)
-                    .success(false)
-                    .errorCount(compilationErrors.size())
+                    .refreshed(true)
+                    .compiled(false)
                     .compilationErrors(compilationErrors)
                     .build();
         }
-        steps.add("No compilation errors");
 
         // Launch test
         LaunchTestResult launchResult = TestLaunchHelper.launchTest(configName, className, methodName, projectName, mode);
         return RunTestResult.builder()
-                .steps(steps)
-                .success(true)
+                .refreshed(true)
+                .compiled(true)
                 .launchResult(launchResult)
                 .build();
     }
@@ -133,10 +131,8 @@ public class RunTestTool implements McpTool {
         return null;
     }
 
-    private List<String> refreshAndBuild(List<String> projectNames) throws Exception {
-        List<String> steps = new ArrayList<>();
+    private void refreshAndBuild(List<String> projectNames) throws Exception {
         final Exception[] jobError = new Exception[1];
-        final List<String> jobSteps = new ArrayList<>();
 
         Job refreshAndBuild = new Job("MCP: Refresh & Build") {
             @Override
@@ -160,7 +156,6 @@ public class RunTestTool implements McpTool {
 
                             refreshMonitor.subTask("Refreshing " + name + "...");
                             project.refreshLocal(IResource.DEPTH_INFINITE, refreshMonitor.split(1));
-                            jobSteps.add("Refreshed project: " + name);
 
                             // Wait for auto-build after refresh
                             sub.subTask("Waiting for auto-build...");
@@ -169,7 +164,6 @@ public class RunTestTool implements McpTool {
                             // Build
                             buildMonitor.subTask("Building " + name + "...");
                             project.build(IncrementalProjectBuilder.INCREMENTAL_BUILD, buildMonitor.split(1));
-                            jobSteps.add("Built project: " + name);
                         }
                     } else {
                         // No projects specified — refresh and build all open projects
@@ -182,7 +176,6 @@ public class RunTestTool implements McpTool {
                                 project.refreshLocal(IResource.DEPTH_INFINITE, refreshMonitor.split(1));
                             }
                         }
-                        jobSteps.add("Refreshed all open projects");
 
                         sub.subTask("Waiting for auto-build...");
                         Job.getJobManager().join(ResourcesPlugin.FAMILY_AUTO_BUILD, sub.split(10));
@@ -195,7 +188,6 @@ public class RunTestTool implements McpTool {
                                 project.build(IncrementalProjectBuilder.INCREMENTAL_BUILD, buildMonitor.split(1));
                             }
                         }
-                        jobSteps.add("Built all open projects");
                     }
 
                     return Status.OK_STATUS;
@@ -213,9 +205,6 @@ public class RunTestTool implements McpTool {
         if (jobError[0] != null) {
             throw jobError[0];
         }
-
-        steps.addAll(jobSteps);
-        return steps;
     }
 
     private List<ProblemInfo> checkCompilationErrors(List<String> projectNames) throws Exception {
