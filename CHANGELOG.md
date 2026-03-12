@@ -4,7 +4,7 @@
 
 - Reject `run_test` in debug mode when no breakpoints are set — returns error directing to use `set_breakpoint` first
 
-## Debug v0.6.3
+## Debug v0.6.4
 
 - `get_debug_state` now defaults to `wait_for_suspend=true` — automatically blocks until a breakpoint is hit or the session ends, eliminating the need for LLMs to remember to pass the parameter
 - Replace event listener + CountDownLatch wait mechanism with simple polling of `DebugContext` state (fixes `TypeError: fetch failed` caused by blocking on non-Eclipse threads)
