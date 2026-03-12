@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.31.0
+
+- Round `elapsedSeconds` in test results to 2 decimal places
+
 ## v0.30.0
 
 - Replace `refreshed`/`compiled` booleans in `run_test` response with `refreshedAndBuilt` — a list of project names that were actually refreshed and built, so the LLM knows which subset of the workspace has up-to-date code

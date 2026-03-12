@@ -122,7 +122,7 @@ class TestResultsHelper {
 
         double elapsed = session.getElapsedTimeInSeconds();
         if (!Double.isNaN(elapsed)) {
-            builder.elapsedSeconds(elapsed);
+            builder.elapsedSeconds(Math.round(elapsed * 100.0) / 100.0);
         }
 
         builder.failures(failures);
