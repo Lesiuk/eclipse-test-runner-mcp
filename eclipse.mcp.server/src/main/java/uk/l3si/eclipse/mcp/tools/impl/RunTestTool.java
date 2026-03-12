@@ -84,14 +84,13 @@ public class RunTestTool implements McpTool {
         List<String> refreshProjects = resolveRefreshProjects(dependencies, projectName);
 
         // Refresh and build
-        refreshAndBuild(refreshProjects);
+        List<String> builtProjects = refreshAndBuild(refreshProjects);
 
         // Check for compilation errors across all refreshed projects
-        List<ProblemInfo> compilationErrors = checkCompilationErrors(refreshProjects);
+        List<ProblemInfo> compilationErrors = checkCompilationErrors(builtProjects);
         if (!compilationErrors.isEmpty()) {
             return RunTestResult.builder()
-                    .refreshed(true)
-                    .compiled(false)
+                    .refreshedAndBuilt(builtProjects)
                     .compilationErrors(compilationErrors)
                     .build();
         }
@@ -99,8 +98,7 @@ public class RunTestTool implements McpTool {
         // Launch test
         LaunchTestResult launchResult = TestLaunchHelper.launchTest(configName, className, methodName, projectName, mode);
         return RunTestResult.builder()
-                .refreshed(true)
-                .compiled(true)
+                .refreshedAndBuilt(builtProjects)
                 .launchResult(launchResult)
                 .build();
     }
@@ -131,8 +129,9 @@ public class RunTestTool implements McpTool {
         return null;
     }
 
-    private void refreshAndBuild(List<String> projectNames) throws Exception {
+    private List<String> refreshAndBuild(List<String> projectNames) throws Exception {
         final Exception[] jobError = new Exception[1];
+        final List<String> builtProjects = new ArrayList<>();
 
         Job refreshAndBuild = new Job("MCP: Refresh & Build") {
             @Override
@@ -164,6 +163,8 @@ public class RunTestTool implements McpTool {
                             // Build
                             buildMonitor.subTask("Building " + name + "...");
                             project.build(IncrementalProjectBuilder.INCREMENTAL_BUILD, buildMonitor.split(1));
+
+                            builtProjects.add(name);
                         }
                     } else {
                         // No projects specified — refresh and build all open projects
@@ -186,6 +187,7 @@ public class RunTestTool implements McpTool {
                             if (project.isOpen()) {
                                 buildMonitor.subTask("Building " + project.getName() + "...");
                                 project.build(IncrementalProjectBuilder.INCREMENTAL_BUILD, buildMonitor.split(1));
+                                builtProjects.add(project.getName());
                             }
                         }
                     }
@@ -205,6 +207,8 @@ public class RunTestTool implements McpTool {
         if (jobError[0] != null) {
             throw jobError[0];
         }
+
+        return builtProjects;
     }
 
     private List<ProblemInfo> checkCompilationErrors(List<String> projectNames) throws Exception {

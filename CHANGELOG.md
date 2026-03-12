@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.30.0
+
+- Replace `refreshed`/`compiled` booleans in `run_test` response with `refreshedAndBuilt` — a list of project names that were actually refreshed and built, so the LLM knows which subset of the workspace has up-to-date code
+
 ## v0.29.0
 
 - Compact `run_test` response — replace verbose `steps` array with `refreshed` and `compiled` boolean flags, remove redundant `success` and `errorCount` fields
