@@ -190,15 +190,14 @@ class UpdateFlowToolTest {
     // ---- Helpers ----
 
     private void addExtraNodesAndFlowWithCondition(Path file) throws Exception {
-        AddNodeTool addNodeTool = new AddNodeTool();
+        AddServiceTaskTool addServiceTaskTool = new AddServiceTaskTool();
 
         JsonObject taskArgs = new JsonObject();
         taskArgs.addProperty("file", file.toString());
-        taskArgs.addProperty("type", "task");
         taskArgs.addProperty("name", "Extra Task");
         taskArgs.addProperty("taskName", "com.example.IService_extra");
         taskArgs.addProperty("id", "Task_2");
-        addNodeTool.execute(new Args(taskArgs));
+        addServiceTaskTool.execute(new Args(taskArgs));
 
         AddFlowTool addFlowTool = new AddFlowTool();
         JsonObject flowArgs = new JsonObject();

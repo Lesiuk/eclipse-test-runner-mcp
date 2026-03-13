@@ -1,9 +1,8 @@
 package uk.l3si.eclipse.mcp.bpmn2.tools;
 
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 import uk.l3si.eclipse.mcp.bpmn2.Bpmn2Document;
+import uk.l3si.eclipse.mcp.bpmn2.Bpmn2NodeHelper;
 import uk.l3si.eclipse.mcp.bpmn2.model.AddFlowResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
@@ -21,7 +20,10 @@ public class AddFlowTool implements McpTool {
 
     @Override
     public String getDescription() {
-        return "Connect two nodes with a sequence flow. Optionally add a condition expression and label.";
+        return "Connect two nodes with a sequence flow. "
+                + "For conditional branches from a diverging gateway, provide a Java "
+                + "'condition' (e.g. 'return amount > 100;') and a 'name' label (e.g. YES/NO). "
+                + "Priority defaults to 1.";
     }
 
     @Override
@@ -33,6 +35,8 @@ public class AddFlowTool implements McpTool {
                 .property("name", PropertySchema.string("Label (e.g. YES, NO)"))
                 .property("condition", PropertySchema.string("Java condition expression"))
                 .property("priority", PropertySchema.string("Flow priority (default: 1)"))
+                .property("evaluatesToTypeRef", PropertySchema.string(
+                        "ItemDefinition ID for condition return type"))
                 .required(List.of("file", "source", "target"))
                 .build();
     }
@@ -45,6 +49,7 @@ public class AddFlowTool implements McpTool {
         String name = args.getString("name");
         String condition = args.getString("condition");
         Integer priority = args.getInt("priority");
+        String evaluatesToTypeRef = args.getString("evaluatesToTypeRef");
 
         Bpmn2Document doc = Bpmn2Document.parse(file);
 
@@ -78,7 +83,7 @@ public class AddFlowTool implements McpTool {
         }
 
         // Validate target is not a plain startEvent (signal start events are OK)
-        if ("startEvent".equals(targetNode.getLocalName()) && !hasSignalEventDefinition(targetNode)) {
+        if ("startEvent".equals(targetNode.getLocalName()) && !Bpmn2NodeHelper.hasSignalEventDefinition(targetNode)) {
             throw new IllegalArgumentException(
                     "Cannot add incoming flow to plain startEvent '" + target + "'");
         }
@@ -105,6 +110,9 @@ public class AddFlowTool implements McpTool {
             condExpr.setAttributeNS(Bpmn2Document.NS_XSI, "xsi:type", "bpmn2:tFormalExpression");
             condExpr.setAttribute("id", doc.generateId("FormalExpression"));
             condExpr.setAttribute("language", "http://www.java.com/java");
+            if (evaluatesToTypeRef != null) {
+                condExpr.setAttribute("evaluatesToTypeRef", evaluatesToTypeRef);
+            }
             condExpr.setTextContent(condition);
         }
 
@@ -127,15 +135,4 @@ public class AddFlowTool implements McpTool {
                 .build();
     }
 
-    private boolean hasSignalEventDefinition(Element startEvent) {
-        NodeList children = startEvent.getChildNodes();
-        for (int i = 0; i < children.getLength(); i++) {
-            if (children.item(i) instanceof Element el
-                    && Bpmn2Document.NS_BPMN2.equals(el.getNamespaceURI())
-                    && "signalEventDefinition".equals(el.getLocalName())) {
-                return true;
-            }
-        }
-        return false;
-    }
 }

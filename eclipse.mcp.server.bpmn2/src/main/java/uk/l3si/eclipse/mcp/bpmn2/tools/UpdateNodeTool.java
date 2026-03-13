@@ -21,8 +21,9 @@ public class UpdateNodeTool implements McpTool {
             "script", Set.of("scriptTask"),
             "scriptFormat", Set.of("scriptTask"),
             "calledElement", Set.of("callActivity"),
-            "taskName", Set.of("task", "userTask"),
+            "taskName", Set.of("task"),
             "displayName", Set.of("task"),
+            "icon", Set.of("task"),
             "direction", Set.of("exclusiveGateway"));
 
     @Override
@@ -33,7 +34,8 @@ public class UpdateNodeTool implements McpTool {
     @Override
     public String getDescription() {
         return "Modify properties of an existing node. Only properties valid for "
-                + "the node type can be updated.";
+                + "the node type can be updated. Use 'bpmn2_get_process' to see "
+                + "current node properties and IDs.";
     }
 
     @Override
@@ -48,9 +50,11 @@ public class UpdateNodeTool implements McpTool {
                 .property("calledElement", PropertySchema.string(
                         "New called element (callActivity only)"))
                 .property("taskName", PropertySchema.string(
-                        "New task name (task/userTask only)"))
+                        "New task name (task only)"))
                 .property("displayName", PropertySchema.string(
-                        "New display name (task only)"))
+                        "New display name for task header (task only)"))
+                .property("icon", PropertySchema.string(
+                        "New icon filename (task only, e.g. dynamo.gif)"))
                 .property("direction", PropertySchema.stringEnum(
                         "New direction (exclusiveGateway only)",
                         List.of("diverging", "converging")))
@@ -69,15 +73,16 @@ public class UpdateNodeTool implements McpTool {
         String calledElement = args.getString("calledElement");
         String taskName = args.getString("taskName");
         String displayName = args.getString("displayName");
+        String icon = args.getString("icon");
         String direction = args.getString("direction");
 
         // Check at least one property to update
         if (name == null && script == null && scriptFormat == null
                 && calledElement == null && taskName == null
-                && displayName == null && direction == null) {
+                && displayName == null && icon == null && direction == null) {
             throw new IllegalArgumentException(
                     "No properties to update. Provide at least one of: name, script, "
-                            + "scriptFormat, calledElement, taskName, displayName, direction.");
+                            + "scriptFormat, calledElement, taskName, displayName, icon, direction.");
         }
 
         Bpmn2Document doc = Bpmn2Document.parse(file);
@@ -130,11 +135,18 @@ public class UpdateNodeTool implements McpTool {
             updated.add("taskName");
         }
 
-        // displayName — task only
+        // displayName — task only (stored as tns:displayName attribute)
         if (displayName != null) {
             validatePropertyForType("displayName", nodeType);
-            updateOrCreateMetaData(doc, node, "displayName", displayName);
+            node.setAttributeNS(Bpmn2Document.NS_TNS, "tns:displayName", displayName);
             updated.add("displayName");
+        }
+
+        // icon — task only (stored as tns:icon attribute)
+        if (icon != null) {
+            validatePropertyForType("icon", nodeType);
+            node.setAttributeNS(Bpmn2Document.NS_TNS, "tns:icon", icon);
+            updated.add("icon");
         }
 
         // direction — exclusiveGateway only
@@ -193,43 +205,6 @@ public class UpdateNodeTool implements McpTool {
                 return;
             }
         }
-    }
-
-    /**
-     * Updates an existing metaData element or creates one if it doesn't exist.
-     */
-    private void updateOrCreateMetaData(Bpmn2Document doc, Element node,
-                                        String metaName, String value) {
-        Element extElements = findChildElement(node,
-                Bpmn2Document.NS_BPMN2, "extensionElements");
-
-        if (extElements != null) {
-            NodeList children = extElements.getChildNodes();
-            for (int i = 0; i < children.getLength(); i++) {
-                if (children.item(i) instanceof Element el
-                        && Bpmn2Document.NS_TNS.equals(el.getNamespaceURI())
-                        && "metaData".equals(el.getLocalName())
-                        && metaName.equals(el.getAttribute("name"))) {
-                    Element metaValue = findChildElement(el,
-                            Bpmn2Document.NS_TNS, "metaValue");
-                    if (metaValue != null) {
-                        metaValue.setTextContent(value);
-                    } else {
-                        doc.createTextElement(el, Bpmn2Document.NS_TNS, "metaValue", value);
-                    }
-                    return;
-                }
-            }
-        }
-
-        // No existing metaData found — create extensionElements if needed, then metaData
-        if (extElements == null) {
-            extElements = doc.createElement(node,
-                    Bpmn2Document.NS_BPMN2, "extensionElements");
-        }
-        Element metaData = doc.createElement(extElements, Bpmn2Document.NS_TNS, "metaData");
-        metaData.setAttribute("name", metaName);
-        doc.createTextElement(metaData, Bpmn2Document.NS_TNS, "metaValue", value);
     }
 
     private static Element findChildElement(Element parent, String ns, String localName) {

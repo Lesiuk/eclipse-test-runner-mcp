@@ -4,6 +4,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import uk.l3si.eclipse.mcp.bpmn2.Bpmn2Document;
+import uk.l3si.eclipse.mcp.bpmn2.Bpmn2NodeHelper;
 import uk.l3si.eclipse.mcp.bpmn2.model.RemoveNodeResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
@@ -44,10 +45,10 @@ public class RemoveNodeTool implements McpTool {
         Element node = doc.requireNodeExists(id);
 
         // Check not the only startEvent (plain, without signalEventDefinition)
-        if ("startEvent".equals(node.getLocalName()) && !hasSignalEventDefinition(node)) {
+        if ("startEvent".equals(node.getLocalName()) && !Bpmn2NodeHelper.hasSignalEventDefinition(node)) {
             long plainStartCount = doc.listNodes().stream()
                     .filter(n -> "startEvent".equals(n.getLocalName())
-                            && !hasSignalEventDefinition(n))
+                            && !Bpmn2NodeHelper.hasSignalEventDefinition(n))
                     .count();
             if (plainStartCount <= 1) {
                 throw new IllegalArgumentException(
@@ -155,15 +156,4 @@ public class RemoveNodeTool implements McpTool {
         }
     }
 
-    private boolean hasSignalEventDefinition(Element startEvent) {
-        NodeList children = startEvent.getChildNodes();
-        for (int i = 0; i < children.getLength(); i++) {
-            if (children.item(i) instanceof Element el
-                    && Bpmn2Document.NS_BPMN2.equals(el.getNamespaceURI())
-                    && "signalEventDefinition".equals(el.getLocalName())) {
-                return true;
-            }
-        }
-        return false;
-    }
 }

@@ -108,14 +108,13 @@ class RemoveFlowToolTest {
         // SequenceFlow_1 doesn't leave StartEvent_1 without outgoing flows
         // (it will still have the new flow) and Task_1 still has SequenceFlow_2 outgoing
         // but will lose its only incoming flow
-        AddNodeTool addNodeTool = new AddNodeTool();
+        AddServiceTaskTool addServiceTaskTool = new AddServiceTaskTool();
         JsonObject taskArgs = new JsonObject();
         taskArgs.addProperty("file", file.toString());
-        taskArgs.addProperty("type", "task");
         taskArgs.addProperty("name", "Extra Task");
         taskArgs.addProperty("taskName", "com.example.IService_extra");
         taskArgs.addProperty("id", "Task_2");
-        addNodeTool.execute(new Args(taskArgs));
+        addServiceTaskTool.execute(new Args(taskArgs));
 
         AddFlowTool addFlowTool = new AddFlowTool();
         JsonObject flowArgs = new JsonObject();
