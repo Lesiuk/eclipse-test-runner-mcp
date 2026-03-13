@@ -46,7 +46,7 @@ public class RunTestTool implements McpTool {
              + "Fails if a test is already running — use 'terminate' to stop it first. "
              + "Waits for completion and returns test results. "
              + "If 'compilationErrors' is returned, fix the errors and retry. "
-             + "If tests fail, use 'get_failure_trace' to get the full stack trace for a specific failure.";
+             + "If tests fail, the returned stack trace is usually sufficient — only use 'get_failure_trace' when the full untruncated stack trace is needed.";
     }
 
     @Override
