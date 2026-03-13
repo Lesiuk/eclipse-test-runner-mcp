@@ -73,6 +73,10 @@ public class RunTestTool implements McpTool {
         String projectName = args.getString("project");
         List<String> dependencies = args.getStringList("dependencies");
         String mode = args.getString("mode", "run");
+        if (!launchModes.containsKey(mode)) {
+            throw new IllegalArgumentException(
+                    "Invalid mode: '" + mode + "'. Must be one of: " + String.join(", ", launchModes.keySet()));
+        }
 
         // Block if a test is already running
         TestLaunchHelper.checkNoTestRunning();
