@@ -13,6 +13,7 @@
     <modules>
         <module>eclipse.mcp.server</module>
         <module>eclipse.mcp.server.debugging</module>
+        <module>eclipse.mcp.server.bpmn2</module>
     </modules>
 
     <properties>
