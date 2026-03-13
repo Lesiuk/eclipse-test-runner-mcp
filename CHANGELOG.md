@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.35.0
+
+- Clarify `get_failure_trace` guidance: run_test stack traces are usually sufficient, only use `get_failure_trace` when full untruncated trace is needed
+
 ## v0.34.0
 
 - Remove redundant fields from responses to save LLM tokens: `testRunName`/`configName` from test results, `expression` from evaluate_expression, `variableCount` from list_variables
