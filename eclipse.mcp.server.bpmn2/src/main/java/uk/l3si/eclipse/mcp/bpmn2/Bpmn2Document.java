@@ -145,6 +145,7 @@ public class Bpmn2Document {
             for (String[] def : itemDefs) {
                 Element itemDef = doc.createElementNS(NS_BPMN2, "bpmn2:itemDefinition");
                 itemDef.setAttribute("id", def[0]);
+                itemDef.setAttribute("isCollection", "false");
                 itemDef.setAttribute("structureRef", def[1]);
                 definitions.appendChild(itemDef);
             }
@@ -155,6 +156,7 @@ public class Bpmn2Document {
             process.setAttribute("name", processName);
             process.setAttributeNS(NS_TNS, "tns:packageName", packageName);
             process.setAttribute("isExecutable", "true");
+            process.setAttribute("processType", "Private");
             definitions.appendChild(process);
 
             // BPMNDiagram with BPMNPlane
@@ -350,6 +352,22 @@ public class Bpmn2Document {
     }
 
     /**
+     * Creates a new namespace-aware element with CDATA text content and appends it
+     * to the given parent.
+     *
+     * @param parent    the parent element
+     * @param ns        the namespace URI
+     * @param localName the local element name
+     * @param text      the text content to wrap in CDATA
+     * @return the newly created element
+     */
+    public Element createCDataTextElement(Element parent, String ns, String localName, String text) {
+        Element el = createElement(parent, ns, localName);
+        el.appendChild(doc.createCDATASection(text));
+        return el;
+    }
+
+    /**
      * Removes an element from its parent.
      *
      * @param el the element to remove
@@ -417,6 +435,22 @@ public class Bpmn2Document {
      * @param height    shape height
      */
     public void addShape(String elementId, double x, double y, double width, double height) {
+        addShape(elementId, x, y, width, height, null);
+    }
+
+    /**
+     * Adds a BPMNShape element with dc:Bounds and optional type-specific attributes
+     * to the diagram plane.
+     *
+     * @param elementId the BPMN element ID this shape represents
+     * @param x         x coordinate
+     * @param y         y coordinate
+     * @param width     shape width
+     * @param height    shape height
+     * @param nodeType  the BPMN node type (e.g. "task", "exclusiveGateway") for DI attributes
+     */
+    public void addShape(String elementId, double x, double y, double width, double height,
+                         String nodeType) {
         if (diagramPlane == null) {
             return;
         }
@@ -424,11 +458,33 @@ public class Bpmn2Document {
         shape.setAttribute("id", "BPMNShape_" + elementId);
         shape.setAttribute("bpmnElement", elementId);
 
+        if (nodeType != null) {
+            switch (nodeType) {
+                case "callActivity", "task", "scriptTask", "userTask" ->
+                        shape.setAttribute("isExpanded", "true");
+                case "exclusiveGateway" ->
+                        shape.setAttribute("isMarkerVisible", "true");
+            }
+        }
+
         Element bounds = createElement(shape, NS_DC, "Bounds");
+        bounds.setAttribute("height", formatCoord(height));
+        bounds.setAttribute("width", formatCoord(width));
         bounds.setAttribute("x", formatCoord(x));
         bounds.setAttribute("y", formatCoord(y));
-        bounds.setAttribute("width", formatCoord(width));
-        bounds.setAttribute("height", formatCoord(height));
+
+        // Add BPMNLabel with bounds positioned below the shape
+        Element label = createElement(shape, NS_BPMNDI, "BPMNLabel");
+        label.setAttribute("id", "BPMNLabel_" + elementId);
+        Element labelBounds = createElement(label, NS_DC, "Bounds");
+        double labelWidth = Math.max(20, width);
+        double labelHeight = 14;
+        double labelX = x + (width - labelWidth) / 2.0;
+        double labelY = y + height;
+        labelBounds.setAttribute("height", formatCoord(labelHeight));
+        labelBounds.setAttribute("width", formatCoord(labelWidth));
+        labelBounds.setAttribute("x", formatCoord(labelX));
+        labelBounds.setAttribute("y", formatCoord(labelY));
     }
 
     /**
@@ -438,15 +494,36 @@ public class Bpmn2Document {
      * @param waypoints list of [x, y] coordinate pairs
      */
     public void addEdge(String flowId, List<double[]> waypoints) {
+        addEdge(flowId, waypoints, null, null);
+    }
+
+    /**
+     * Adds a BPMNEdge element with di:waypoint elements to the diagram plane,
+     * including source and target element references.
+     *
+     * @param flowId          the sequence flow ID this edge represents
+     * @param waypoints       list of [x, y] coordinate pairs
+     * @param sourceElementId the source node ID (for sourceElement attribute)
+     * @param targetElementId the target node ID (for targetElement attribute)
+     */
+    public void addEdge(String flowId, List<double[]> waypoints,
+                        String sourceElementId, String targetElementId) {
         if (diagramPlane == null) {
             return;
         }
         Element edge = createElement(diagramPlane, NS_BPMNDI, "BPMNEdge");
         edge.setAttribute("id", "BPMNEdge_" + flowId);
         edge.setAttribute("bpmnElement", flowId);
+        if (sourceElementId != null) {
+            edge.setAttribute("sourceElement", "BPMNShape_" + sourceElementId);
+        }
+        if (targetElementId != null) {
+            edge.setAttribute("targetElement", "BPMNShape_" + targetElementId);
+        }
 
         for (double[] wp : waypoints) {
             Element waypoint = createElement(edge, NS_DI, "waypoint");
+            waypoint.setAttributeNS(NS_XSI, "xsi:type", "dc:Point");
             waypoint.setAttribute("x", formatCoord(wp[0]));
             waypoint.setAttribute("y", formatCoord(wp[1]));
         }

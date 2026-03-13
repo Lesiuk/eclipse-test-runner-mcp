@@ -59,6 +59,10 @@ public class AddNodeTool implements McpTool {
                         "Script language (default: http://www.java.com/java)"))
                 .property("calledElement", PropertySchema.string(
                         "Called element (required for callActivity)"))
+                .property("waitForCompletion", PropertySchema.bool(
+                        "Wait for completion (callActivity, default true)"))
+                .property("independent", PropertySchema.bool(
+                        "Independent (callActivity, default true)"))
                 .property("direction", PropertySchema.stringEnum(
                         "Gateway direction (required for exclusiveGateway)",
                         List.of("diverging", "converging")))
@@ -103,6 +107,8 @@ public class AddNodeTool implements McpTool {
         String direction = args.getString("direction");
         String signalRef = args.getString("signalRef");
         String groupId = args.getString("groupId");
+        boolean waitForCompletion = args.getBoolean("waitForCompletion", true);
+        boolean independent = args.getBoolean("independent", true);
 
         // Type-specific validation
         validateTypeSpecificParams(type, taskName, script, calledElement, direction, signalRef, doc);
@@ -116,7 +122,8 @@ public class AddNodeTool implements McpTool {
             case "task" -> buildTask(doc, element, name, taskName, displayName, icon);
             case "scriptTask" -> buildScriptTask(doc, element, name, script, scriptFormat);
             case "userTask" -> buildUserTask(doc, element, name, groupId);
-            case "callActivity" -> buildCallActivity(doc, element, name, calledElement);
+            case "callActivity" -> buildCallActivity(doc, element, name, calledElement,
+                    waitForCompletion, independent);
             case "exclusiveGateway" -> buildExclusiveGateway(element, direction);
             case "startEvent" -> buildStartEvent(doc, element, name, signalRef);
             case "endEvent" -> buildEndEvent(doc, element, name);
@@ -207,16 +214,15 @@ public class AddNodeTool implements McpTool {
     private void buildTask(Bpmn2Document doc, Element element, String name,
                            String taskName, String displayName, String icon) {
         element.setAttributeNS(Bpmn2Document.NS_TNS, "tns:taskName", taskName);
-
-        Element extElements = addExtensionElements(doc, element, name);
         if (displayName != null) {
-            addMetaData(doc, extElements, "displayName", displayName);
+            element.setAttributeNS(Bpmn2Document.NS_TNS, "tns:displayName", displayName);
         }
         if (icon != null) {
-            addMetaData(doc, extElements, "icon", icon);
+            element.setAttributeNS(Bpmn2Document.NS_TNS, "tns:icon", icon);
         }
 
-        addIoSpecification(doc, element);
+        addExtensionElements(doc, element, name);
+        addTaskIoSpecification(doc, element);
     }
 
     private void buildScriptTask(Bpmn2Document doc, Element element, String name,
@@ -226,27 +232,26 @@ public class AddNodeTool implements McpTool {
         }
         element.setAttribute("scriptFormat", scriptFormat);
 
-        doc.createTextElement(element, Bpmn2Document.NS_BPMN2, "script", script);
-
         addExtensionElements(doc, element, name);
-        addIoSpecification(doc, element);
+        doc.createTextElement(element, Bpmn2Document.NS_BPMN2, "script", script);
     }
 
     private void buildUserTask(Bpmn2Document doc, Element element, String name, String groupId) {
-        if (groupId != null) {
-            element.setAttribute("groupId", groupId);
-        }
-
         addExtensionElements(doc, element, name);
-        addIoSpecification(doc, element);
+        addUserTaskIoSpecification(doc, element, name, groupId);
     }
 
     private void buildCallActivity(Bpmn2Document doc, Element element, String name,
-                                   String calledElement) {
+                                   String calledElement, boolean waitForCompletion,
+                                   boolean independent) {
+        element.setAttributeNS(Bpmn2Document.NS_TNS, "tns:waitForCompletion",
+                String.valueOf(waitForCompletion));
+        element.setAttributeNS(Bpmn2Document.NS_TNS, "tns:independent",
+                String.valueOf(independent));
         element.setAttribute("calledElement", calledElement);
 
         addExtensionElements(doc, element, name);
-        addIoSpecification(doc, element);
+        addCallActivityIoSpecification(doc, element);
     }
 
     // ---- Non-task types ----
@@ -261,6 +266,30 @@ public class AddNodeTool implements McpTool {
         addExtensionElements(doc, element, name);
 
         if (signalRef != null) {
+            // Add dataOutput, dataOutputAssociation, outputSet for signal start events
+            String dataOutputId = doc.generateId("DataOutput");
+            String dataOutputAssocId = doc.generateId("DataOutputAssociation");
+            String outputSetId = doc.generateId("OutputSet");
+
+            Element dataOutput = doc.createElement(element,
+                    Bpmn2Document.NS_BPMN2, "dataOutput");
+            dataOutput.setAttribute("id", dataOutputId);
+            dataOutput.setAttribute("name", signalRef + "_Output");
+
+            Element outputAssoc = doc.createElement(element,
+                    Bpmn2Document.NS_BPMN2, "dataOutputAssociation");
+            outputAssoc.setAttribute("id", dataOutputAssocId);
+            doc.createTextElement(outputAssoc, Bpmn2Document.NS_BPMN2, "sourceRef",
+                    dataOutputId);
+            doc.createTextElement(outputAssoc, Bpmn2Document.NS_BPMN2, "targetRef",
+                    "processCommandFlow");
+
+            Element outputSet = doc.createElement(element,
+                    Bpmn2Document.NS_BPMN2, "outputSet");
+            outputSet.setAttribute("id", outputSetId);
+            doc.createTextElement(outputSet, Bpmn2Document.NS_BPMN2,
+                    "dataOutputRefs", dataOutputId);
+
             Element signalEventDef = doc.createElement(element,
                     Bpmn2Document.NS_BPMN2, "signalEventDefinition");
             signalEventDef.setAttribute("id", doc.generateId("SignalEventDefinition"));
@@ -285,19 +314,19 @@ public class AddNodeTool implements McpTool {
     }
 
     /**
-     * Adds a tns:metaData element with a tns:metaValue child.
+     * Adds a tns:metaData element with a tns:metaValue child using CDATA.
      */
     private void addMetaData(Bpmn2Document doc, Element parent,
                              String metaName, String metaValue) {
         Element metaData = doc.createElement(parent, Bpmn2Document.NS_TNS, "metaData");
         metaData.setAttribute("name", metaName);
-        doc.createTextElement(metaData, Bpmn2Document.NS_TNS, "metaValue", metaValue);
+        doc.createCDataTextElement(metaData, Bpmn2Document.NS_TNS, "metaValue", metaValue);
     }
 
     /**
-     * Adds the ioSpecification boilerplate with dataInput/dataOutput associations.
+     * Adds the ioSpecification boilerplate for task nodes (using taskCommandFlow).
      */
-    private void addIoSpecification(Bpmn2Document doc, Element taskElement) {
+    private void addTaskIoSpecification(Bpmn2Document doc, Element taskElement) {
         String ioSpecId = doc.generateId("InputOutputSpecification");
         String dataInputId = doc.generateId("DataInput");
         String dataOutputId = doc.generateId("DataOutput");
@@ -313,10 +342,12 @@ public class AddNodeTool implements McpTool {
 
         Element dataInput = doc.createElement(ioSpec, Bpmn2Document.NS_BPMN2, "dataInput");
         dataInput.setAttribute("id", dataInputId);
+        dataInput.setAttribute("itemSubjectRef", "ItemDefinition_1");
         dataInput.setAttribute("name", "taskCommandFlow");
 
         Element dataOutput = doc.createElement(ioSpec, Bpmn2Document.NS_BPMN2, "dataOutput");
         dataOutput.setAttribute("id", dataOutputId);
+        dataOutput.setAttribute("itemSubjectRef", "ItemDefinition_1");
         dataOutput.setAttribute("name", "taskCommandFlow");
 
         Element inputSet = doc.createElement(ioSpec, Bpmn2Document.NS_BPMN2, "inputSet");
@@ -342,5 +373,212 @@ public class AddNodeTool implements McpTool {
         doc.createTextElement(outputAssoc, Bpmn2Document.NS_BPMN2, "sourceRef", dataOutputId);
         doc.createTextElement(outputAssoc, Bpmn2Document.NS_BPMN2, "targetRef",
                 "processCommandFlow");
+    }
+
+    /**
+     * Adds the ioSpecification boilerplate for callActivity nodes (using processCommandFlow).
+     */
+    private void addCallActivityIoSpecification(Bpmn2Document doc, Element element) {
+        String ioSpecId = doc.generateId("InputOutputSpecification");
+        String dataInputId = doc.generateId("DataInput");
+        String dataOutputId = doc.generateId("DataOutput");
+        String inputSetId = doc.generateId("InputSet");
+        String outputSetId = doc.generateId("OutputSet");
+        String dataInputAssocId = doc.generateId("DataInputAssociation");
+        String dataOutputAssocId = doc.generateId("DataOutputAssociation");
+
+        // ioSpecification
+        Element ioSpec = doc.createElement(element,
+                Bpmn2Document.NS_BPMN2, "ioSpecification");
+        ioSpec.setAttribute("id", ioSpecId);
+
+        Element dataInput = doc.createElement(ioSpec, Bpmn2Document.NS_BPMN2, "dataInput");
+        dataInput.setAttribute("id", dataInputId);
+        dataInput.setAttribute("itemSubjectRef", "ItemDefinition_1");
+        dataInput.setAttribute("name", "processCommandFlow");
+
+        Element dataOutput = doc.createElement(ioSpec, Bpmn2Document.NS_BPMN2, "dataOutput");
+        dataOutput.setAttribute("id", dataOutputId);
+        dataOutput.setAttribute("itemSubjectRef", "ItemDefinition_1");
+        dataOutput.setAttribute("name", "processCommandFlow");
+
+        Element inputSet = doc.createElement(ioSpec, Bpmn2Document.NS_BPMN2, "inputSet");
+        inputSet.setAttribute("id", inputSetId);
+        doc.createTextElement(inputSet, Bpmn2Document.NS_BPMN2, "dataInputRefs", dataInputId);
+
+        Element outputSet = doc.createElement(ioSpec, Bpmn2Document.NS_BPMN2, "outputSet");
+        outputSet.setAttribute("id", outputSetId);
+        doc.createTextElement(outputSet, Bpmn2Document.NS_BPMN2, "dataOutputRefs", dataOutputId);
+
+        // dataInputAssociation
+        Element inputAssoc = doc.createElement(element,
+                Bpmn2Document.NS_BPMN2, "dataInputAssociation");
+        inputAssoc.setAttribute("id", dataInputAssocId);
+        doc.createTextElement(inputAssoc, Bpmn2Document.NS_BPMN2, "sourceRef",
+                "processCommandFlow");
+        doc.createTextElement(inputAssoc, Bpmn2Document.NS_BPMN2, "targetRef", dataInputId);
+
+        // dataOutputAssociation
+        Element outputAssoc = doc.createElement(element,
+                Bpmn2Document.NS_BPMN2, "dataOutputAssociation");
+        outputAssoc.setAttribute("id", dataOutputAssocId);
+        doc.createTextElement(outputAssoc, Bpmn2Document.NS_BPMN2, "sourceRef", dataOutputId);
+        doc.createTextElement(outputAssoc, Bpmn2Document.NS_BPMN2, "targetRef",
+                "processCommandFlow");
+    }
+
+    /**
+     * Adds the full jBPM human task ioSpecification for userTask nodes.
+     */
+    private void addUserTaskIoSpecification(Bpmn2Document doc, Element element,
+                                            String taskDisplayName, String groupId) {
+        String ioSpecId = doc.generateId("InputOutputSpecification");
+        String inputSetId = doc.generateId("InputSet");
+        String outputSetId = doc.generateId("OutputSet");
+
+        // Generate IDs for all dataInputs
+        String diTaskName = doc.generateId("DataInput");
+        String diPriority = doc.generateId("DataInput");
+        String diComment = doc.generateId("DataInput");
+        String diDescription = doc.generateId("DataInput");
+        String diGroupId = doc.generateId("DataInput");
+        String diSkippable = doc.generateId("DataInput");
+        String diContent = doc.generateId("DataInput");
+        String diLocale = doc.generateId("DataInput");
+        String diCreatedBy = doc.generateId("DataInput");
+        String diTaskCommandFlow = doc.generateId("DataInput");
+        String diTypeHumanTask = doc.generateId("DataInput");
+
+        // Generate ID for dataOutput
+        String doTaskCommandFlow = doc.generateId("DataOutput");
+
+        // ioSpecification
+        Element ioSpec = doc.createElement(element,
+                Bpmn2Document.NS_BPMN2, "ioSpecification");
+        ioSpec.setAttribute("id", ioSpecId);
+
+        // dataInputs
+        createDataInput(doc, ioSpec, diTaskName, "ItemDefinition_1", "TaskName");
+        createDataInput(doc, ioSpec, diPriority, "ItemDefinition_2", "Priority");
+        createDataInput(doc, ioSpec, diComment, "ItemDefinition_1", "Comment");
+        createDataInput(doc, ioSpec, diDescription, "ItemDefinition_1", "Description");
+        createDataInput(doc, ioSpec, diGroupId, "ItemDefinition_1", "GroupId");
+        createDataInput(doc, ioSpec, diSkippable, "ItemDefinition_3", "Skippable");
+        createDataInput(doc, ioSpec, diContent, "ItemDefinition_1", "Content");
+        createDataInput(doc, ioSpec, diLocale, "ItemDefinition_1", "Locale");
+        createDataInput(doc, ioSpec, diCreatedBy, "ItemDefinition_1", "CreatedBy");
+        createDataInput(doc, ioSpec, diTaskCommandFlow, "ItemDefinition_1", "taskCommandFlow");
+        createDataInput(doc, ioSpec, diTypeHumanTask, "ItemDefinition_1", "TypeHumanTask");
+
+        // dataOutput
+        Element doEl = doc.createElement(ioSpec, Bpmn2Document.NS_BPMN2, "dataOutput");
+        doEl.setAttribute("id", doTaskCommandFlow);
+        doEl.setAttribute("itemSubjectRef", "ItemDefinition_1");
+        doEl.setAttribute("name", "taskCommandFlow");
+
+        // inputSet referencing all dataInputs
+        Element inputSet = doc.createElement(ioSpec, Bpmn2Document.NS_BPMN2, "inputSet");
+        inputSet.setAttribute("id", inputSetId);
+        for (String diId : List.of(diTaskName, diPriority, diComment, diDescription,
+                diGroupId, diSkippable, diContent, diLocale, diCreatedBy,
+                diTaskCommandFlow, diTypeHumanTask)) {
+            doc.createTextElement(inputSet, Bpmn2Document.NS_BPMN2, "dataInputRefs", diId);
+        }
+
+        // outputSet
+        Element outputSet = doc.createElement(ioSpec, Bpmn2Document.NS_BPMN2, "outputSet");
+        outputSet.setAttribute("id", outputSetId);
+        doc.createTextElement(outputSet, Bpmn2Document.NS_BPMN2, "dataOutputRefs",
+                doTaskCommandFlow);
+
+        // dataInputAssociations with assignments
+        // TaskName
+        addAssignmentAssociation(doc, element, diTaskName, "Task Name");
+        // Priority
+        addAssignmentAssociation(doc, element, diPriority, "1");
+        // Comment (empty - just targetRef)
+        addEmptyAssociation(doc, element, diComment);
+        // Description (empty)
+        addEmptyAssociation(doc, element, diDescription);
+        // GroupId
+        addAssignmentAssociation(doc, element, diGroupId,
+                groupId != null ? groupId : "");
+        // Skippable
+        addAssignmentAssociation(doc, element, diSkippable, "true");
+        // Content (empty)
+        addEmptyAssociation(doc, element, diContent);
+        // Locale
+        addAssignmentAssociation(doc, element, diLocale, "en-UK");
+        // CreatedBy (empty)
+        addEmptyAssociation(doc, element, diCreatedBy);
+        // taskCommandFlow (mapping from processCommandFlow)
+        String tcfAssocId = doc.generateId("DataInputAssociation");
+        Element tcfAssoc = doc.createElement(element,
+                Bpmn2Document.NS_BPMN2, "dataInputAssociation");
+        tcfAssoc.setAttribute("id", tcfAssocId);
+        doc.createTextElement(tcfAssoc, Bpmn2Document.NS_BPMN2, "sourceRef",
+                "processCommandFlow");
+        doc.createTextElement(tcfAssoc, Bpmn2Document.NS_BPMN2, "targetRef",
+                diTaskCommandFlow);
+        // TypeHumanTask
+        addAssignmentAssociation(doc, element, diTypeHumanTask, "WebExtensionPoint");
+
+        // dataOutputAssociation (mapping taskCommandFlow back to processCommandFlow)
+        String doAssocId = doc.generateId("DataOutputAssociation");
+        Element doAssoc = doc.createElement(element,
+                Bpmn2Document.NS_BPMN2, "dataOutputAssociation");
+        doAssoc.setAttribute("id", doAssocId);
+        doc.createTextElement(doAssoc, Bpmn2Document.NS_BPMN2, "sourceRef",
+                doTaskCommandFlow);
+        doc.createTextElement(doAssoc, Bpmn2Document.NS_BPMN2, "targetRef",
+                "processCommandFlow");
+    }
+
+    private void createDataInput(Bpmn2Document doc, Element ioSpec,
+                                 String id, String itemSubjectRef, String name) {
+        Element di = doc.createElement(ioSpec, Bpmn2Document.NS_BPMN2, "dataInput");
+        di.setAttribute("id", id);
+        di.setAttribute("itemSubjectRef", itemSubjectRef);
+        di.setAttribute("name", name);
+    }
+
+    /**
+     * Creates a dataInputAssociation with an assignment (from literal value to dataInput).
+     */
+    private void addAssignmentAssociation(Bpmn2Document doc, Element parent,
+                                          String dataInputId, String value) {
+        String assocId = doc.generateId("DataInputAssociation");
+        String assignmentId = doc.generateId("Assignment");
+        String fromId = doc.generateId("FormalExpression");
+        String toId = doc.generateId("FormalExpression");
+
+        Element assoc = doc.createElement(parent,
+                Bpmn2Document.NS_BPMN2, "dataInputAssociation");
+        assoc.setAttribute("id", assocId);
+        doc.createTextElement(assoc, Bpmn2Document.NS_BPMN2, "targetRef", dataInputId);
+
+        Element assignment = doc.createElement(assoc, Bpmn2Document.NS_BPMN2, "assignment");
+        assignment.setAttribute("id", assignmentId);
+
+        Element from = doc.createElement(assignment, Bpmn2Document.NS_BPMN2, "from");
+        from.setAttributeNS(Bpmn2Document.NS_XSI, "xsi:type", "bpmn2:tFormalExpression");
+        from.setAttribute("id", fromId);
+        from.setTextContent(value);
+
+        Element to = doc.createElement(assignment, Bpmn2Document.NS_BPMN2, "to");
+        to.setAttributeNS(Bpmn2Document.NS_XSI, "xsi:type", "bpmn2:tFormalExpression");
+        to.setAttribute("id", toId);
+        to.setTextContent(dataInputId);
+    }
+
+    /**
+     * Creates a dataInputAssociation with only a targetRef (no assignment).
+     */
+    private void addEmptyAssociation(Bpmn2Document doc, Element parent, String dataInputId) {
+        String assocId = doc.generateId("DataInputAssociation");
+        Element assoc = doc.createElement(parent,
+                Bpmn2Document.NS_BPMN2, "dataInputAssociation");
+        assoc.setAttribute("id", assocId);
+        doc.createTextElement(assoc, Bpmn2Document.NS_BPMN2, "targetRef", dataInputId);
     }
 }

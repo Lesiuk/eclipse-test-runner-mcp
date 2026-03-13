@@ -242,6 +242,17 @@ class Bpmn2DocumentTest {
         assertEquals("com.example.new_flow", doc.getProcessElement().getAttribute("id"));
         assertEquals("new_flow", doc.getProcessElement().getAttribute("name"));
         assertEquals("true", doc.getProcessElement().getAttribute("isExecutable"));
+        assertEquals("Private", doc.getProcessElement().getAttribute("processType"));
+
+        // Verify itemDefinitions have isCollection="false"
+        NodeList itemDefs = doc.getDefinitionsElement()
+                .getElementsByTagNameNS(Bpmn2Document.NS_BPMN2, "itemDefinition");
+        assertTrue(itemDefs.getLength() > 0, "Should have itemDefinitions");
+        for (int i = 0; i < itemDefs.getLength(); i++) {
+            Element itemDef = (Element) itemDefs.item(i);
+            assertEquals("false", itemDef.getAttribute("isCollection"),
+                    "itemDefinition " + itemDef.getAttribute("id") + " should have isCollection=false");
+        }
 
         // Verify the file can be re-parsed
         Bpmn2Document reparsed = Bpmn2Document.parse(file.toString());
@@ -316,9 +327,9 @@ class Bpmn2DocumentTest {
         assertEquals("Task_1", shape.getAttribute("bpmnElement"));
         assertEquals(Bpmn2Document.NS_BPMNDI, shape.getNamespaceURI());
 
-        // Check bounds
+        // Check bounds - first Bounds is the shape bounds, second is the label bounds
         NodeList boundsNodes = shape.getElementsByTagNameNS(Bpmn2Document.NS_DC, "Bounds");
-        assertEquals(1, boundsNodes.getLength());
+        assertTrue(boundsNodes.getLength() >= 1);
         Element bounds = (Element) boundsNodes.item(0);
         assertEquals("100", bounds.getAttribute("x"));
         assertEquals("200", bounds.getAttribute("y"));
