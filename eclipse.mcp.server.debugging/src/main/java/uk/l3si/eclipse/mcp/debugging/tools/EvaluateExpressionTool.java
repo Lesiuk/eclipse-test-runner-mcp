@@ -130,7 +130,6 @@ public class EvaluateExpressionTool implements McpTool {
     private ExpressionResult formatResult(String expression, IJavaValue value)
             throws DebugException {
         ExpressionResult.ExpressionResultBuilder resultBuilder = ExpressionResult.builder()
-                .expression(expression)
                 .type(value.getReferenceTypeName());
 
         if (value.isNull()) {

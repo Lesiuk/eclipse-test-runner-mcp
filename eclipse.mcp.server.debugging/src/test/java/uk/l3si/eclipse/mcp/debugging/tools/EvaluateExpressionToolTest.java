@@ -111,7 +111,6 @@ class EvaluateExpressionToolTest {
             args.addProperty("expression", "x + 1");
 
             JsonObject result = GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
-            assertEquals("x + 1", result.get("expression").getAsString());
             assertEquals("int", result.get("type").getAsString());
             assertEquals("42", result.get("value").getAsString());
         }

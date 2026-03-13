@@ -17,7 +17,9 @@ public class TerminateTool implements McpTool {
 
     @Override
     public String getDescription() {
-        return "Terminate running launches. If 'name' is provided, only terminates launches matching that configuration name. Otherwise terminates all.";
+        return "Terminate running launches. Use when a test is stuck, when run_test reports 'test already running', "
+             + "or when you need to stop a debug session. "
+             + "If 'name' is provided, only terminates launches matching that configuration name. Otherwise terminates all.";
     }
 
     @Override

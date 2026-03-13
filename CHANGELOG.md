@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.34.0
+
+- Remove redundant fields from responses to save LLM tokens: `testRunName`/`configName` from test results, `expression` from evaluate_expression, `variableCount` from list_variables
+- Add workflow hints to `run_test` description: guide LLM to use `get_failure_trace` on failures and retry on compilation errors
+- Add `inspect_variable` bracket notation hint to `list_variables` description for truncated arrays
+- Improve `terminate` description: explain when to use it (stuck test, 'test already running' error, stopping debug sessions)
+
 ## v0.33.0
 
 - Validate `mode` parameter in `run_test` against allowed values

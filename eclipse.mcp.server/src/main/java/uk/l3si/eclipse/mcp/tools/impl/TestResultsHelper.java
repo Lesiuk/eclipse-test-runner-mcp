@@ -4,7 +4,6 @@ import uk.l3si.eclipse.mcp.model.TestFailureInfo;
 import uk.l3si.eclipse.mcp.model.TestRunResult;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunch;
-import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.ILaunchManager;
 import org.eclipse.jdt.internal.junit.JUnitCorePlugin;
 import org.eclipse.jdt.internal.junit.model.JUnitModel;
@@ -96,16 +95,6 @@ class TestResultsHelper {
 
     private static TestRunResult buildResult(TestRunSession session) {
         TestRunResult.Builder builder = TestRunResult.builder();
-
-        builder.testRunName(session.getTestRunName());
-        try {
-            ILaunchConfiguration launchConfig = session.getLaunch().getLaunchConfiguration();
-            if (launchConfig != null) {
-                builder.configName(launchConfig.getName());
-            }
-        } catch (Exception e) {
-            // informational, don't fail
-        }
 
         ProgressState state = session.getProgressState();
         builder.status(state.toString());

@@ -5,7 +5,6 @@ import lombok.Builder;
 
 @Builder
 public class ExpressionResult {
-    private String expression;
     private String type;
     private String value;
     private Integer length;

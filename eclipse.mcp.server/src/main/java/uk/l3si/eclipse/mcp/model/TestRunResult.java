@@ -5,8 +5,6 @@ import lombok.Builder;
 
 @Builder(builderClassName = "Builder")
 public class TestRunResult {
-    private String testRunName;
-    private String configName;
     private String status;
     private int totalTests;
     private int passed;

@@ -44,7 +44,9 @@ public class RunTestTool implements McpTool {
              + "When source and tests live in different projects, use 'dependencies' to refresh and build dependency projects in order "
              + "(e.g. build 'mocks' before 'ui_tests'). "
              + "Fails if a test is already running — use 'terminate' to stop it first. "
-             + "Waits for completion and returns test results.";
+             + "Waits for completion and returns test results. "
+             + "If 'compilationErrors' is returned, fix the errors and retry. "
+             + "If tests fail, use 'get_failure_trace' to get the full stack trace for a specific failure.";
     }
 
     @Override
