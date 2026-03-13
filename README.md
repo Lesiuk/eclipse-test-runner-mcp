@@ -17,20 +17,21 @@ Eclipse IDE plugin that lets AI coding assistants ([Claude Code](https://docs.an
 
 The plugin runs as an OSGi bundle inside Eclipse and exposes an HTTP endpoint on `127.0.0.1:5188`.
 
-Each release contains two JARs, versioned independently:
+Each release contains three JARs, versioned independently:
 
 | JAR | Required? | Description |
 |-----|-----------|-------------|
 | `eclipse.mcp.server_VERSION.jar` | **Yes** | Core plugin — test runner, coverage, workspace tools |
 | `eclipse.mcp.server-debugging_VERSION.jar` | No | Debug tools add-on — breakpoints, stepping, variable inspection |
+| `eclipse.mcp.server-bpmn2_VERSION.jar` | No | BPMN2 process editor — create and modify jBPM workflow files |
 
-Both JARs are included in every release so you can always grab a compatible pair from a single page, even when only one module has changed. The version in the filename tells you what's new.
+All JARs are included in every release so you can always grab a compatible set from a single page, even when only one module has changed. The version in the filename tells you what's new.
 
 1. Download the latest JAR(s) from the [releases page](https://github.com/Lesiuk/eclipse-test-runner-mcp/releases/latest)
 2. Drop them into `<eclipse-install>/dropins/`
 3. Restart Eclipse
 
-Only the core JAR is needed for test running and coverage. Install the debugging JAR alongside it to add breakpoint and debugger tools — including a `debug` launch mode on `run_test`.
+Only the core JAR is needed for test running and coverage. Install the debugging JAR alongside it to add breakpoint and debugger tools — including a `debug` launch mode on `run_test`. Install the BPMN2 JAR to add process editing tools for jBPM workflow files.
 
 ## Connecting an AI Assistant
 
@@ -84,6 +85,29 @@ Parameters marked with **\*** are required. All others are optional.
 | `evaluate_expression` | Evaluate a Java expression in a suspended frame |
 | `step` | Step over, into, or return |
 | `resume` | Resume a suspended thread |
+
+#### BPMN2 process editor (`eclipse.mcp.server.bpmn2`)
+
+| Tool | Description |
+|------|-------------|
+| `bpmn2_create_process` | Create a new BPMN2 process file with boilerplate XML |
+| `bpmn2_get_process` | Read a BPMN2 file and return all nodes, flows, variables, and signals |
+| `bpmn2_add_service_task` | Add a service task that calls a Java service method |
+| `bpmn2_add_subflow_call` | Add a call activity that invokes another BPMN2 subprocess |
+| `bpmn2_add_script_task` | Add a script task that executes inline Java code |
+| `bpmn2_add_extension_point` | Add a web extension point (jBPM human task) |
+| `bpmn2_add_gateway` | Add an exclusive gateway for branching or merging |
+| `bpmn2_add_start_event` | Add a start event (plain or signal-triggered) |
+| `bpmn2_add_end_event` | Add an end event |
+| `bpmn2_update_node` | Modify properties of an existing node |
+| `bpmn2_remove_node` | Remove a node and clean up connected flows |
+| `bpmn2_add_flow` | Connect two nodes with a sequence flow |
+| `bpmn2_update_flow` | Modify properties of an existing flow |
+| `bpmn2_remove_flow` | Remove a sequence flow |
+| `bpmn2_add_variable` | Add a process variable |
+| `bpmn2_remove_variable` | Remove a process variable |
+| `bpmn2_add_signal` | Add a signal definition |
+| `bpmn2_auto_layout` | Auto-layout all nodes and edges in the diagram |
 
 ### Typical Session
 
