@@ -1,0 +1,12 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Eclipse MCP BPMN2 Tools
+Bundle-SymbolicName: eclipse.mcp.server.bpmn2;singleton:=true
+Bundle-Version: 0.1.0.qualifier
+Bundle-Vendor: Eclipse MCP
+Require-Bundle: org.eclipse.core.runtime,
+ org.eclipse.ui,
+ eclipse.mcp.server,
+ com.google.gson
+Bundle-RequiredExecutionEnvironment: JavaSE-17
+Bundle-ActivationPolicy: lazy
