@@ -270,7 +270,7 @@ public class Bpmn2LayoutEngine {
             String type = node.getLocalName();
             double w = nodeWidth(type);
             double h = nodeHeight(type);
-            doc.addShape(nodeId, pos[0], pos[1], w, h);
+            doc.addShape(nodeId, pos[0], pos[1], w, h, type);
         }
 
         // Add BPMNEdges with waypoints for all flows
@@ -332,7 +332,7 @@ public class Bpmn2LayoutEngine {
                 waypoints.add(new double[]{tgtCX, tgtTY});
             }
 
-            doc.addEdge(flowId, waypoints);
+            doc.addEdge(flowId, waypoints, sourceId, targetId);
 
             // Label placement for named flows
             if (flowName != null && !flowName.isEmpty()) {

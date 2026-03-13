@@ -73,6 +73,7 @@ public class AddVariableTool implements McpTool {
             itemDefinitionId = doc.generateId("ItemDefinition");
             Element itemDef = doc.createElement(definitions, Bpmn2Document.NS_BPMN2, "itemDefinition");
             itemDef.setAttribute("id", itemDefinitionId);
+            itemDef.setAttribute("isCollection", "false");
             itemDef.setAttribute("structureRef", type);
         }
 
