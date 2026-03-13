@@ -14,7 +14,9 @@ import java.util.Set;
 public class ToolRegistry {
 
     private final LinkedHashMap<String, McpTool> toolsByName = new LinkedHashMap<>();
+    private final LinkedHashMap<String, String> toolGroups = new LinkedHashMap<>();
     private final LinkedHashMap<String, String> launchModes = new LinkedHashMap<>();
+    private final Set<String> disabledTools = new LinkedHashSet<>();
 
     public ToolRegistry() {
         launchModes.put("run", "Normal test execution (default)");
@@ -34,7 +36,12 @@ public class ToolRegistry {
     }
 
     public synchronized void addTool(McpTool tool) {
+        addTool(tool, "Core");
+    }
+
+    public synchronized void addTool(McpTool tool, String group) {
         toolsByName.put(tool.getName(), tool);
+        toolGroups.put(tool.getName(), group);
     }
 
     public synchronized void addLaunchMode(String name, String description) {
@@ -48,6 +55,7 @@ public class ToolRegistry {
     public synchronized List<Map<String, Object>> listToolSchemas() {
         List<Map<String, Object>> schemas = new ArrayList<>();
         for (McpTool tool : toolsByName.values()) {
+            if (disabledTools.contains(tool.getName())) continue;
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("name", tool.getName());
             entry.put("description", tool.getDescription());
@@ -61,12 +69,34 @@ public class ToolRegistry {
         McpTool tool;
         synchronized (this) {
             tool = toolsByName.get(name);
-            if (tool == null) {
+            if (tool == null || disabledTools.contains(name)) {
                 throw new IllegalArgumentException("Unknown tool: " + name);
             }
             validateParameters(name, tool, arguments);
         }
         return tool.execute(new Args(arguments));
+    }
+
+    public synchronized Map<String, List<McpTool>> getToolsByGroup() {
+        Map<String, List<McpTool>> result = new LinkedHashMap<>();
+        for (Map.Entry<String, McpTool> entry : toolsByName.entrySet()) {
+            String group = toolGroups.getOrDefault(entry.getKey(), "Core");
+            result.computeIfAbsent(group, k -> new ArrayList<>()).add(entry.getValue());
+        }
+        return result;
+    }
+
+    public synchronized Set<String> getDisabledTools() {
+        return new LinkedHashSet<>(disabledTools);
+    }
+
+    public synchronized void setDisabledTools(Set<String> disabled) {
+        disabledTools.clear();
+        disabledTools.addAll(disabled);
+    }
+
+    public synchronized boolean isToolEnabled(String toolName) {
+        return !disabledTools.contains(toolName);
     }
 
     private void validateParameters(String toolName, McpTool tool, JsonObject arguments) {

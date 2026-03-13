@@ -33,6 +33,8 @@ public class UpdateFlowTool implements McpTool {
                 .property("name", PropertySchema.string("New label"))
                 .property("condition", PropertySchema.string("New condition expression"))
                 .property("priority", PropertySchema.string("New priority"))
+                .property("evaluatesToTypeRef", PropertySchema.string(
+                        "ItemDefinition ID for condition return type"))
                 .required(List.of("file", "id"))
                 .build();
     }
@@ -44,6 +46,7 @@ public class UpdateFlowTool implements McpTool {
         String name = args.getString("name");
         String condition = args.getString("condition");
         Integer priority = args.getInt("priority");
+        String evaluatesToTypeRef = args.getString("evaluatesToTypeRef");
 
         Bpmn2Document doc = Bpmn2Document.parse(file);
         Element flow = doc.requireFlowExists(id);
@@ -79,9 +82,23 @@ public class UpdateFlowTool implements McpTool {
             updated.add("priority");
         }
 
+        // Update evaluatesToTypeRef on existing conditionExpression
+        if (evaluatesToTypeRef != null) {
+            Element condExpr = findChildElement(flow,
+                    Bpmn2Document.NS_BPMN2, "conditionExpression");
+            if (condExpr == null) {
+                throw new IllegalArgumentException(
+                        "Cannot set 'evaluatesToTypeRef' — flow has no condition expression. "
+                                + "Set 'condition' first.");
+            }
+            condExpr.setAttribute("evaluatesToTypeRef", evaluatesToTypeRef);
+            updated.add("evaluatesToTypeRef");
+        }
+
         if (updated.isEmpty()) {
             throw new IllegalArgumentException(
-                    "No properties to update. Provide at least one of: name, condition, priority.");
+                    "No properties to update. Provide at least one of: name, condition, "
+                            + "priority, evaluatesToTypeRef.");
         }
 
         doc.save();

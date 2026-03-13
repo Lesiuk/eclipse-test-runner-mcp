@@ -14,23 +14,23 @@ public class Bpmn2StartupHook implements IStartup {
             return;
         }
 
-        registry.addTool(new GetProcessTool());
-        registry.addTool(new CreateProcessTool());
-        registry.addTool(new AddServiceTaskTool());
-        registry.addTool(new AddSubflowCallTool());
-        registry.addTool(new AddScriptTaskTool());
-        registry.addTool(new AddExtensionPointTool());
-        registry.addTool(new AddGatewayTool());
-        registry.addTool(new AddStartEventTool());
-        registry.addTool(new AddEndEventTool());
-        registry.addTool(new UpdateNodeTool());
-        registry.addTool(new RemoveNodeTool());
-        registry.addTool(new AddFlowTool());
-        registry.addTool(new UpdateFlowTool());
-        registry.addTool(new RemoveFlowTool());
-        registry.addTool(new AddVariableTool());
-        registry.addTool(new RemoveVariableTool());
-        registry.addTool(new AddSignalTool());
-        registry.addTool(new AutoLayoutTool());
+        registry.addTool(new GetProcessTool(), "BPMN2");
+        registry.addTool(new CreateProcessTool(), "BPMN2");
+        registry.addTool(new AddServiceTaskTool(), "BPMN2");
+        registry.addTool(new AddSubflowCallTool(), "BPMN2");
+        registry.addTool(new AddScriptTaskTool(), "BPMN2");
+        registry.addTool(new AddExtensionPointTool(), "BPMN2");
+        registry.addTool(new AddGatewayTool(), "BPMN2");
+        registry.addTool(new AddStartEventTool(), "BPMN2");
+        registry.addTool(new AddEndEventTool(), "BPMN2");
+        registry.addTool(new UpdateNodeTool(), "BPMN2");
+        registry.addTool(new RemoveNodeTool(), "BPMN2");
+        registry.addTool(new AddFlowTool(), "BPMN2");
+        registry.addTool(new UpdateFlowTool(), "BPMN2");
+        registry.addTool(new RemoveFlowTool(), "BPMN2");
+        registry.addTool(new AddVariableTool(), "BPMN2");
+        registry.addTool(new RemoveVariableTool(), "BPMN2");
+        registry.addTool(new AddSignalTool(), "BPMN2");
+        registry.addTool(new AutoLayoutTool(), "BPMN2");
     }
 }

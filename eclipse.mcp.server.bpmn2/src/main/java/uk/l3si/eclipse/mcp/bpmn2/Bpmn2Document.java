@@ -139,8 +139,7 @@ public class Bpmn2Document {
             String[][] itemDefs = {
                     {"ItemDefinition_1", "java.lang.String"},
                     {"ItemDefinition_2", "java.lang.Integer"},
-                    {"ItemDefinition_3", "java.lang.Boolean"},
-                    {"ItemDefinition_4", "java.lang.Object"}
+                    {"ItemDefinition_3", "java.lang.Boolean"}
             };
             for (String[] def : itemDefs) {
                 Element itemDef = doc.createElementNS(NS_BPMN2, "bpmn2:itemDefinition");

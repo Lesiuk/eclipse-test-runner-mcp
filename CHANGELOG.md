@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.36.0
+
+- Add MCP Server preference page (`Window > Preferences > MCP Server`) — enable/disable individual tools with per-group Select All / Deselect All buttons
+- Tools grouped by module (Core, Debugging, BPMN2) with inline descriptions
+- Disabled tools are hidden from `tools/list` and rejected on `tools/call`
+- Settings persist across Eclipse restarts
+
 ## v0.35.0
 
 - Clarify `get_failure_trace` guidance: run_test stack traces are usually sufficient, only use `get_failure_trace` when full untruncated trace is needed
