@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>eclipse.mcp.server.bpmn2</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.2.0-SNAPSHOT</version>
     <packaging>eclipse-plugin</packaging>
 
     <dependencies>

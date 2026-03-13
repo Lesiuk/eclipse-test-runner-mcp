@@ -48,24 +48,22 @@ class AddFlowToolTest {
      * so we can create flows between them in tests.
      */
     private void addExtraNodes(Path file) throws Exception {
-        AddNodeTool addNodeTool = new AddNodeTool();
-
         // Add Task_2
+        AddServiceTaskTool addServiceTaskTool = new AddServiceTaskTool();
         JsonObject taskArgs = new JsonObject();
         taskArgs.addProperty("file", file.toString());
-        taskArgs.addProperty("type", "task");
         taskArgs.addProperty("name", "Second Task");
         taskArgs.addProperty("taskName", "com.example.IService_second");
         taskArgs.addProperty("id", "Task_2");
-        addNodeTool.execute(new Args(taskArgs));
+        addServiceTaskTool.execute(new Args(taskArgs));
 
         // Add EndEvent_2
+        AddEndEventTool addEndEventTool = new AddEndEventTool();
         JsonObject endArgs = new JsonObject();
         endArgs.addProperty("file", file.toString());
-        endArgs.addProperty("type", "endEvent");
         endArgs.addProperty("name", "Second End");
         endArgs.addProperty("id", "EndEvent_2");
-        addNodeTool.execute(new Args(endArgs));
+        addEndEventTool.execute(new Args(endArgs));
     }
 
     @Test

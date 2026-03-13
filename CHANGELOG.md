@@ -4,6 +4,15 @@
 
 - Clarify `get_failure_trace` guidance: run_test stack traces are usually sufficient, only use `get_failure_trace` when full untruncated trace is needed
 
+## bpmn2 v0.2.0
+
+- Replace monolithic `bpmn2_add_node` (14 params) with 7 domain-specific tools: `bpmn2_add_service_task`, `bpmn2_add_subflow_call`, `bpmn2_add_script_task`, `bpmn2_add_extension_point`, `bpmn2_add_gateway`, `bpmn2_add_start_event`, `bpmn2_add_end_event`
+- Extract shared node-building code into `Bpmn2NodeHelper` utility
+- Add `icon` update support to `bpmn2_update_node`
+- Fix `displayName` to use `tns:displayName` attribute instead of metaData
+- Improve tool descriptions with workflow hints (e.g. gateway → add_flow with conditions)
+- Deduplicate `hasSignalEventDefinition` across AddFlowTool, RemoveNodeTool
+
 ## v0.34.0
 
 - Remove redundant fields from responses to save LLM tokens: `testRunName`/`configName` from test results, `expression` from evaluate_expression, `variableCount` from list_variables

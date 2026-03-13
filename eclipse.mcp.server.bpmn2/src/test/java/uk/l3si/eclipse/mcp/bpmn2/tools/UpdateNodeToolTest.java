@@ -43,6 +43,36 @@ class UpdateNodeToolTest {
         return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
     }
 
+    private String addScriptTask(Path file, String name, String script) throws Exception {
+        AddScriptTaskTool addTool = new AddScriptTaskTool();
+        JsonObject addArgs = new JsonObject();
+        addArgs.addProperty("file", file.toString());
+        addArgs.addProperty("name", name);
+        addArgs.addProperty("script", script);
+        Object addResult = addTool.execute(new Args(addArgs));
+        return GSON.toJsonTree(addResult).getAsJsonObject().get("id").getAsString();
+    }
+
+    private String addSubflowCall(Path file, String name, String calledElement) throws Exception {
+        AddSubflowCallTool addTool = new AddSubflowCallTool();
+        JsonObject addArgs = new JsonObject();
+        addArgs.addProperty("file", file.toString());
+        addArgs.addProperty("name", name);
+        addArgs.addProperty("calledElement", calledElement);
+        Object addResult = addTool.execute(new Args(addArgs));
+        return GSON.toJsonTree(addResult).getAsJsonObject().get("id").getAsString();
+    }
+
+    private String addGateway(Path file, String name, String direction) throws Exception {
+        AddGatewayTool addTool = new AddGatewayTool();
+        JsonObject addArgs = new JsonObject();
+        addArgs.addProperty("file", file.toString());
+        addArgs.addProperty("name", name);
+        addArgs.addProperty("direction", direction);
+        Object addResult = addTool.execute(new Args(addArgs));
+        return GSON.toJsonTree(addResult).getAsJsonObject().get("id").getAsString();
+    }
+
     @Test
     void nameIsUpdateNode() {
         assertEquals("bpmn2_update_node", tool.getName());
@@ -63,7 +93,6 @@ class UpdateNodeToolTest {
         assertEquals("Task_1", result.get("id").getAsString());
         assertTrue(result.get("updated").getAsJsonArray().toString().contains("name"));
 
-        // Re-parse and verify
         Bpmn2Document doc = Bpmn2Document.parse(file.toString());
         Element node = doc.findNodeById("Task_1");
         assertNotNull(node);
@@ -75,19 +104,8 @@ class UpdateNodeToolTest {
     @Test
     void updateScriptOfScriptTask() throws Exception {
         Path file = copyTestResource();
+        String scriptTaskId = addScriptTask(file, "My Script", "int x = 1;");
 
-        // First add a scriptTask
-        AddNodeTool addTool = new AddNodeTool();
-        JsonObject addArgs = new JsonObject();
-        addArgs.addProperty("file", file.toString());
-        addArgs.addProperty("type", "scriptTask");
-        addArgs.addProperty("name", "My Script");
-        addArgs.addProperty("script", "int x = 1;");
-        Object addResult = addTool.execute(new Args(addArgs));
-        String scriptTaskId = GSON.toJsonTree(addResult).getAsJsonObject()
-                .get("id").getAsString();
-
-        // Now update the script
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
         args.addProperty("id", scriptTaskId);
@@ -98,7 +116,6 @@ class UpdateNodeToolTest {
         assertEquals(scriptTaskId, result.get("id").getAsString());
         assertTrue(result.get("updated").getAsJsonArray().toString().contains("script"));
 
-        // Re-parse and verify
         Bpmn2Document doc = Bpmn2Document.parse(file.toString());
         Element node = doc.findNodeById(scriptTaskId);
         assertNotNull(node);
@@ -112,19 +129,8 @@ class UpdateNodeToolTest {
     @Test
     void updateCalledElementOfCallActivity() throws Exception {
         Path file = copyTestResource();
+        String callActivityId = addSubflowCall(file, "Sub Process", "com.example.old_flow");
 
-        // First add a callActivity
-        AddNodeTool addTool = new AddNodeTool();
-        JsonObject addArgs = new JsonObject();
-        addArgs.addProperty("file", file.toString());
-        addArgs.addProperty("type", "callActivity");
-        addArgs.addProperty("name", "Sub Process");
-        addArgs.addProperty("calledElement", "com.example.old_flow");
-        Object addResult = addTool.execute(new Args(addArgs));
-        String callActivityId = GSON.toJsonTree(addResult).getAsJsonObject()
-                .get("id").getAsString();
-
-        // Now update the calledElement
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
         args.addProperty("id", callActivityId);
@@ -135,7 +141,6 @@ class UpdateNodeToolTest {
         assertEquals(callActivityId, result.get("id").getAsString());
         assertTrue(result.get("updated").getAsJsonArray().toString().contains("calledElement"));
 
-        // Re-parse and verify
         Bpmn2Document doc = Bpmn2Document.parse(file.toString());
         Element node = doc.findNodeById(callActivityId);
         assertNotNull(node);
@@ -147,19 +152,8 @@ class UpdateNodeToolTest {
     @Test
     void updateDirectionOfGateway() throws Exception {
         Path file = copyTestResource();
+        String gatewayId = addGateway(file, "Check", "diverging");
 
-        // First add an exclusiveGateway
-        AddNodeTool addTool = new AddNodeTool();
-        JsonObject addArgs = new JsonObject();
-        addArgs.addProperty("file", file.toString());
-        addArgs.addProperty("type", "exclusiveGateway");
-        addArgs.addProperty("name", "Check");
-        addArgs.addProperty("direction", "diverging");
-        Object addResult = addTool.execute(new Args(addArgs));
-        String gatewayId = GSON.toJsonTree(addResult).getAsJsonObject()
-                .get("id").getAsString();
-
-        // Now update the direction
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
         args.addProperty("id", gatewayId);
@@ -170,7 +164,6 @@ class UpdateNodeToolTest {
         assertEquals(gatewayId, result.get("id").getAsString());
         assertTrue(result.get("updated").getAsJsonArray().toString().contains("direction"));
 
-        // Re-parse and verify
         Bpmn2Document doc = Bpmn2Document.parse(file.toString());
         Element node = doc.findNodeById(gatewayId);
         assertNotNull(node);
@@ -192,12 +185,53 @@ class UpdateNodeToolTest {
         assertEquals("Task_1", result.get("id").getAsString());
         assertTrue(result.get("updated").getAsJsonArray().toString().contains("taskName"));
 
-        // Re-parse and verify
         Bpmn2Document doc = Bpmn2Document.parse(file.toString());
         Element node = doc.findNodeById("Task_1");
         assertNotNull(node);
         assertEquals("com.example.IService_newMethod",
                 node.getAttributeNS(Bpmn2Document.NS_TNS, "taskName"));
+    }
+
+    // ---- Update displayName ----
+
+    @Test
+    void updateDisplayNameOfTask() throws Exception {
+        Path file = copyTestResource();
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("id", "Task_1");
+        args.addProperty("displayName", "New Display Name");
+
+        JsonObject result = executeAndSerialize(args);
+
+        assertTrue(result.get("updated").getAsJsonArray().toString().contains("displayName"));
+
+        Bpmn2Document doc = Bpmn2Document.parse(file.toString());
+        Element node = doc.findNodeById("Task_1");
+        assertNotNull(node);
+        assertEquals("New Display Name",
+                node.getAttributeNS(Bpmn2Document.NS_TNS, "displayName"));
+    }
+
+    // ---- Update icon ----
+
+    @Test
+    void updateIconOfTask() throws Exception {
+        Path file = copyTestResource();
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("id", "Task_1");
+        args.addProperty("icon", "new-icon.gif");
+
+        JsonObject result = executeAndSerialize(args);
+
+        assertTrue(result.get("updated").getAsJsonArray().toString().contains("icon"));
+
+        Bpmn2Document doc = Bpmn2Document.parse(file.toString());
+        Element node = doc.findNodeById("Task_1");
+        assertNotNull(node);
+        assertEquals("new-icon.gif",
+                node.getAttributeNS(Bpmn2Document.NS_TNS, "icon"));
     }
 
     // ---- Error: script on a task ----
@@ -222,17 +256,7 @@ class UpdateNodeToolTest {
     @Test
     void setCalledElementOnScriptTaskThrowsError() throws Exception {
         Path file = copyTestResource();
-
-        // First add a scriptTask
-        AddNodeTool addTool = new AddNodeTool();
-        JsonObject addArgs = new JsonObject();
-        addArgs.addProperty("file", file.toString());
-        addArgs.addProperty("type", "scriptTask");
-        addArgs.addProperty("name", "My Script");
-        addArgs.addProperty("script", "int x = 1;");
-        Object addResult = addTool.execute(new Args(addArgs));
-        String scriptTaskId = GSON.toJsonTree(addResult).getAsJsonObject()
-                .get("id").getAsString();
+        String scriptTaskId = addScriptTask(file, "My Script", "int x = 1;");
 
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
@@ -244,6 +268,24 @@ class UpdateNodeToolTest {
         assertTrue(ex.getMessage().contains("Cannot set 'calledElement' on a scriptTask"),
                 ex.getMessage());
         assertTrue(ex.getMessage().contains("callActivity"), ex.getMessage());
+    }
+
+    // ---- Error: icon on a scriptTask ----
+
+    @Test
+    void setIconOnScriptTaskThrowsError() throws Exception {
+        Path file = copyTestResource();
+        String scriptTaskId = addScriptTask(file, "My Script", "int x = 1;");
+
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("id", scriptTaskId);
+        args.addProperty("icon", "icon.gif");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains("Cannot set 'icon' on a scriptTask"),
+                ex.getMessage());
     }
 
     // ---- Error: no properties ----

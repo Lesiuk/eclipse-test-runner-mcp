@@ -30,7 +30,13 @@ class Bpmn2IntegrationTest {
 
     private final CreateProcessTool createTool = new CreateProcessTool();
     private final GetProcessTool getTool = new GetProcessTool();
-    private final AddNodeTool addNodeTool = new AddNodeTool();
+    private final AddServiceTaskTool addServiceTaskTool = new AddServiceTaskTool();
+    private final AddSubflowCallTool addSubflowCallTool = new AddSubflowCallTool();
+    private final AddScriptTaskTool addScriptTaskTool = new AddScriptTaskTool();
+    private final AddExtensionPointTool addExtensionPointTool = new AddExtensionPointTool();
+    private final AddGatewayTool addGatewayTool = new AddGatewayTool();
+    private final AddStartEventTool addStartEventTool = new AddStartEventTool();
+    private final AddEndEventTool addEndEventTool = new AddEndEventTool();
     private final UpdateNodeTool updateNodeTool = new UpdateNodeTool();
     private final RemoveNodeTool removeNodeTool = new RemoveNodeTool();
     private final AddFlowTool addFlowTool = new AddFlowTool();
@@ -64,16 +70,46 @@ class Bpmn2IntegrationTest {
         return result.get("processId").getAsString();
     }
 
-    private String addNode(Path file, String type, String name,
-                           String... extraKvPairs) throws Exception {
+    private String addStartEvent(Path file, String name) throws Exception {
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
-        args.addProperty("type", type);
         args.addProperty("name", name);
-        for (int i = 0; i < extraKvPairs.length; i += 2) {
-            args.addProperty(extraKvPairs[i], extraKvPairs[i + 1]);
-        }
-        JsonObject result = exec(addNodeTool, args);
+        JsonObject result = exec(addStartEventTool, args);
+        return result.get("id").getAsString();
+    }
+
+    private String addEndEvent(Path file, String name) throws Exception {
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("name", name);
+        JsonObject result = exec(addEndEventTool, args);
+        return result.get("id").getAsString();
+    }
+
+    private String addServiceTask(Path file, String name, String taskName) throws Exception {
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("name", name);
+        args.addProperty("taskName", taskName);
+        JsonObject result = exec(addServiceTaskTool, args);
+        return result.get("id").getAsString();
+    }
+
+    private String addScriptTask(Path file, String name, String script) throws Exception {
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("name", name);
+        args.addProperty("script", script);
+        JsonObject result = exec(addScriptTaskTool, args);
+        return result.get("id").getAsString();
+    }
+
+    private String addGateway(Path file, String name, String direction) throws Exception {
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("name", name);
+        args.addProperty("direction", direction);
+        JsonObject result = exec(addGatewayTool, args);
         return result.get("id").getAsString();
     }
 
@@ -113,21 +149,15 @@ class Bpmn2IntegrationTest {
         // 1. Create a new process
         createProcess(file);
 
-        // 2. Add nodes:
-        //    startEvent -> task -> divergingGateway -> [branch1Task, branch2Task]
-        //    -> convergingGateway -> endEvent
-        String startId = addNode(file, "startEvent", "Start");
-        String taskId = addNode(file, "task", "Process Order",
-                "taskName", "com.test.ProcessOrder");
-        String divergeId = addNode(file, "exclusiveGateway", "Check Amount",
-                "direction", "diverging");
-        String branch1Id = addNode(file, "task", "Approve",
-                "taskName", "com.test.Approve");
-        String branch2Id = addNode(file, "scriptTask", "Log Rejection",
-                "script", "System.out.println(\"rejected\");");
-        String convergeId = addNode(file, "exclusiveGateway", "Merge",
-                "direction", "converging");
-        String endId = addNode(file, "endEvent", "End");
+        // 2. Add nodes using domain-specific tools
+        String startId = addStartEvent(file, "Start");
+        String taskId = addServiceTask(file, "Process Order", "com.test.ProcessOrder");
+        String divergeId = addGateway(file, "Check Amount", "diverging");
+        String branch1Id = addServiceTask(file, "Approve", "com.test.Approve");
+        String branch2Id = addScriptTask(file, "Log Rejection",
+                "System.out.println(\"rejected\");");
+        String convergeId = addGateway(file, "Merge", "converging");
+        String endId = addEndEvent(file, "End");
 
         // 3. Add flows connecting them
         String flow1 = addFlow(file, startId, taskId);
@@ -225,10 +255,9 @@ class Bpmn2IntegrationTest {
 
         // Create simple process: start -> task -> end
         createProcess(file);
-        String startId = addNode(file, "startEvent", "Start");
-        String taskId = addNode(file, "task", "Original Task",
-                "taskName", "com.test.OriginalTask");
-        String endId = addNode(file, "endEvent", "End");
+        String startId = addStartEvent(file, "Start");
+        String taskId = addServiceTask(file, "Original Task", "com.test.OriginalTask");
+        String endId = addEndEvent(file, "End");
         String flow1 = addFlow(file, startId, taskId);
         String flow2 = addFlow(file, taskId, endId);
 
@@ -262,8 +291,7 @@ class Bpmn2IntegrationTest {
         exec(removeFlowTool, removeFlowArgs);
 
         // Add a new task
-        String newTaskId = addNode(file, "task", "New Task",
-                "taskName", "com.test.NewTask");
+        String newTaskId = addServiceTask(file, "New Task", "com.test.NewTask");
 
         // Connect: task -> newTask -> end
         String flow3 = addFlow(file, taskId, newTaskId);
