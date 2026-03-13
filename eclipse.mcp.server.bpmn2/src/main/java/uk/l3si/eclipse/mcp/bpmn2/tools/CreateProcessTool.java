@@ -43,6 +43,11 @@ public class CreateProcessTool implements McpTool {
         String processName = args.requireString("processName", "human-readable name");
         String packageName = args.requireString("packageName", "package name");
 
+        if (!file.endsWith(".bpmn2")) {
+            throw new IllegalArgumentException(
+                    "File must have a .bpmn2 extension: '" + file + "'");
+        }
+
         if (!VALID_PROCESS_ID.matcher(processId).matches()) {
             throw new IllegalArgumentException(
                     "Invalid processId: '" + processId

@@ -51,7 +51,21 @@ public class AddFlowTool implements McpTool {
         Integer priority = args.getInt("priority");
         String evaluatesToTypeRef = args.getString("evaluatesToTypeRef");
 
+        if (priority != null && priority < 1) {
+            throw new IllegalArgumentException(
+                    "Invalid priority: " + priority + ". Must be a positive integer.");
+        }
+
+        if (evaluatesToTypeRef != null && condition == null) {
+            throw new IllegalArgumentException(
+                    "Cannot set 'evaluatesToTypeRef' without a 'condition'.");
+        }
+
         Bpmn2Document doc = Bpmn2Document.parse(file);
+
+        if (evaluatesToTypeRef != null) {
+            doc.requireItemDefinitionExists(evaluatesToTypeRef);
+        }
 
         // Validate source node exists
         Element sourceNode = doc.requireNodeExists(source);

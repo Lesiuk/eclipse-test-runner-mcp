@@ -136,6 +136,20 @@ class CreateProcessToolTest {
     }
 
     @Test
+    void wrongFileExtensionThrowsError() {
+        Path file = tempDir.resolve("bad-extension.xml");
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("processId", "com.example.flow");
+        args.addProperty("processName", "flow");
+        args.addProperty("packageName", "com.example");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains(".bpmn2"), ex.getMessage());
+    }
+
+    @Test
     void missingPackageNameThrowsError() {
         Path file = tempDir.resolve("no-pkg.bpmn2");
         JsonObject args = new JsonObject();

@@ -315,6 +315,20 @@ public class Bpmn2Document {
         return flow;
     }
 
+    /**
+     * Returns the itemDefinition element with the given ID, or throws if not found.
+     */
+    public Element requireItemDefinitionExists(String id) {
+        for (Element el : directChildren(definitions, NS_BPMN2)) {
+            if ("itemDefinition".equals(el.getLocalName()) && id.equals(el.getAttribute("id"))) {
+                return el;
+            }
+        }
+        throw new IllegalArgumentException(
+                "ItemDefinition not found: '" + id
+                        + "'. Use 'bpmn2_get_process' to see available item definitions.");
+    }
+
     // ---- Mutation helpers ----
 
     /**

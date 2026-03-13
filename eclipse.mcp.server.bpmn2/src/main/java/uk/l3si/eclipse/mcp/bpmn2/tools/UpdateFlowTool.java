@@ -48,7 +48,17 @@ public class UpdateFlowTool implements McpTool {
         Integer priority = args.getInt("priority");
         String evaluatesToTypeRef = args.getString("evaluatesToTypeRef");
 
+        if (priority != null && priority < 1) {
+            throw new IllegalArgumentException(
+                    "Invalid priority: " + priority + ". Must be a positive integer.");
+        }
+
         Bpmn2Document doc = Bpmn2Document.parse(file);
+
+        if (evaluatesToTypeRef != null) {
+            doc.requireItemDefinitionExists(evaluatesToTypeRef);
+        }
+
         Element flow = doc.requireFlowExists(id);
 
         List<String> updated = new ArrayList<>();

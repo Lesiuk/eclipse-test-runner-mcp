@@ -284,6 +284,94 @@ class AddFlowToolTest {
         assertTrue(ex.getMessage().contains("NonExistent_2"), ex.getMessage());
     }
 
+    @Test
+    void negativePriorityThrowsError() throws Exception {
+        Path file = copyTestResource();
+        addExtraNodes(file);
+
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("source", "Task_1");
+        args.addProperty("target", "Task_2");
+        args.addProperty("priority", "-1");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains("positive"), ex.getMessage());
+    }
+
+    @Test
+    void zeroPriorityThrowsError() throws Exception {
+        Path file = copyTestResource();
+        addExtraNodes(file);
+
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("source", "Task_1");
+        args.addProperty("target", "Task_2");
+        args.addProperty("priority", "0");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains("positive"), ex.getMessage());
+    }
+
+    @Test
+    void evaluatesToTypeRefWithoutConditionThrowsError() throws Exception {
+        Path file = copyTestResource();
+        addExtraNodes(file);
+
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("source", "Task_1");
+        args.addProperty("target", "Task_2");
+        args.addProperty("evaluatesToTypeRef", "ItemDefinition_1");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains("without a 'condition'"), ex.getMessage());
+    }
+
+    @Test
+    void invalidEvaluatesToTypeRefThrowsError() throws Exception {
+        Path file = copyTestResource();
+        addExtraNodes(file);
+
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("source", "Task_1");
+        args.addProperty("target", "Task_2");
+        args.addProperty("condition", "return true;");
+        args.addProperty("evaluatesToTypeRef", "NonExistent_ItemDef");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains("ItemDefinition not found"), ex.getMessage());
+    }
+
+    @Test
+    void validEvaluatesToTypeRefWithCondition() throws Exception {
+        Path file = copyTestResource();
+        addExtraNodes(file);
+
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("source", "Task_1");
+        args.addProperty("target", "Task_2");
+        args.addProperty("condition", "return true;");
+        args.addProperty("evaluatesToTypeRef", "ItemDefinition_1");
+
+        JsonObject result = executeAndSerialize(args);
+
+        String flowId = result.get("id").getAsString();
+        Bpmn2Document doc = Bpmn2Document.parse(file.toString());
+        Element flow = doc.findFlowById(flowId);
+        Element condExpr = findChildElement(flow,
+                Bpmn2Document.NS_BPMN2, "conditionExpression");
+        assertNotNull(condExpr);
+        assertEquals("ItemDefinition_1", condExpr.getAttribute("evaluatesToTypeRef"));
+    }
+
     // ---- Helpers ----
 
     private static boolean hasFlowRef(Element node, String refType, String flowId) {

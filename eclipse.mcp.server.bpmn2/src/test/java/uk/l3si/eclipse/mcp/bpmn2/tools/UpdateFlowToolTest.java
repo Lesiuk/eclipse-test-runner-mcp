@@ -187,6 +187,34 @@ class UpdateFlowToolTest {
         assertTrue(ex.getMessage().contains("SequenceFlow_999"), ex.getMessage());
     }
 
+    @Test
+    void negativePriorityThrowsError() throws Exception {
+        Path file = copyTestResource();
+
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("id", "SequenceFlow_1");
+        args.addProperty("priority", "-1");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains("positive"), ex.getMessage());
+    }
+
+    @Test
+    void invalidEvaluatesToTypeRefThrowsError() throws Exception {
+        Path file = copyTestResource();
+
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("id", "SequenceFlow_1");
+        args.addProperty("evaluatesToTypeRef", "NonExistent_ItemDef");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains("ItemDefinition not found"), ex.getMessage());
+    }
+
     // ---- Helpers ----
 
     private void addExtraNodesAndFlowWithCondition(Path file) throws Exception {

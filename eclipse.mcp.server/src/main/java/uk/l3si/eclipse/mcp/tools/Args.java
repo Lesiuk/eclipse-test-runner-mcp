@@ -15,8 +15,9 @@ public class Args {
     }
 
     public String getString(String key) {
-        return json.has(key) && !json.get(key).isJsonNull()
-                ? json.get(key).getAsString() : null;
+        if (!json.has(key) || json.get(key).isJsonNull()) return null;
+        String value = json.get(key).getAsString().trim();
+        return value.isEmpty() ? null : value;
     }
 
     public String getString(String key, String defaultValue) {
