@@ -8,6 +8,9 @@ import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 import uk.l3si.eclipse.mcp.tools.ToolRegistry;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 public class Activator extends AbstractUIPlugin {
 
     public static final String PLUGIN_ID = "eclipse.mcp.server";
@@ -43,6 +46,7 @@ public class Activator extends AbstractUIPlugin {
             return;
         }
         suppressDebugActivation();
+        loadDisabledTools();
         server = new McpHttpServer(toolRegistry);
         try {
             server.start();
@@ -62,6 +66,20 @@ public class Activator extends AbstractUIPlugin {
             prefs.setValue(IDebugUIConstants.PREF_ACTIVATE_WORKBENCH, false);
         } catch (Exception e) {
             log(IStatus.WARNING, "Could not suppress debug activation: " + e.getMessage());
+        }
+    }
+
+    private void loadDisabledTools() {
+        String disabled = getPreferenceStore().getString(McpToolPreferencePage.PREF_DISABLED_TOOLS);
+        if (disabled != null && !disabled.isBlank()) {
+            Set<String> disabledSet = new LinkedHashSet<>();
+            for (String name : disabled.split(",")) {
+                String trimmed = name.trim();
+                if (!trimmed.isEmpty()) {
+                    disabledSet.add(trimmed);
+                }
+            }
+            toolRegistry.setDisabledTools(disabledSet);
         }
     }
 

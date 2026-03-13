@@ -9,4 +9,5 @@ public class FlowInfo {
     private String target;
     private String name;
     private String condition;
+    private String priority;
 }

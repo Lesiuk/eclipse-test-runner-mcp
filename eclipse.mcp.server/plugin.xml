@@ -3,4 +3,10 @@
    <extension point="org.eclipse.ui.startup">
       <startup class="uk.l3si.eclipse.mcp.StartupHook"/>
    </extension>
+   <extension point="org.eclipse.ui.preferencePages">
+      <page
+         id="uk.l3si.eclipse.mcp.preferences"
+         name="MCP Server"
+         class="uk.l3si.eclipse.mcp.McpToolPreferencePage"/>
+   </extension>
 </plugin>

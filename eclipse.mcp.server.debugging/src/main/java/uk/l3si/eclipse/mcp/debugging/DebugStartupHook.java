@@ -22,17 +22,17 @@ public class DebugStartupHook implements IStartup {
 
         BreakpointManager breakpointManager = new BreakpointManager();
 
-        registry.addTool(new SetBreakpointTool(breakpointManager));
-        registry.addTool(new RemoveBreakpointTool(breakpointManager));
-        registry.addTool(new ListBreakpointsTool(breakpointManager));
+        registry.addTool(new SetBreakpointTool(breakpointManager), "Debugging");
+        registry.addTool(new RemoveBreakpointTool(breakpointManager), "Debugging");
+        registry.addTool(new ListBreakpointsTool(breakpointManager), "Debugging");
 
-        registry.addTool(new GetDebugStateTool(debugContext));
-        registry.addTool(new ListThreadsTool(debugContext));
-        registry.addTool(new GetStackTraceTool(debugContext));
-        registry.addTool(new ListVariablesTool(debugContext));
-        registry.addTool(new InspectVariableTool(debugContext));
-        registry.addTool(new EvaluateExpressionTool(debugContext));
-        registry.addTool(new StepTool(debugContext));
-        registry.addTool(new ResumeTool(debugContext));
+        registry.addTool(new GetDebugStateTool(debugContext), "Debugging");
+        registry.addTool(new ListThreadsTool(debugContext), "Debugging");
+        registry.addTool(new GetStackTraceTool(debugContext), "Debugging");
+        registry.addTool(new ListVariablesTool(debugContext), "Debugging");
+        registry.addTool(new InspectVariableTool(debugContext), "Debugging");
+        registry.addTool(new EvaluateExpressionTool(debugContext), "Debugging");
+        registry.addTool(new StepTool(debugContext), "Debugging");
+        registry.addTool(new ResumeTool(debugContext), "Debugging");
     }
 }

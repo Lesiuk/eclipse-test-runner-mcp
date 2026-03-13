@@ -172,6 +172,8 @@ public class GetProcessTool implements McpTool {
             String condition = getChildElementText(flow,
                     Bpmn2Document.NS_BPMN2, "conditionExpression");
 
+            String priority = flow.getAttributeNS(Bpmn2Document.NS_TNS, "priority");
+
             FlowInfo.FlowInfoBuilder builder = FlowInfo.builder()
                     .id(id)
                     .source(sourceRef)
@@ -182,6 +184,9 @@ public class GetProcessTool implements McpTool {
             }
             if (condition != null && !condition.isEmpty()) {
                 builder.condition(condition);
+            }
+            if (priority != null && !priority.isEmpty()) {
+                builder.priority(priority);
             }
 
             flows.add(builder.build());
