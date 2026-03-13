@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.33.0
+
+- Validate `mode` parameter in `run_test` against allowed values
+
 ## v0.32.0
 
 - Reduce test session poll interval from 500ms to 100ms and check immediately before sleeping — fast tests no longer wait unnecessarily
