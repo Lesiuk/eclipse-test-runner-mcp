@@ -11,8 +11,12 @@ import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 public class ItemDefinitionTool implements McpTool {
+
+    private static final Pattern VALID_JAVA_TYPE = Pattern.compile(
+            "[a-zA-Z][a-zA-Z0-9]*(\\.[a-zA-Z][a-zA-Z0-9]*)+");
 
     @Override
     public String getName() {
@@ -21,7 +25,9 @@ public class ItemDefinitionTool implements McpTool {
 
     @Override
     public String getDescription() {
-        return "Add or remove a type definition (itemDefinition). Used for evaluatesToTypeRef on conditional flows.";
+        return "Add or remove a type definition (itemDefinition). "
+                + "Used for 'evaluatesToTypeRef' on conditional flows in 'bpmn2_flow'. "
+                + "Process variables auto-create their own type definitions via 'bpmn2_variable'.";
     }
 
     @Override
@@ -53,6 +59,12 @@ public class ItemDefinitionTool implements McpTool {
         String file = args.requireString("file", "path to .bpmn2 file");
         String structureRef = args.requireString("structureRef", "fully qualified Java type");
         String customId = args.getString("id");
+
+        if (!VALID_JAVA_TYPE.matcher(structureRef).matches()) {
+            throw new IllegalArgumentException(
+                    "Invalid structureRef: '" + structureRef
+                            + "'. Must be a fully qualified Java type (e.g. java.lang.String).");
+        }
 
         Bpmn2Document doc = Bpmn2Document.parse(file);
         Element definitions = doc.getDefinitionsElement();

@@ -12,8 +12,12 @@ import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 public class ImportTool implements McpTool {
+
+    private static final Pattern VALID_FQCN = Pattern.compile(
+            "[a-zA-Z][a-zA-Z0-9]*(\\.[a-zA-Z][a-zA-Z0-9]*)+");
 
     @Override
     public String getName() {
@@ -22,7 +26,9 @@ public class ImportTool implements McpTool {
 
     @Override
     public String getDescription() {
-        return "Add or remove a Java class import. Imports let script tasks use classes by short name.";
+        return "Add or remove a Java class import. "
+                + "Imports let script tasks use classes by short name. "
+                + "Add imports before creating script tasks that reference utility classes.";
     }
 
     @Override
@@ -52,6 +58,12 @@ public class ImportTool implements McpTool {
     private Object executeAdd(Args args) throws Exception {
         String file = args.requireString("file", "path to .bpmn2 file");
         String name = args.requireString("name", "fully qualified class name");
+
+        if (!VALID_FQCN.matcher(name).matches()) {
+            throw new IllegalArgumentException(
+                    "Invalid class name: '" + name
+                            + "'. Must be a fully qualified Java class name (e.g. com.example.MyUtils).");
+        }
 
         Bpmn2Document doc = Bpmn2Document.parse(file);
         Element process = doc.getProcessElement();

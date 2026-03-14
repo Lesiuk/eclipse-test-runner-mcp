@@ -24,8 +24,8 @@ public class VariableTool implements McpTool {
     @Override
     public String getDescription() {
         return "Add or remove a process-level variable. "
-                + "Action 'add' creates a variable with its type definition. "
-                + "Action 'remove' deletes the variable and its type definition if unused.";
+                + "Variables are used in condition expressions on flows and as data passed between tasks. "
+                + "Type definitions (itemDefinitions) are auto-managed.";
     }
 
     @Override

@@ -21,7 +21,9 @@ public class SignalTool implements McpTool {
 
     @Override
     public String getDescription() {
-        return "Add or remove a signal definition. Signals enable event-driven start events.";
+        return "Add or remove a signal definition. "
+                + "Signals enable event-driven start events — create a signal first, "
+                + "then use 'bpmn2_node' with type=start_event and signalRef to create a signal start event.";
     }
 
     @Override

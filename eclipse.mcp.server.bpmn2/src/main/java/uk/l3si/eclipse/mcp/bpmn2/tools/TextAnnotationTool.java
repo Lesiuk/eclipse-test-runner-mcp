@@ -23,7 +23,8 @@ public class TextAnnotationTool implements McpTool {
 
     @Override
     public String getDescription() {
-        return "Add or remove a text annotation (sticky note) on the diagram.";
+        return "Add or remove a text annotation (sticky note) on the diagram. "
+                + "Use 'attachTo' to visually link the note to a specific node or flow.";
     }
 
     @Override

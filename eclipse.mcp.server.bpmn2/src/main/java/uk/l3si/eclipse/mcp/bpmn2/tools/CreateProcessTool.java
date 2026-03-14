@@ -13,6 +13,8 @@ import java.util.regex.Pattern;
 public class CreateProcessTool implements McpTool {
 
     private static final Pattern VALID_PROCESS_ID = Pattern.compile("[a-zA-Z0-9._]+");
+    private static final Pattern VALID_PACKAGE_NAME = Pattern.compile(
+            "[a-zA-Z][a-zA-Z0-9]*(\\.[a-zA-Z][a-zA-Z0-9]*)*");
 
     @Override
     public String getName() {
@@ -22,7 +24,8 @@ public class CreateProcessTool implements McpTool {
     @Override
     public String getDescription() {
         return "Create a new .bpmn2 file with boilerplate XML including namespace declarations, "
-                + "common type definitions, and an empty process.";
+                + "common type definitions, and an empty process. "
+                + "After creating, use 'bpmn2_node' to add start/end events, then add tasks and connect with 'bpmn2_flow'.";
     }
 
     @Override
@@ -52,6 +55,12 @@ public class CreateProcessTool implements McpTool {
             throw new IllegalArgumentException(
                     "Invalid processId: '" + processId
                             + "'. Must contain only letters, digits, dots, and underscores.");
+        }
+
+        if (!VALID_PACKAGE_NAME.matcher(packageName).matches()) {
+            throw new IllegalArgumentException(
+                    "Invalid packageName: '" + packageName
+                            + "'. Must be a valid Java package name (e.g. com.example).");
         }
 
         Bpmn2Document.create(file, processId, processName, packageName);
