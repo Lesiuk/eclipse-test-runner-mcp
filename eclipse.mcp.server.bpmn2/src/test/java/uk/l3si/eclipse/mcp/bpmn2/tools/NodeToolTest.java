@@ -1,11 +1,13 @@
 package uk.l3si.eclipse.mcp.bpmn2.tools;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import uk.l3si.eclipse.mcp.bpmn2.Bpmn2Document;
 import uk.l3si.eclipse.mcp.tools.Args;
@@ -13,21 +15,23 @@ import uk.l3si.eclipse.mcp.tools.Args;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class UpdateNodeToolTest {
+class NodeToolTest {
 
     private static final Gson GSON = new Gson();
 
     @TempDir
     Path tempDir;
 
-    private UpdateNodeTool tool;
+    private NodeTool tool;
 
     @BeforeEach
     void setUp() {
-        tool = new UpdateNodeTool();
+        tool = new NodeTool();
     }
 
     private Path copyTestResource() throws Exception {
@@ -73,9 +77,24 @@ class UpdateNodeToolTest {
         return GSON.toJsonTree(addResult).getAsJsonObject().get("id").getAsString();
     }
 
+    // ---- General ----
+
     @Test
-    void nameIsUpdateNode() {
-        assertEquals("bpmn2_update_node", tool.getName());
+    void nameIsNode() {
+        assertEquals("bpmn2_node", tool.getName());
+    }
+
+    @Test
+    void invalidActionThrowsError() {
+        JsonObject args = new JsonObject();
+        args.addProperty("file", "/dummy.bpmn2");
+        args.addProperty("action", "add");
+        args.addProperty("id", "Task_1");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains("Invalid action"), ex.getMessage());
+        assertTrue(ex.getMessage().contains("add"), ex.getMessage());
     }
 
     // ---- Update name ----
@@ -85,6 +104,7 @@ class UpdateNodeToolTest {
         Path file = copyTestResource();
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "update");
         args.addProperty("id", "Task_1");
         args.addProperty("name", "Updated Task Name");
 
@@ -108,6 +128,7 @@ class UpdateNodeToolTest {
 
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "update");
         args.addProperty("id", scriptTaskId);
         args.addProperty("script", "int x = 42;");
 
@@ -133,6 +154,7 @@ class UpdateNodeToolTest {
 
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "update");
         args.addProperty("id", callActivityId);
         args.addProperty("calledElement", "com.example.new_flow");
 
@@ -156,6 +178,7 @@ class UpdateNodeToolTest {
 
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "update");
         args.addProperty("id", gatewayId);
         args.addProperty("direction", "converging");
 
@@ -177,6 +200,7 @@ class UpdateNodeToolTest {
         Path file = copyTestResource();
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "update");
         args.addProperty("id", "Task_1");
         args.addProperty("taskName", "com.example.IService_newMethod");
 
@@ -199,6 +223,7 @@ class UpdateNodeToolTest {
         Path file = copyTestResource();
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "update");
         args.addProperty("id", "Task_1");
         args.addProperty("displayName", "New Display Name");
 
@@ -220,6 +245,7 @@ class UpdateNodeToolTest {
         Path file = copyTestResource();
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "update");
         args.addProperty("id", "Task_1");
         args.addProperty("icon", "new-icon.gif");
 
@@ -241,6 +267,7 @@ class UpdateNodeToolTest {
         Path file = copyTestResource();
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "update");
         args.addProperty("id", "Task_1");
         args.addProperty("script", "int x = 1;");
 
@@ -260,6 +287,7 @@ class UpdateNodeToolTest {
 
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "update");
         args.addProperty("id", scriptTaskId);
         args.addProperty("calledElement", "com.example.flow");
 
@@ -279,6 +307,7 @@ class UpdateNodeToolTest {
 
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "update");
         args.addProperty("id", scriptTaskId);
         args.addProperty("icon", "icon.gif");
 
@@ -295,6 +324,7 @@ class UpdateNodeToolTest {
         Path file = copyTestResource();
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "update");
         args.addProperty("id", "Task_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
@@ -302,13 +332,14 @@ class UpdateNodeToolTest {
         assertTrue(ex.getMessage().contains("No properties to update"), ex.getMessage());
     }
 
-    // ---- Error: node not found ----
+    // ---- Error: node not found (update) ----
 
     @Test
-    void nodeNotFoundThrowsError() throws Exception {
+    void nodeNotFoundOnUpdateThrowsError() throws Exception {
         Path file = copyTestResource();
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "update");
         args.addProperty("id", "Task_999");
         args.addProperty("name", "Anything");
 
@@ -317,7 +348,129 @@ class UpdateNodeToolTest {
         assertTrue(ex.getMessage().contains("Node not found"), ex.getMessage());
     }
 
-    // ---- Helper ----
+    // ---- Remove node tests ----
+
+    @Test
+    void removeTaskRemovesNodeAndConnectedFlows() throws Exception {
+        Path file = copyTestResource();
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("action", "remove");
+        args.addProperty("id", "Task_1");
+
+        JsonObject result = executeAndSerialize(args);
+
+        assertEquals("Task_1", result.get("id").getAsString());
+
+        JsonArray removedFlows = result.get("removedFlows").getAsJsonArray();
+        List<String> removedFlowIds = new ArrayList<>();
+        removedFlows.forEach(e -> removedFlowIds.add(e.getAsString()));
+        assertTrue(removedFlowIds.contains("SequenceFlow_1"),
+                "SequenceFlow_1 should be removed");
+        assertTrue(removedFlowIds.contains("SequenceFlow_2"),
+                "SequenceFlow_2 should be removed");
+
+        // Re-parse and verify node is gone
+        Bpmn2Document doc = Bpmn2Document.parse(file.toString());
+        assertNull(doc.findNodeById("Task_1"), "Task_1 should be removed");
+
+        // Verify flows are gone
+        assertNull(doc.findFlowById("SequenceFlow_1"),
+                "SequenceFlow_1 should be removed");
+        assertNull(doc.findFlowById("SequenceFlow_2"),
+                "SequenceFlow_2 should be removed");
+
+        // Verify StartEvent_1 no longer has outgoing ref to SequenceFlow_1
+        Element startEvent = doc.findNodeById("StartEvent_1");
+        assertNotNull(startEvent);
+        assertFalse(hasFlowRef(startEvent, "outgoing", "SequenceFlow_1"),
+                "StartEvent_1 should not have outgoing ref to SequenceFlow_1");
+
+        // Verify EndEvent_1 no longer has incoming ref to SequenceFlow_2
+        Element endEvent = doc.findNodeById("EndEvent_1");
+        assertNotNull(endEvent);
+        assertFalse(hasFlowRef(endEvent, "incoming", "SequenceFlow_2"),
+                "EndEvent_1 should not have incoming ref to SequenceFlow_2");
+    }
+
+    @Test
+    void removeTaskCleansDiagramElements() throws Exception {
+        Path file = copyTestResource();
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("action", "remove");
+        args.addProperty("id", "Task_1");
+
+        executeAndSerialize(args);
+
+        // Re-parse and verify diagram elements are cleaned
+        Bpmn2Document doc = Bpmn2Document.parse(file.toString());
+        Element diagramPlane = doc.getDiagramPlane();
+        assertNotNull(diagramPlane);
+
+        // BPMNShape for Task_1 should be gone
+        assertFalse(hasDiagramElement(diagramPlane, "Task_1"),
+                "BPMNShape for Task_1 should be removed");
+    }
+
+    // ---- Error: removing the only startEvent ----
+
+    @Test
+    void removeOnlyStartEventThrowsError() throws Exception {
+        Path file = copyTestResource();
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("action", "remove");
+        args.addProperty("id", "StartEvent_1");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains("Cannot remove the only startEvent"),
+                ex.getMessage());
+    }
+
+    // ---- Error: node not found (remove) ----
+
+    @Test
+    void nodeNotFoundOnRemoveThrowsError() throws Exception {
+        Path file = copyTestResource();
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("action", "remove");
+        args.addProperty("id", "Task_999");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains("Node not found"), ex.getMessage());
+    }
+
+    // ---- Helpers ----
+
+    private boolean hasFlowRef(Element node, String refType, String flowId) {
+        NodeList children = node.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node child = children.item(i);
+            if (child instanceof Element el
+                    && Bpmn2Document.NS_BPMN2.equals(el.getNamespaceURI())
+                    && refType.equals(el.getLocalName())
+                    && flowId.equals(el.getTextContent().trim())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasDiagramElement(Element diagramPlane, String bpmnElementId) {
+        NodeList children = diagramPlane.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node child = children.item(i);
+            if (child instanceof Element el
+                    && bpmnElementId.equals(el.getAttribute("bpmnElement"))) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private static Element findChildElement(Element parent, String ns, String localName) {
         NodeList children = parent.getChildNodes();

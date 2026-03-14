@@ -23,11 +23,8 @@ public class Bpmn2StartupHook implements IStartup {
         registry.addTool(new AddGatewayTool(), "BPMN2");
         registry.addTool(new AddStartEventTool(), "BPMN2");
         registry.addTool(new AddEndEventTool(), "BPMN2");
-        registry.addTool(new UpdateNodeTool(), "BPMN2");
-        registry.addTool(new RemoveNodeTool(), "BPMN2");
-        registry.addTool(new AddFlowTool(), "BPMN2");
-        registry.addTool(new UpdateFlowTool(), "BPMN2");
-        registry.addTool(new RemoveFlowTool(), "BPMN2");
+        registry.addTool(new NodeTool(), "BPMN2");
+        registry.addTool(new FlowTool(), "BPMN2");
         registry.addTool(new VariableTool(), "BPMN2");
         registry.addTool(new SignalTool(), "BPMN2");
         registry.addTool(new ImportTool(), "BPMN2");

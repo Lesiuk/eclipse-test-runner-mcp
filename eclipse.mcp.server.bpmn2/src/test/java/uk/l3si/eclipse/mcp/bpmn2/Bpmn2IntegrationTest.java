@@ -37,11 +37,8 @@ class Bpmn2IntegrationTest {
     private final AddGatewayTool addGatewayTool = new AddGatewayTool();
     private final AddStartEventTool addStartEventTool = new AddStartEventTool();
     private final AddEndEventTool addEndEventTool = new AddEndEventTool();
-    private final UpdateNodeTool updateNodeTool = new UpdateNodeTool();
-    private final RemoveNodeTool removeNodeTool = new RemoveNodeTool();
-    private final AddFlowTool addFlowTool = new AddFlowTool();
-    private final UpdateFlowTool updateFlowTool = new UpdateFlowTool();
-    private final RemoveFlowTool removeFlowTool = new RemoveFlowTool();
+    private final NodeTool nodeTool = new NodeTool();
+    private final FlowTool flowTool = new FlowTool();
     private final VariableTool variableTool = new VariableTool();
     private final SignalTool signalTool = new SignalTool();
     private final AutoLayoutTool autoLayoutTool = new AutoLayoutTool();
@@ -116,12 +113,13 @@ class Bpmn2IntegrationTest {
                            String... extraKvPairs) throws Exception {
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
         args.addProperty("source", source);
         args.addProperty("target", target);
         for (int i = 0; i < extraKvPairs.length; i += 2) {
             args.addProperty(extraKvPairs[i], extraKvPairs[i + 1]);
         }
-        JsonObject result = exec(addFlowTool, args);
+        JsonObject result = exec(flowTool, args);
         return result.get("id").getAsString();
     }
 
@@ -265,9 +263,10 @@ class Bpmn2IntegrationTest {
         // Update the task name
         JsonObject updateArgs = new JsonObject();
         updateArgs.addProperty("file", file.toString());
+        updateArgs.addProperty("action", "update");
         updateArgs.addProperty("id", taskId);
         updateArgs.addProperty("name", "Updated Task");
-        JsonObject updateResult = exec(updateNodeTool, updateArgs);
+        JsonObject updateResult = exec(nodeTool, updateArgs);
         assertTrue(updateResult.getAsJsonArray("updated").toString().contains("name"));
 
         // Verify name changed via get_process
@@ -288,8 +287,9 @@ class Bpmn2IntegrationTest {
         // First remove the flow from task to end
         JsonObject removeFlowArgs = new JsonObject();
         removeFlowArgs.addProperty("file", file.toString());
+        removeFlowArgs.addProperty("action", "remove");
         removeFlowArgs.addProperty("id", flow2);
-        exec(removeFlowTool, removeFlowArgs);
+        exec(flowTool, removeFlowArgs);
 
         // Add a new task
         String newTaskId = addServiceTask(file, "New Task", "com.test.NewTask");
@@ -308,16 +308,18 @@ class Bpmn2IntegrationTest {
         // Update a flow condition
         JsonObject updateFlowArgs = new JsonObject();
         updateFlowArgs.addProperty("file", file.toString());
+        updateFlowArgs.addProperty("action", "update");
         updateFlowArgs.addProperty("id", flow3);
         updateFlowArgs.addProperty("name", "to-new-task");
-        JsonObject flowUpdateResult = exec(updateFlowTool, updateFlowArgs);
+        JsonObject flowUpdateResult = exec(flowTool, updateFlowArgs);
         assertTrue(flowUpdateResult.getAsJsonArray("updated").toString().contains("name"));
 
         // Remove the new task (should also remove connected flows)
         JsonObject removeNodeArgs = new JsonObject();
         removeNodeArgs.addProperty("file", file.toString());
+        removeNodeArgs.addProperty("action", "remove");
         removeNodeArgs.addProperty("id", newTaskId);
-        JsonObject removeResult = exec(removeNodeTool, removeNodeArgs);
+        JsonObject removeResult = exec(nodeTool, removeNodeArgs);
         assertEquals(newTaskId, removeResult.get("id").getAsString());
         JsonArray removedFlows = removeResult.getAsJsonArray("removedFlows");
         assertEquals(2, removedFlows.size(),
