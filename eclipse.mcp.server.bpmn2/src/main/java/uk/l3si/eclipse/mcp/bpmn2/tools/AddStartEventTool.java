@@ -15,7 +15,7 @@ public class AddStartEventTool implements McpTool {
 
     @Override
     public String getName() {
-        return "bpmn2_add_start_event";
+        return "bpmn2_start_event";
     }
 
     @Override
@@ -23,8 +23,8 @@ public class AddStartEventTool implements McpTool {
         return "Add a start event to the process. "
                 + "Only one plain start event is allowed per process. "
                 + "To add additional start events, provide a 'signalRef' "
-                + "(the signal must already exist — use 'bpmn2_add_signal' first). "
-                + "After adding, use 'bpmn2_add_flow' to connect it to the first task.";
+                + "(the signal must already exist — use 'bpmn2_signal' first). "
+                + "After adding, use 'bpmn2_flow' to connect it to the first task.";
     }
 
     @Override
@@ -66,7 +66,7 @@ public class AddStartEventTool implements McpTool {
             if (!signalExists) {
                 throw new IllegalArgumentException(
                         "Signal not found: '" + signalRef
-                                + "'. Use 'bpmn2_add_signal' to create it first.");
+                                + "'. Use 'bpmn2_signal' to create it first.");
             }
         }
 

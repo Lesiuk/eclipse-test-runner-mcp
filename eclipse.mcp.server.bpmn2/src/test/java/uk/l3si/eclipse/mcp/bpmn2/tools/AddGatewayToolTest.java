@@ -44,7 +44,7 @@ class AddGatewayToolTest {
 
     @Test
     void nameIsAddGateway() {
-        assertEquals("bpmn2_add_gateway", tool.getName());
+        assertEquals("bpmn2_gateway", tool.getName());
     }
 
     @Test

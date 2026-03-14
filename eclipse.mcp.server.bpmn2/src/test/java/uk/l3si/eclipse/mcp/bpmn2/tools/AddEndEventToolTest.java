@@ -44,7 +44,7 @@ class AddEndEventToolTest {
 
     @Test
     void nameIsAddEndEvent() {
-        assertEquals("bpmn2_add_end_event", tool.getName());
+        assertEquals("bpmn2_end_event", tool.getName());
     }
 
     @Test

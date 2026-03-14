@@ -15,7 +15,7 @@ public class AddExtensionPointTool implements McpTool {
 
     @Override
     public String getName() {
-        return "bpmn2_add_extension_point";
+        return "bpmn2_extension_point";
     }
 
     @Override
@@ -23,7 +23,7 @@ public class AddExtensionPointTool implements McpTool {
         return "Add a web extension point (jBPM human task / userTask). "
                 + "This creates a userTask with TypeHumanTask=WebExtensionPoint, "
                 + "Skippable=true, Locale=en-UK, and Priority=1 pre-configured. "
-                + "After adding, use 'bpmn2_add_flow' to connect it to other nodes.";
+                + "After adding, use 'bpmn2_flow' to connect it to other nodes.";
     }
 
     @Override

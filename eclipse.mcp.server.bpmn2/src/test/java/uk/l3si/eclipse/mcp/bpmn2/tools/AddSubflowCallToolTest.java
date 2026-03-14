@@ -45,7 +45,7 @@ class AddSubflowCallToolTest {
 
     @Test
     void nameIsAddSubflowCall() {
-        assertEquals("bpmn2_add_subflow_call", tool.getName());
+        assertEquals("bpmn2_subflow_call", tool.getName());
     }
 
     @Test

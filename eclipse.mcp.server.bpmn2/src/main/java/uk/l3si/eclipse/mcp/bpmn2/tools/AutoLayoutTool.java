@@ -40,7 +40,7 @@ public class AutoLayoutTool implements McpTool {
         // Validate process has at least one node
         if (doc.listNodes().isEmpty()) {
             throw new IllegalArgumentException(
-                    "Process has no nodes. Use 'bpmn2_add_node' to add nodes before running auto-layout.");
+                    "Process has no nodes. Use 'bpmn2_node' to add nodes before running auto-layout.");
         }
 
         Bpmn2LayoutEngine engine = new Bpmn2LayoutEngine();

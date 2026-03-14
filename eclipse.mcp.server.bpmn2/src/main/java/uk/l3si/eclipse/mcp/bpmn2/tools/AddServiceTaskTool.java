@@ -20,7 +20,7 @@ public class AddServiceTaskTool implements McpTool {
 
     @Override
     public String getName() {
-        return "bpmn2_add_service_task";
+        return "bpmn2_service_task";
     }
 
     @Override
@@ -29,7 +29,7 @@ public class AddServiceTaskTool implements McpTool {
                 + "The 'taskName' is the fully-qualified interface + method "
                 + "(e.g. com.example.IService_doSomething). "
                 + "IO specification and extension elements are auto-generated. "
-                + "After adding, use 'bpmn2_add_flow' to connect it to other nodes.";
+                + "After adding, use 'bpmn2_flow' to connect it to other nodes.";
     }
 
     @Override

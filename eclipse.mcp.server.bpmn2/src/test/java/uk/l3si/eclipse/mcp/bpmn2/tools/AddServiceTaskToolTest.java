@@ -45,7 +45,7 @@ class AddServiceTaskToolTest {
 
     @Test
     void nameIsAddServiceTask() {
-        assertEquals("bpmn2_add_service_task", tool.getName());
+        assertEquals("bpmn2_service_task", tool.getName());
     }
 
     @Test

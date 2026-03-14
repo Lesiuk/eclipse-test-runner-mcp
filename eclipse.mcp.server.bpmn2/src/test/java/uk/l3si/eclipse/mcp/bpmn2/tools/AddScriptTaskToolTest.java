@@ -45,7 +45,7 @@ class AddScriptTaskToolTest {
 
     @Test
     void nameIsAddScriptTask() {
-        assertEquals("bpmn2_add_script_task", tool.getName());
+        assertEquals("bpmn2_script_task", tool.getName());
     }
 
     @Test

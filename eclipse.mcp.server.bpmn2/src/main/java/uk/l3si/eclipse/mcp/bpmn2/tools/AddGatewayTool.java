@@ -14,14 +14,14 @@ public class AddGatewayTool implements McpTool {
 
     @Override
     public String getName() {
-        return "bpmn2_add_gateway";
+        return "bpmn2_gateway";
     }
 
     @Override
     public String getDescription() {
         return "Add an exclusive gateway for branching or merging flow paths. "
                 + "For diverging (decision): add the gateway, then connect each branch "
-                + "using 'bpmn2_add_flow' with a Java 'condition' and 'name' label "
+                + "using 'bpmn2_flow' with a Java 'condition' and 'name' label "
                 + "(e.g. YES/NO). "
                 + "For converging (merge): add the gateway and connect incoming flows to it.";
     }

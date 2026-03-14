@@ -45,7 +45,7 @@ class AddExtensionPointToolTest {
 
     @Test
     void nameIsAddExtensionPoint() {
-        assertEquals("bpmn2_add_extension_point", tool.getName());
+        assertEquals("bpmn2_extension_point", tool.getName());
     }
 
     @Test

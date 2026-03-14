@@ -45,7 +45,7 @@ class AddStartEventToolTest {
 
     @Test
     void nameIsAddStartEvent() {
-        assertEquals("bpmn2_add_start_event", tool.getName());
+        assertEquals("bpmn2_start_event", tool.getName());
     }
 
     @Test

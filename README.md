@@ -92,24 +92,20 @@ Parameters marked with **\*** are required. All others are optional.
 |------|-------------|
 | `bpmn2_create_process` | Create a new BPMN2 process file with boilerplate XML |
 | `bpmn2_get_process` | Read a BPMN2 file and return all nodes, flows, variables, and signals |
-| `bpmn2_add_service_task` | Add a service task that calls a Java service method |
-| `bpmn2_add_subflow_call` | Add a call activity that invokes another BPMN2 subprocess |
-| `bpmn2_add_script_task` | Add a script task that executes inline Java code |
-| `bpmn2_add_extension_point` | Add a web extension point (jBPM human task) |
-| `bpmn2_add_gateway` | Add an exclusive gateway for branching or merging |
-| `bpmn2_add_start_event` | Add a start event (plain or signal-triggered) |
-| `bpmn2_add_end_event` | Add an end event |
-| `bpmn2_update_node` | Modify properties of an existing node |
-| `bpmn2_remove_node` | Remove a node and clean up connected flows |
-| `bpmn2_add_flow` | Connect two nodes with a sequence flow |
-| `bpmn2_update_flow` | Modify properties of an existing flow |
-| `bpmn2_remove_flow` | Remove a sequence flow |
-| `bpmn2_add_variable` | Add a process variable |
-| `bpmn2_remove_variable` | Remove a process variable |
-| `bpmn2_add_signal` | Add a signal definition |
-| `bpmn2_add_import` | Add a Java class import for script tasks |
-| `bpmn2_add_item_definition` | Add a standalone type definition |
-| `bpmn2_add_text_annotation` | Add a diagram comment (sticky note) |
+| `bpmn2_service_task` | Add a service task that calls a Java service method |
+| `bpmn2_subflow_call` | Add a call activity that invokes another BPMN2 subprocess |
+| `bpmn2_script_task` | Add a script task that executes inline Java code |
+| `bpmn2_extension_point` | Add a web extension point (jBPM human task) |
+| `bpmn2_gateway` | Add an exclusive gateway for branching or merging |
+| `bpmn2_start_event` | Add a start event (plain or signal-triggered) |
+| `bpmn2_end_event` | Add an end event |
+| `bpmn2_node` | Update or remove an existing node (action: update/remove) |
+| `bpmn2_flow` | Add, update, or remove a sequence flow (action: add/update/remove) |
+| `bpmn2_variable` | Add or remove a process variable (action: add/remove) |
+| `bpmn2_signal` | Add or remove a signal definition (action: add/remove) |
+| `bpmn2_import` | Add or remove a Java class import (action: add/remove) |
+| `bpmn2_item_definition` | Add or remove a type definition (action: add/remove) |
+| `bpmn2_text_annotation` | Add or remove a diagram comment (action: add/remove) |
 | `bpmn2_auto_layout` | Auto-layout all nodes and edges in the diagram |
 
 ### Typical Session
@@ -141,22 +137,22 @@ resume                     → let the test finish
 
 ```
 bpmn2_create_process       → create a new .bpmn2 file with process boilerplate
-bpmn2_add_variable         → add processCommandFlow variable
-bpmn2_add_import           → import a utility class for use in script tasks
-bpmn2_add_signal           → define a signal for event-driven start events
+bpmn2_variable (add)       → add processCommandFlow variable
+bpmn2_import (add)         → import a utility class for use in script tasks
+bpmn2_signal (add)         → define a signal for event-driven start events
 
-bpmn2_add_start_event      → add the main start event
-bpmn2_add_service_task     → call a Java service (interface + method validated against workspace)
-bpmn2_add_gateway          → add a diverging gateway for conditional branching
-bpmn2_add_script_task      → add inline Java logic
-bpmn2_add_subflow_call     → delegate to another BPMN2 subprocess
-bpmn2_add_extension_point  → add a web extension point (human task)
-bpmn2_add_gateway          → add a converging gateway to merge branches
-bpmn2_add_end_event        → add the end event
+bpmn2_start_event          → add the main start event
+bpmn2_service_task         → call a Java service (validated against workspace)
+bpmn2_gateway              → add a diverging gateway for conditional branching
+bpmn2_script_task          → add inline Java logic
+bpmn2_subflow_call         → delegate to another BPMN2 subprocess
+bpmn2_extension_point      → add a web extension point (human task)
+bpmn2_gateway              → add a converging gateway to merge branches
+bpmn2_end_event            → add the end event
 
-bpmn2_add_flow             → connect nodes with sequence flows
-bpmn2_add_flow (condition) → add conditional branch with Java expression
-bpmn2_add_text_annotation  → annotate a node with a diagram comment
+bpmn2_flow (add)           → connect nodes with sequence flows
+bpmn2_flow (add+condition) → add conditional branch with Java expression
+bpmn2_text_annotation (add)→ annotate a node with a diagram comment
 
 bpmn2_auto_layout          → arrange all shapes and edges on the diagram
 bpmn2_get_process          → verify the complete process structure

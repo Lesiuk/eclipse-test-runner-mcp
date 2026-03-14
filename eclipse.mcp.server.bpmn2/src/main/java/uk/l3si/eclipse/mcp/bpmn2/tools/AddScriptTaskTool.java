@@ -15,7 +15,7 @@ public class AddScriptTaskTool implements McpTool {
 
     @Override
     public String getName() {
-        return "bpmn2_add_script_task";
+        return "bpmn2_script_task";
     }
 
     @Override
@@ -23,7 +23,7 @@ public class AddScriptTaskTool implements McpTool {
         return "Add a script task that executes inline Java code. "
                 + "The 'script' parameter contains the Java code to run. "
                 + "Script format defaults to Java. "
-                + "After adding, use 'bpmn2_add_flow' to connect it to other nodes.";
+                + "After adding, use 'bpmn2_flow' to connect it to other nodes.";
     }
 
     @Override

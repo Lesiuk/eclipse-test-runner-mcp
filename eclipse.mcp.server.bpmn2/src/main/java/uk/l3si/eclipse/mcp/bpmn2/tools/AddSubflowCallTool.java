@@ -15,7 +15,7 @@ public class AddSubflowCallTool implements McpTool {
 
     @Override
     public String getName() {
-        return "bpmn2_add_subflow_call";
+        return "bpmn2_subflow_call";
     }
 
     @Override
@@ -24,7 +24,7 @@ public class AddSubflowCallTool implements McpTool {
                 + "The 'calledElement' is the subprocess process ID "
                 + "(e.g. com.example.sub_flow). "
                 + "waitForCompletion and independent are always true. "
-                + "After adding, use 'bpmn2_add_flow' to connect it to other nodes.";
+                + "After adding, use 'bpmn2_flow' to connect it to other nodes.";
     }
 
     @Override

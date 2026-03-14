@@ -15,14 +15,14 @@ public class AddEndEventTool implements McpTool {
 
     @Override
     public String getName() {
-        return "bpmn2_add_end_event";
+        return "bpmn2_end_event";
     }
 
     @Override
     public String getDescription() {
         return "Add an end event to terminate a flow path. "
                 + "Extension elements are auto-generated. "
-                + "Use 'bpmn2_add_flow' to connect the last task to this end event.";
+                + "Use 'bpmn2_flow' to connect the last task to this end event.";
     }
 
     @Override
