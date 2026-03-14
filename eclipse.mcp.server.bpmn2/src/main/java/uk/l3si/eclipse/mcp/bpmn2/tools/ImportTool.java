@@ -11,34 +11,45 @@ import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
 import java.util.List;
+import java.util.Map;
 
-public class AddImportTool implements McpTool {
+public class ImportTool implements McpTool {
 
     @Override
     public String getName() {
-        return "bpmn2_add_import";
+        return "bpmn2_import";
     }
 
     @Override
     public String getDescription() {
-        return "Add a Java class import to the process. "
-                + "This creates a tns:import element inside the process extensionElements, "
-                + "allowing script tasks to use the class by short name. "
-                + "Example: importing 'com.example.MyUtils' lets scripts reference MyUtils directly.";
+        return "Add or remove a Java class import. Imports let script tasks use classes by short name.";
     }
 
     @Override
     public InputSchema getInputSchema() {
         return InputSchema.builder()
                 .property("file", PropertySchema.string("Absolute path to .bpmn2 file"))
-                .property("name", PropertySchema.string(
-                        "Fully qualified Java class name (e.g. com.example.MyUtils)"))
-                .required(List.of("file", "name"))
+                .property("action", PropertySchema.stringEnum("Action to perform", List.of("add", "remove")))
+                .property("name", PropertySchema.string("Fully qualified Java class name"))
+                .required(List.of("file", "action", "name"))
                 .build();
     }
 
     @Override
     public Object execute(Args args) throws Exception {
+        String action = args.requireString("action", "add or remove");
+        if (!"add".equals(action) && !"remove".equals(action)) {
+            throw new IllegalArgumentException("Invalid action: '" + action + "'. Must be 'add' or 'remove'.");
+        }
+
+        if ("add".equals(action)) {
+            return executeAdd(args);
+        } else {
+            return executeRemove(args);
+        }
+    }
+
+    private Object executeAdd(Args args) throws Exception {
         String file = args.requireString("file", "path to .bpmn2 file");
         String name = args.requireString("name", "fully qualified class name");
 
@@ -78,6 +89,43 @@ public class AddImportTool implements McpTool {
         return AddImportResult.builder()
                 .name(name)
                 .build();
+    }
+
+    private Object executeRemove(Args args) throws Exception {
+        String file = args.requireString("file", "path to .bpmn2 file");
+        String name = args.requireString("name", "fully qualified class name");
+
+        Bpmn2Document doc = Bpmn2Document.parse(file);
+        Element process = doc.getProcessElement();
+
+        // Find extensionElements
+        Element extElements = findChildElement(process,
+                Bpmn2Document.NS_BPMN2, "extensionElements");
+        if (extElements == null) {
+            throw new IllegalArgumentException("Import not found: '" + name + "'");
+        }
+
+        // Find the tns:import with matching name
+        Element targetImport = null;
+        NodeList children = extElements.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            if (children.item(i) instanceof Element el
+                    && Bpmn2Document.NS_TNS.equals(el.getNamespaceURI())
+                    && "import".equals(el.getLocalName())
+                    && name.equals(el.getAttribute("name"))) {
+                targetImport = el;
+                break;
+            }
+        }
+
+        if (targetImport == null) {
+            throw new IllegalArgumentException("Import not found: '" + name + "'");
+        }
+
+        doc.removeElement(targetImport);
+        doc.save();
+
+        return Map.of("name", name, "removed", true);
     }
 
     private static Element findChildElement(Element parent, String ns, String localName) {

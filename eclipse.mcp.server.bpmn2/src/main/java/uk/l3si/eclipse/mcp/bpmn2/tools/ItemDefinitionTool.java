@@ -10,36 +10,46 @@ import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
 import java.util.List;
+import java.util.Map;
 
-public class AddItemDefinitionTool implements McpTool {
+public class ItemDefinitionTool implements McpTool {
 
     @Override
     public String getName() {
-        return "bpmn2_add_item_definition";
+        return "bpmn2_item_definition";
     }
 
     @Override
     public String getDescription() {
-        return "Add a type definition (itemDefinition) to the BPMN2 file. "
-                + "Use this when you need a type reference for 'evaluatesToTypeRef' "
-                + "on conditional flows, or for any other type that is not tied to "
-                + "a process variable. Process variables automatically create their "
-                + "own itemDefinitions via 'bpmn2_add_variable'.";
+        return "Add or remove a type definition (itemDefinition). Used for evaluatesToTypeRef on conditional flows.";
     }
 
     @Override
     public InputSchema getInputSchema() {
         return InputSchema.builder()
                 .property("file", PropertySchema.string("Absolute path to .bpmn2 file"))
-                .property("structureRef", PropertySchema.string(
-                        "Fully qualified Java type (e.g. com.example.MyClass)"))
-                .property("id", PropertySchema.string("ItemDefinition ID (auto-generated if omitted)"))
-                .required(List.of("file", "structureRef"))
+                .property("action", PropertySchema.stringEnum("Action to perform", List.of("add", "remove")))
+                .property("id", PropertySchema.string("ItemDefinition ID (auto-generated for add, required for remove)"))
+                .property("structureRef", PropertySchema.string("Fully qualified Java type (required for add)"))
+                .required(List.of("file", "action"))
                 .build();
     }
 
     @Override
     public Object execute(Args args) throws Exception {
+        String action = args.requireString("action", "add or remove");
+        if (!"add".equals(action) && !"remove".equals(action)) {
+            throw new IllegalArgumentException("Invalid action: '" + action + "'. Must be 'add' or 'remove'.");
+        }
+
+        if ("add".equals(action)) {
+            return executeAdd(args);
+        } else {
+            return executeRemove(args);
+        }
+    }
+
+    private Object executeAdd(Args args) throws Exception {
         String file = args.requireString("file", "path to .bpmn2 file");
         String structureRef = args.requireString("structureRef", "fully qualified Java type");
         String customId = args.getString("id");
@@ -87,5 +97,45 @@ public class AddItemDefinitionTool implements McpTool {
                 .id(itemDefId)
                 .structureRef(structureRef)
                 .build();
+    }
+
+    private Object executeRemove(Args args) throws Exception {
+        String file = args.requireString("file", "path to .bpmn2 file");
+        String id = args.requireString("id", "itemDefinition ID");
+
+        Bpmn2Document doc = Bpmn2Document.parse(file);
+        Element definitions = doc.getDefinitionsElement();
+
+        // Find the itemDefinition by ID
+        Element targetItemDef = null;
+        NodeList defChildren = definitions.getChildNodes();
+        for (int i = 0; i < defChildren.getLength(); i++) {
+            if (defChildren.item(i) instanceof Element el
+                    && Bpmn2Document.NS_BPMN2.equals(el.getNamespaceURI())
+                    && "itemDefinition".equals(el.getLocalName())
+                    && id.equals(el.getAttribute("id"))) {
+                targetItemDef = el;
+                break;
+            }
+        }
+
+        if (targetItemDef == null) {
+            throw new IllegalArgumentException("ItemDefinition not found: '" + id + "'");
+        }
+
+        // Check no process variable (bpmn2:property) references this itemDefinition
+        for (Element prop : doc.listVariables()) {
+            if (id.equals(prop.getAttribute("itemSubjectRef"))) {
+                throw new IllegalArgumentException(
+                        "Cannot remove itemDefinition '" + id
+                                + "': it is referenced by variable '"
+                                + prop.getAttribute("name") + "'.");
+            }
+        }
+
+        doc.removeElement(targetItemDef);
+        doc.save();
+
+        return Map.of("id", id, "removed", true);
     }
 }

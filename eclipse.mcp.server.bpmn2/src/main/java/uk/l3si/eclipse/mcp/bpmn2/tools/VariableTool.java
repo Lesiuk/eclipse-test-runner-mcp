@@ -3,6 +3,7 @@ package uk.l3si.eclipse.mcp.bpmn2.tools;
 import org.w3c.dom.Element;
 import uk.l3si.eclipse.mcp.bpmn2.Bpmn2Document;
 import uk.l3si.eclipse.mcp.bpmn2.model.AddVariableResult;
+import uk.l3si.eclipse.mcp.bpmn2.model.RemoveVariableResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.McpTool;
@@ -11,32 +12,48 @@ import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import java.util.List;
 import java.util.regex.Pattern;
 
-public class AddVariableTool implements McpTool {
+public class VariableTool implements McpTool {
 
     private static final Pattern VALID_JAVA_IDENTIFIER = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
 
     @Override
     public String getName() {
-        return "bpmn2_add_variable";
+        return "bpmn2_variable";
     }
 
     @Override
     public String getDescription() {
-        return "Add a process-level variable with its type definition.";
+        return "Add or remove a process-level variable. "
+                + "Action 'add' creates a variable with its type definition. "
+                + "Action 'remove' deletes the variable and its type definition if unused.";
     }
 
     @Override
     public InputSchema getInputSchema() {
         return InputSchema.builder()
                 .property("file", PropertySchema.string("Absolute path to .bpmn2 file"))
+                .property("action", PropertySchema.stringEnum("Action to perform", List.of("add", "remove")))
                 .property("name", PropertySchema.string("Variable name"))
-                .property("type", PropertySchema.string("Fully qualified Java type"))
-                .required(List.of("file", "name", "type"))
+                .property("type", PropertySchema.string("Fully qualified Java type (required for add, ignored for remove)"))
+                .required(List.of("file", "action", "name"))
                 .build();
     }
 
     @Override
     public Object execute(Args args) throws Exception {
+        String action = args.requireString("action", "add or remove");
+        if (!"add".equals(action) && !"remove".equals(action)) {
+            throw new IllegalArgumentException("Invalid action: '" + action + "'. Must be 'add' or 'remove'.");
+        }
+
+        if ("add".equals(action)) {
+            return executeAdd(args);
+        } else {
+            return executeRemove(args);
+        }
+    }
+
+    private Object executeAdd(Args args) throws Exception {
         String file = args.requireString("file", "path to .bpmn2 file");
         String name = args.requireString("name", "variable name");
         String type = args.requireString("type", "fully qualified Java type");
@@ -89,6 +106,63 @@ public class AddVariableTool implements McpTool {
                 .name(name)
                 .type(type)
                 .itemDefinitionId(itemDefinitionId)
+                .build();
+    }
+
+    private Object executeRemove(Args args) throws Exception {
+        String file = args.requireString("file", "path to .bpmn2 file");
+        String name = args.requireString("name", "variable name");
+
+        Bpmn2Document doc = Bpmn2Document.parse(file);
+
+        // Find the property element with matching name
+        Element targetProperty = null;
+        for (Element prop : doc.listVariables()) {
+            if (name.equals(prop.getAttribute("name"))) {
+                targetProperty = prop;
+                break;
+            }
+        }
+
+        if (targetProperty == null) {
+            throw new IllegalArgumentException("Variable not found: '" + name + "'");
+        }
+
+        // Get the itemSubjectRef from the property
+        String itemSubjectRef = targetProperty.getAttribute("itemSubjectRef");
+
+        // Remove the property element
+        doc.removeElement(targetProperty);
+
+        // Check if any remaining variable references the same itemDefinition
+        boolean itemDefStillReferenced = false;
+        for (Element prop : doc.listVariables()) {
+            if (itemSubjectRef.equals(prop.getAttribute("itemSubjectRef"))) {
+                itemDefStillReferenced = true;
+                break;
+            }
+        }
+
+        // If no other variable references it, remove the itemDefinition
+        if (!itemDefStillReferenced && !itemSubjectRef.isEmpty()) {
+            Element definitions = doc.getDefinitionsElement();
+            org.w3c.dom.NodeList children = definitions.getChildNodes();
+            for (int i = 0; i < children.getLength(); i++) {
+                if (children.item(i) instanceof Element el
+                        && Bpmn2Document.NS_BPMN2.equals(el.getNamespaceURI())
+                        && "itemDefinition".equals(el.getLocalName())
+                        && itemSubjectRef.equals(el.getAttribute("id"))) {
+                    doc.removeElement(el);
+                    break;
+                }
+            }
+        }
+
+        doc.save();
+
+        return RemoveVariableResult.builder()
+                .name(name)
+                .removed(true)
                 .build();
     }
 

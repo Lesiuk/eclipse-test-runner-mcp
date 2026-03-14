@@ -42,9 +42,8 @@ class Bpmn2IntegrationTest {
     private final AddFlowTool addFlowTool = new AddFlowTool();
     private final UpdateFlowTool updateFlowTool = new UpdateFlowTool();
     private final RemoveFlowTool removeFlowTool = new RemoveFlowTool();
-    private final AddVariableTool addVariableTool = new AddVariableTool();
-    private final RemoveVariableTool removeVariableTool = new RemoveVariableTool();
-    private final AddSignalTool addSignalTool = new AddSignalTool();
+    private final VariableTool variableTool = new VariableTool();
+    private final SignalTool signalTool = new SignalTool();
     private final AutoLayoutTool autoLayoutTool = new AutoLayoutTool();
 
     // ---- Helpers ----
@@ -173,16 +172,18 @@ class Bpmn2IntegrationTest {
         // 4. Add a variable
         JsonObject addVarArgs = new JsonObject();
         addVarArgs.addProperty("file", file.toString());
+        addVarArgs.addProperty("action", "add");
         addVarArgs.addProperty("name", "amount");
         addVarArgs.addProperty("type", "java.lang.Integer");
-        JsonObject varResult = exec(addVariableTool, addVarArgs);
+        JsonObject varResult = exec(variableTool, addVarArgs);
         assertEquals("amount", varResult.get("name").getAsString());
 
         // 5. Add a signal
         JsonObject addSignalArgs = new JsonObject();
         addSignalArgs.addProperty("file", file.toString());
+        addSignalArgs.addProperty("action", "add");
         addSignalArgs.addProperty("name", "com.test:orderReceived");
-        JsonObject signalResult = exec(addSignalTool, addSignalArgs);
+        JsonObject signalResult = exec(signalTool, addSignalArgs);
         String signalId = signalResult.get("id").getAsString();
         assertNotNull(signalId);
 
@@ -332,17 +333,19 @@ class Bpmn2IntegrationTest {
         // Add variable and then remove it
         JsonObject addVarArgs = new JsonObject();
         addVarArgs.addProperty("file", file.toString());
+        addVarArgs.addProperty("action", "add");
         addVarArgs.addProperty("name", "tempVar");
         addVarArgs.addProperty("type", "java.lang.String");
-        exec(addVariableTool, addVarArgs);
+        exec(variableTool, addVarArgs);
 
         processInfo = exec(getTool, fileArg(file));
         assertEquals(1, processInfo.getAsJsonArray("variables").size());
 
         JsonObject removeVarArgs = new JsonObject();
         removeVarArgs.addProperty("file", file.toString());
+        removeVarArgs.addProperty("action", "remove");
         removeVarArgs.addProperty("name", "tempVar");
-        exec(removeVariableTool, removeVarArgs);
+        exec(variableTool, removeVarArgs);
 
         processInfo = exec(getTool, fileArg(file));
         assertEquals(0, processInfo.getAsJsonArray("variables").size(),

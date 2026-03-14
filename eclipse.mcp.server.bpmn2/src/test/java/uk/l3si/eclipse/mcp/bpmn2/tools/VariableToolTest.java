@@ -16,18 +16,18 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class AddVariableToolTest {
+class VariableToolTest {
 
     private static final Gson GSON = new Gson();
 
     @TempDir
     Path tempDir;
 
-    private AddVariableTool tool;
+    private VariableTool tool;
 
     @BeforeEach
     void setUp() {
-        tool = new AddVariableTool();
+        tool = new VariableTool();
     }
 
     private Path copyTestResource() throws Exception {
@@ -44,9 +44,11 @@ class AddVariableToolTest {
     }
 
     @Test
-    void nameIsAddVariable() {
-        assertEquals("bpmn2_add_variable", tool.getName());
+    void nameIsVariable() {
+        assertEquals("bpmn2_variable", tool.getName());
     }
+
+    // ---- Add tests ----
 
     @Test
     void addVariable() throws Exception {
@@ -54,6 +56,7 @@ class AddVariableToolTest {
 
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
         args.addProperty("name", "orderCount");
         args.addProperty("type", "java.lang.Integer");
 
@@ -86,6 +89,7 @@ class AddVariableToolTest {
         // Add first variable with type java.lang.String (ItemDefinition_1 already exists for this)
         JsonObject args1 = new JsonObject();
         args1.addProperty("file", file.toString());
+        args1.addProperty("action", "add");
         args1.addProperty("name", "firstName");
         args1.addProperty("type", "java.lang.String");
 
@@ -95,6 +99,7 @@ class AddVariableToolTest {
         // Add second variable with same type
         JsonObject args2 = new JsonObject();
         args2.addProperty("file", file.toString());
+        args2.addProperty("action", "add");
         args2.addProperty("name", "lastName");
         args2.addProperty("type", "java.lang.String");
 
@@ -117,6 +122,7 @@ class AddVariableToolTest {
 
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
         args.addProperty("name", "myVar");
         args.addProperty("type", "java.lang.Integer");
 
@@ -132,6 +138,7 @@ class AddVariableToolTest {
 
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
         args.addProperty("name", "1invalid");
         args.addProperty("type", "java.lang.String");
 
@@ -147,6 +154,7 @@ class AddVariableToolTest {
 
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
         args.addProperty("name", "my var");
         args.addProperty("type", "java.lang.String");
 
@@ -158,6 +166,7 @@ class AddVariableToolTest {
     @Test
     void missingFileParameter() {
         JsonObject args = new JsonObject();
+        args.addProperty("action", "add");
         args.addProperty("name", "myVar");
         args.addProperty("type", "java.lang.String");
 
@@ -171,6 +180,7 @@ class AddVariableToolTest {
 
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
         args.addProperty("type", "java.lang.String");
 
         assertThrows(IllegalArgumentException.class,
@@ -178,15 +188,120 @@ class AddVariableToolTest {
     }
 
     @Test
-    void missingTypeParameter() throws Exception {
+    void missingTypeParameterForAdd() throws Exception {
         Path file = copyTestResource();
 
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
         args.addProperty("name", "newVar");
 
         assertThrows(IllegalArgumentException.class,
                 () -> tool.execute(new Args(args)));
+    }
+
+    @Test
+    void invalidAction() throws Exception {
+        Path file = copyTestResource();
+
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("action", "update");
+        args.addProperty("name", "myVar");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains("Invalid action"), ex.getMessage());
+    }
+
+    // ---- Remove tests ----
+
+    @Test
+    void removeVariable() throws Exception {
+        Path file = copyTestResource();
+        // "myVar" exists in the test file with ItemDefinition_1
+
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("action", "remove");
+        args.addProperty("name", "myVar");
+
+        JsonObject result = executeAndSerialize(args);
+
+        assertEquals("myVar", result.get("name").getAsString());
+        assertTrue(result.get("removed").getAsBoolean());
+
+        // Re-parse and confirm variable is gone
+        Bpmn2Document doc = Bpmn2Document.parse(file.toString());
+        Element property = findPropertyByName(doc, "myVar");
+        assertNull(property, "Property should be removed");
+    }
+
+    @Test
+    void removeVariableRemovesOrphanedItemDefinition() throws Exception {
+        Path file = copyTestResource();
+        // "myVar" is the only variable using ItemDefinition_1 (java.lang.String)
+
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("action", "remove");
+        args.addProperty("name", "myVar");
+
+        executeAndSerialize(args);
+
+        // Re-parse and verify itemDefinition_1 is removed
+        Bpmn2Document doc = Bpmn2Document.parse(file.toString());
+        Element itemDef = findItemDefinitionById(doc, "ItemDefinition_1");
+        assertNull(itemDef, "Orphaned ItemDefinition should be removed");
+    }
+
+    @Test
+    void removeVariableKeepsSharedItemDefinition() throws Exception {
+        Path file = copyTestResource();
+
+        // Add a second variable with same type as myVar (java.lang.String / ItemDefinition_1)
+        JsonObject addArgs = new JsonObject();
+        addArgs.addProperty("file", file.toString());
+        addArgs.addProperty("action", "add");
+        addArgs.addProperty("name", "otherStringVar");
+        addArgs.addProperty("type", "java.lang.String");
+        tool.execute(new Args(addArgs));
+
+        // Now remove myVar
+        JsonObject removeArgs = new JsonObject();
+        removeArgs.addProperty("file", file.toString());
+        removeArgs.addProperty("action", "remove");
+        removeArgs.addProperty("name", "myVar");
+
+        executeAndSerialize(removeArgs);
+
+        // Re-parse — ItemDefinition_1 should still exist because otherStringVar uses it
+        Bpmn2Document doc = Bpmn2Document.parse(file.toString());
+        Element itemDef = findItemDefinitionById(doc, "ItemDefinition_1");
+        assertNotNull(itemDef, "Shared ItemDefinition should be kept");
+
+        // But myVar property should be gone
+        Element myVarProp = findPropertyByName(doc, "myVar");
+        assertNull(myVarProp, "myVar property should be removed");
+
+        // otherStringVar should still be there
+        Element otherProp = findPropertyByName(doc, "otherStringVar");
+        assertNotNull(otherProp, "otherStringVar property should still exist");
+    }
+
+    @Test
+    void variableNotFoundThrowsError() throws Exception {
+        Path file = copyTestResource();
+
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("action", "remove");
+        args.addProperty("name", "nonExistent");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains("Variable not found"), ex.getMessage());
+        assertTrue(ex.getMessage().contains("nonExistent"), ex.getMessage());
     }
 
     // ---- Helpers ----
