@@ -107,6 +107,9 @@ Parameters marked with **\*** are required. All others are optional.
 | `bpmn2_add_variable` | Add a process variable |
 | `bpmn2_remove_variable` | Remove a process variable |
 | `bpmn2_add_signal` | Add a signal definition |
+| `bpmn2_add_import` | Add a Java class import for script tasks |
+| `bpmn2_add_item_definition` | Add a standalone type definition |
+| `bpmn2_add_text_annotation` | Add a diagram comment (sticky note) |
 | `bpmn2_auto_layout` | Auto-layout all nodes and edges in the diagram |
 
 ### Typical Session
@@ -132,6 +135,31 @@ inspect_variable           → examine variable values at the breakpoint
 evaluate_expression        → evaluate a Java expression in context
 step (action=over)         → step to the next line
 resume                     → let the test finish
+```
+
+**BPMN2 workflow example:**
+
+```
+bpmn2_create_process       → create a new .bpmn2 file with process boilerplate
+bpmn2_add_variable         → add processCommandFlow variable
+bpmn2_add_import           → import a utility class for use in script tasks
+bpmn2_add_signal           → define a signal for event-driven start events
+
+bpmn2_add_start_event      → add the main start event
+bpmn2_add_service_task     → call a Java service (interface + method validated against workspace)
+bpmn2_add_gateway          → add a diverging gateway for conditional branching
+bpmn2_add_script_task      → add inline Java logic
+bpmn2_add_subflow_call     → delegate to another BPMN2 subprocess
+bpmn2_add_extension_point  → add a web extension point (human task)
+bpmn2_add_gateway          → add a converging gateway to merge branches
+bpmn2_add_end_event        → add the end event
+
+bpmn2_add_flow             → connect nodes with sequence flows
+bpmn2_add_flow (condition) → add conditional branch with Java expression
+bpmn2_add_text_annotation  → annotate a node with a diagram comment
+
+bpmn2_auto_layout          → arrange all shapes and edges on the diagram
+bpmn2_get_process          → verify the complete process structure
 ```
 
 <details>
