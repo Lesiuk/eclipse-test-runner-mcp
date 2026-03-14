@@ -7,6 +7,7 @@ import uk.l3si.eclipse.mcp.bpmn2.Bpmn2Document;
 import uk.l3si.eclipse.mcp.bpmn2.model.UpdateResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
+import uk.l3si.eclipse.mcp.tools.JavaTypeValidator;
 import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
@@ -131,6 +132,20 @@ public class UpdateNodeTool implements McpTool {
         // taskName — task, userTask only
         if (taskName != null) {
             validatePropertyForType("taskName", nodeType);
+            int underscoreIdx = taskName.lastIndexOf('_');
+            if (underscoreIdx > 0) {
+                String interfaceName = taskName.substring(0, underscoreIdx);
+                String methodName = taskName.substring(underscoreIdx + 1);
+                String typeError = JavaTypeValidator.validateMethod(interfaceName, methodName);
+                if (typeError != null) {
+                    throw new IllegalArgumentException(typeError);
+                }
+            } else if (taskName.contains(".")) {
+                String typeError = JavaTypeValidator.validateType(taskName);
+                if (typeError != null) {
+                    throw new IllegalArgumentException(typeError);
+                }
+            }
             node.setAttributeNS(Bpmn2Document.NS_TNS, "tns:taskName", taskName);
             updated.add("taskName");
         }

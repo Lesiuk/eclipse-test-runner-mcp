@@ -8,8 +8,10 @@ public class ProcessInfo {
     private String processId;
     private String processName;
     private String packageName;
+    private List<String> imports;
     private List<VariableInfo> variables;
     private List<SignalInfo> signals;
     private List<NodeInfo> nodes;
     private List<FlowInfo> flows;
+    private List<String> textAnnotations;
 }

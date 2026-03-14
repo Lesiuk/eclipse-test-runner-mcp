@@ -50,19 +50,23 @@ public class GetProcessTool implements McpTool {
         String processName = process.getAttribute("name");
         String packageName = process.getAttributeNS(Bpmn2Document.NS_TNS, "packageName");
 
+        List<String> imports = buildImports(process);
         List<VariableInfo> variables = buildVariables(doc, definitions);
         List<SignalInfo> signals = buildSignals(doc);
         List<NodeInfo> nodes = buildNodes(doc);
         List<FlowInfo> flows = buildFlows(doc);
+        List<String> textAnnotations = buildTextAnnotations(process);
 
         return ProcessInfo.builder()
                 .processId(processId)
                 .processName(processName)
                 .packageName(packageName)
+                .imports(imports)
                 .variables(variables)
                 .signals(signals)
                 .nodes(nodes)
                 .flows(flows)
+                .textAnnotations(textAnnotations)
                 .build();
     }
 
@@ -192,6 +196,41 @@ public class GetProcessTool implements McpTool {
             flows.add(builder.build());
         }
         return flows;
+    }
+
+    private List<String> buildImports(Element process) {
+        List<String> imports = new ArrayList<>();
+        Element extElements = findFirstChildElement(process,
+                Bpmn2Document.NS_BPMN2, "extensionElements");
+        if (extElements != null) {
+            NodeList children = extElements.getChildNodes();
+            for (int i = 0; i < children.getLength(); i++) {
+                if (children.item(i) instanceof Element el
+                        && Bpmn2Document.NS_TNS.equals(el.getNamespaceURI())
+                        && "import".equals(el.getLocalName())) {
+                    String name = el.getAttribute("name");
+                    if (name != null && !name.isEmpty()) {
+                        imports.add(name);
+                    }
+                }
+            }
+        }
+        return imports;
+    }
+
+    private List<String> buildTextAnnotations(Element process) {
+        List<String> annotations = new ArrayList<>();
+        NodeList children = process.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            if (children.item(i) instanceof Element el
+                    && Bpmn2Document.NS_BPMN2.equals(el.getNamespaceURI())
+                    && "textAnnotation".equals(el.getLocalName())) {
+                String text = getChildElementText(el, Bpmn2Document.NS_BPMN2, "text");
+                String id = el.getAttribute("id");
+                annotations.add(id + ": " + (text != null ? text : ""));
+            }
+        }
+        return annotations;
     }
 
     private static String getChildElementText(Element parent, String ns, String localName) {

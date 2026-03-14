@@ -1,0 +1,94 @@
+package uk.l3si.eclipse.mcp.bpmn2.tools;
+
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import uk.l3si.eclipse.mcp.bpmn2.Bpmn2Document;
+import uk.l3si.eclipse.mcp.bpmn2.model.AddImportResult;
+import uk.l3si.eclipse.mcp.tools.Args;
+import uk.l3si.eclipse.mcp.tools.InputSchema;
+import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.PropertySchema;
+
+import java.util.List;
+
+public class AddImportTool implements McpTool {
+
+    @Override
+    public String getName() {
+        return "bpmn2_add_import";
+    }
+
+    @Override
+    public String getDescription() {
+        return "Add a Java class import to the process. "
+                + "This creates a tns:import element inside the process extensionElements, "
+                + "allowing script tasks to use the class by short name. "
+                + "Example: importing 'com.example.MyUtils' lets scripts reference MyUtils directly.";
+    }
+
+    @Override
+    public InputSchema getInputSchema() {
+        return InputSchema.builder()
+                .property("file", PropertySchema.string("Absolute path to .bpmn2 file"))
+                .property("name", PropertySchema.string(
+                        "Fully qualified Java class name (e.g. com.example.MyUtils)"))
+                .required(List.of("file", "name"))
+                .build();
+    }
+
+    @Override
+    public Object execute(Args args) throws Exception {
+        String file = args.requireString("file", "path to .bpmn2 file");
+        String name = args.requireString("name", "fully qualified class name");
+
+        Bpmn2Document doc = Bpmn2Document.parse(file);
+        Element process = doc.getProcessElement();
+
+        // Find or create extensionElements
+        Element extElements = findChildElement(process,
+                Bpmn2Document.NS_BPMN2, "extensionElements");
+        if (extElements == null) {
+            // Insert as first child of process
+            extElements = doc.createElement(process, Bpmn2Document.NS_BPMN2, "extensionElements");
+            Node firstChild = process.getFirstChild();
+            if (firstChild != null) {
+                process.insertBefore(extElements, firstChild);
+            }
+        }
+
+        // Check for duplicate import
+        NodeList children = extElements.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            if (children.item(i) instanceof Element el
+                    && Bpmn2Document.NS_TNS.equals(el.getNamespaceURI())
+                    && "import".equals(el.getLocalName())
+                    && name.equals(el.getAttribute("name"))) {
+                throw new IllegalArgumentException(
+                        "Import already exists: '" + name + "'");
+            }
+        }
+
+        // Create tns:import element
+        Element importEl = doc.createElement(extElements, Bpmn2Document.NS_TNS, "import");
+        importEl.setAttribute("name", name);
+
+        doc.save();
+
+        return AddImportResult.builder()
+                .name(name)
+                .build();
+    }
+
+    private static Element findChildElement(Element parent, String ns, String localName) {
+        NodeList children = parent.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            if (children.item(i) instanceof Element el
+                    && ns.equals(el.getNamespaceURI())
+                    && localName.equals(el.getLocalName())) {
+                return el;
+            }
+        }
+        return null;
+    }
+}

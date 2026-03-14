@@ -1,5 +1,14 @@
 # Changelog
 
+## bpmn2 v0.3.0
+
+- Add `bpmn2_add_text_annotation` — sticky-note diagram comments, optionally attached to nodes/flows
+- Add `bpmn2_add_import` — process-level Java class imports for script tasks
+- Add `bpmn2_add_item_definition` — standalone type definitions for `evaluatesToTypeRef`
+- Add `JavaTypeValidator` — workspace-aware validation that service task interfaces/methods exist via JDT
+- Validate `taskName` format and resolve interface/method against Eclipse workspace in `bpmn2_add_service_task` and `bpmn2_update_node`
+- `bpmn2_get_process` now returns `imports` and `textAnnotations`
+
 ## v0.36.0
 
 - Add MCP Server preference page (`Window > Preferences > MCP Server`) — enable/disable individual tools with per-group Select All / Deselect All buttons

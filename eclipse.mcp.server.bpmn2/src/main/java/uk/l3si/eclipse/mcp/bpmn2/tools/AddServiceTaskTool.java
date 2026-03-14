@@ -6,12 +6,17 @@ import uk.l3si.eclipse.mcp.bpmn2.Bpmn2NodeHelper;
 import uk.l3si.eclipse.mcp.bpmn2.model.AddNodeResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
+import uk.l3si.eclipse.mcp.tools.JavaTypeValidator;
 import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 public class AddServiceTaskTool implements McpTool {
+
+    static final Pattern VALID_TASK_NAME = Pattern.compile(
+            "[a-zA-Z][a-zA-Z0-9]*(\\.[a-zA-Z][a-zA-Z0-9]*)+(_[a-zA-Z][a-zA-Z0-9]*)?");
 
     @Override
     public String getName() {
@@ -46,6 +51,30 @@ public class AddServiceTaskTool implements McpTool {
         String file = args.requireString("file", "path to .bpmn2 file");
         String name = args.requireString("name", "display name");
         String taskName = args.requireString("taskName", "service interface + method");
+
+        if (!VALID_TASK_NAME.matcher(taskName).matches()) {
+            throw new IllegalArgumentException(
+                    "Invalid taskName: '" + taskName
+                            + "'. Expected format: fully.qualified.ClassName or "
+                            + "fully.qualified.Interface_methodName "
+                            + "(e.g. com.example.IService_doSomething).");
+        }
+
+        // Validate interface/method exists in workspace (skipped outside Eclipse)
+        int underscoreIdx = taskName.lastIndexOf('_');
+        if (underscoreIdx > 0) {
+            String interfaceName = taskName.substring(0, underscoreIdx);
+            String methodName = taskName.substring(underscoreIdx + 1);
+            String error = JavaTypeValidator.validateMethod(interfaceName, methodName);
+            if (error != null) {
+                throw new IllegalArgumentException(error);
+            }
+        } else {
+            String error = JavaTypeValidator.validateType(taskName);
+            if (error != null) {
+                throw new IllegalArgumentException(error);
+            }
+        }
 
         Bpmn2Document doc = Bpmn2Document.parse(file);
         Element process = doc.getProcessElement();
