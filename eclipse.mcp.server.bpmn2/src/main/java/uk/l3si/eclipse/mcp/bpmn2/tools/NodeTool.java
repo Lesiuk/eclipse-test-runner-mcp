@@ -5,6 +5,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import uk.l3si.eclipse.mcp.bpmn2.Bpmn2Document;
 import uk.l3si.eclipse.mcp.bpmn2.Bpmn2NodeHelper;
+import uk.l3si.eclipse.mcp.bpmn2.model.AddNodeResult;
 import uk.l3si.eclipse.mcp.bpmn2.model.RemoveNodeResult;
 import uk.l3si.eclipse.mcp.bpmn2.model.UpdateResult;
 import uk.l3si.eclipse.mcp.tools.Args;
@@ -36,7 +37,8 @@ public class NodeTool implements McpTool {
 
     @Override
     public String getDescription() {
-        return "Update or remove an existing node. "
+        return "Add, update, or remove a node. "
+                + "Action 'add' creates a start event, end event, or extension point (userTask). "
                 + "Action 'update' modifies properties valid for the node type (use 'bpmn2_get_process' to see current properties). "
                 + "Action 'remove' deletes the node and cleans up all connected sequence flows and diagram elements.";
     }
@@ -46,9 +48,18 @@ public class NodeTool implements McpTool {
         return InputSchema.builder()
                 .property("file", PropertySchema.string("Absolute path to .bpmn2 file"))
                 .property("action", PropertySchema.stringEnum(
-                        "Action to perform", List.of("update", "remove")))
-                .property("id", PropertySchema.string("Node ID"))
-                .property("name", PropertySchema.string("New display name"))
+                        "Action to perform", List.of("add", "update", "remove")))
+                .property("type", PropertySchema.stringEnum(
+                        "Node type to add (required for 'add' action)",
+                        List.of("start_event", "end_event", "extension_point")))
+                .property("id", PropertySchema.string(
+                        "Node ID (required for update/remove, optional for add — auto-generated if omitted)"))
+                .property("name", PropertySchema.string(
+                        "Display name (required for add, optional for update)"))
+                .property("signalRef", PropertySchema.string(
+                        "Signal ID for signal start events (signal must exist, start_event only)"))
+                .property("groupId", PropertySchema.string(
+                        "Group ID for task assignment (e.g. dynamo.review, extension_point only)"))
                 .property("script", PropertySchema.string("New script (scriptTask only)"))
                 .property("scriptFormat", PropertySchema.string(
                         "New script format (scriptTask only)"))
@@ -63,22 +74,197 @@ public class NodeTool implements McpTool {
                 .property("direction", PropertySchema.stringEnum(
                         "New direction (exclusiveGateway only)",
                         List.of("diverging", "converging")))
-                .required(List.of("file", "action", "id"))
+                .required(List.of("file", "action"))
                 .build();
     }
 
     @Override
     public Object execute(Args args) throws Exception {
         String action = args.requireString("action", "action to perform");
-        if (!"update".equals(action) && !"remove".equals(action)) {
-            throw new IllegalArgumentException("Invalid action: '" + action + "'. Must be 'update' or 'remove'.");
+        if (!"add".equals(action) && !"update".equals(action) && !"remove".equals(action)) {
+            throw new IllegalArgumentException(
+                    "Invalid action: '" + action + "'. Must be 'add', 'update', or 'remove'.");
         }
 
-        if ("update".equals(action)) {
+        if ("add".equals(action)) {
+            return executeAdd(args);
+        } else if ("update".equals(action)) {
             return executeUpdate(args);
         } else {
             return executeRemove(args);
         }
+    }
+
+    private Object executeAdd(Args args) throws Exception {
+        String type = args.requireString("type", "node type to add");
+        if (!"start_event".equals(type) && !"end_event".equals(type)
+                && !"extension_point".equals(type)) {
+            throw new IllegalArgumentException(
+                    "Invalid type: '" + type
+                            + "'. Must be 'start_event', 'end_event', or 'extension_point'.");
+        }
+
+        return switch (type) {
+            case "start_event" -> executeAddStartEvent(args);
+            case "end_event" -> executeAddEndEvent(args);
+            case "extension_point" -> executeAddExtensionPoint(args);
+            default -> throw new IllegalArgumentException("Unknown type: " + type);
+        };
+    }
+
+    private Object executeAddStartEvent(Args args) throws Exception {
+        String file = args.requireString("file", "path to .bpmn2 file");
+        String name = args.requireString("name", "display name");
+
+        Bpmn2Document doc = Bpmn2Document.parse(file);
+        Element process = doc.getProcessElement();
+
+        String id = args.getString("id");
+        if (id != null) {
+            if (doc.findNodeById(id) != null) {
+                throw new IllegalArgumentException(
+                        "ID already taken: '" + id + "'. Choose a different ID.");
+            }
+        } else {
+            id = doc.generateId("StartEvent");
+        }
+
+        String signalRef = args.getString("signalRef");
+
+        // Validate signalRef exists if provided
+        if (signalRef != null) {
+            boolean signalExists = doc.listSignals().stream()
+                    .anyMatch(s -> signalRef.equals(s.getAttribute("id")));
+            if (!signalExists) {
+                throw new IllegalArgumentException(
+                        "Signal not found: '" + signalRef
+                                + "'. Use 'bpmn2_signal' to create it first.");
+            }
+        }
+
+        // Only one plain startEvent per process
+        if (signalRef == null) {
+            boolean hasPlainStart = doc.listNodes().stream()
+                    .anyMatch(n -> "startEvent".equals(n.getLocalName())
+                            && !Bpmn2NodeHelper.hasSignalEventDefinition(n));
+            if (hasPlainStart) {
+                throw new IllegalArgumentException(
+                        "Process already has a plain startEvent. "
+                                + "Only one plain startEvent is allowed. "
+                                + "Use 'signalRef' to create a signal start event instead.");
+            }
+        }
+
+        Element element = doc.createElement(process, Bpmn2Document.NS_BPMN2, "startEvent");
+        element.setAttribute("id", id);
+        element.setAttribute("name", name);
+
+        Bpmn2NodeHelper.addExtensionElements(doc, element, name);
+
+        if (signalRef != null) {
+            String dataOutputId = doc.generateId("DataOutput");
+            String dataOutputAssocId = doc.generateId("DataOutputAssociation");
+            String outputSetId = doc.generateId("OutputSet");
+
+            Element dataOutput = doc.createElement(element,
+                    Bpmn2Document.NS_BPMN2, "dataOutput");
+            dataOutput.setAttribute("id", dataOutputId);
+            dataOutput.setAttribute("name", signalRef + "_Output");
+
+            Element outputAssoc = doc.createElement(element,
+                    Bpmn2Document.NS_BPMN2, "dataOutputAssociation");
+            outputAssoc.setAttribute("id", dataOutputAssocId);
+            doc.createTextElement(outputAssoc, Bpmn2Document.NS_BPMN2, "sourceRef",
+                    dataOutputId);
+            doc.createTextElement(outputAssoc, Bpmn2Document.NS_BPMN2, "targetRef",
+                    "processCommandFlow");
+
+            Element outputSet = doc.createElement(element,
+                    Bpmn2Document.NS_BPMN2, "outputSet");
+            outputSet.setAttribute("id", outputSetId);
+            doc.createTextElement(outputSet, Bpmn2Document.NS_BPMN2,
+                    "dataOutputRefs", dataOutputId);
+
+            Element signalEventDef = doc.createElement(element,
+                    Bpmn2Document.NS_BPMN2, "signalEventDefinition");
+            signalEventDef.setAttribute("id", doc.generateId("SignalEventDefinition"));
+            signalEventDef.setAttribute("signalRef", signalRef);
+        }
+
+        doc.save();
+
+        return AddNodeResult.builder()
+                .id(id)
+                .type("startEvent")
+                .name(name)
+                .build();
+    }
+
+    private Object executeAddEndEvent(Args args) throws Exception {
+        String file = args.requireString("file", "path to .bpmn2 file");
+        String name = args.requireString("name", "display name");
+
+        Bpmn2Document doc = Bpmn2Document.parse(file);
+        Element process = doc.getProcessElement();
+
+        String id = args.getString("id");
+        if (id != null) {
+            if (doc.findNodeById(id) != null) {
+                throw new IllegalArgumentException(
+                        "ID already taken: '" + id + "'. Choose a different ID.");
+            }
+        } else {
+            id = doc.generateId("EndEvent");
+        }
+
+        Element element = doc.createElement(process, Bpmn2Document.NS_BPMN2, "endEvent");
+        element.setAttribute("id", id);
+        element.setAttribute("name", name);
+
+        Bpmn2NodeHelper.addExtensionElements(doc, element, name);
+
+        doc.save();
+
+        return AddNodeResult.builder()
+                .id(id)
+                .type("endEvent")
+                .name(name)
+                .build();
+    }
+
+    private Object executeAddExtensionPoint(Args args) throws Exception {
+        String file = args.requireString("file", "path to .bpmn2 file");
+        String name = args.requireString("name", "display name");
+
+        Bpmn2Document doc = Bpmn2Document.parse(file);
+        Element process = doc.getProcessElement();
+
+        String id = args.getString("id");
+        if (id != null) {
+            if (doc.findNodeById(id) != null) {
+                throw new IllegalArgumentException(
+                        "ID already taken: '" + id + "'. Choose a different ID.");
+            }
+        } else {
+            id = doc.generateId("UserTask");
+        }
+
+        String groupId = args.getString("groupId");
+
+        Element element = doc.createElement(process, Bpmn2Document.NS_BPMN2, "userTask");
+        element.setAttribute("id", id);
+        element.setAttribute("name", name);
+
+        Bpmn2NodeHelper.addExtensionElements(doc, element, name);
+        Bpmn2NodeHelper.addUserTaskIoSpecification(doc, element, name, groupId);
+
+        doc.save();
+
+        return AddNodeResult.builder()
+                .id(id)
+                .type("userTask")
+                .name(name)
+                .build();
     }
 
     private Object executeUpdate(Args args) throws Exception {

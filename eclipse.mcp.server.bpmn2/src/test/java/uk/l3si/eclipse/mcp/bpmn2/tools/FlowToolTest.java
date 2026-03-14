@@ -59,12 +59,14 @@ class FlowToolTest {
         addServiceTaskTool.execute(new Args(taskArgs));
 
         // Add EndEvent_2
-        AddEndEventTool addEndEventTool = new AddEndEventTool();
+        NodeTool nodeTool = new NodeTool();
         JsonObject endArgs = new JsonObject();
         endArgs.addProperty("file", file.toString());
+        endArgs.addProperty("action", "add");
+        endArgs.addProperty("type", "end_event");
         endArgs.addProperty("name", "Second End");
         endArgs.addProperty("id", "EndEvent_2");
-        addEndEventTool.execute(new Args(endArgs));
+        nodeTool.execute(new Args(endArgs));
     }
 
     // ---- Add flow tests ----

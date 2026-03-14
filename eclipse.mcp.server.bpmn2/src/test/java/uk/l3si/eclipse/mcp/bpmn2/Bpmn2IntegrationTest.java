@@ -33,10 +33,7 @@ class Bpmn2IntegrationTest {
     private final AddServiceTaskTool addServiceTaskTool = new AddServiceTaskTool();
     private final AddSubflowCallTool addSubflowCallTool = new AddSubflowCallTool();
     private final AddScriptTaskTool addScriptTaskTool = new AddScriptTaskTool();
-    private final AddExtensionPointTool addExtensionPointTool = new AddExtensionPointTool();
     private final AddGatewayTool addGatewayTool = new AddGatewayTool();
-    private final AddStartEventTool addStartEventTool = new AddStartEventTool();
-    private final AddEndEventTool addEndEventTool = new AddEndEventTool();
     private final NodeTool nodeTool = new NodeTool();
     private final FlowTool flowTool = new FlowTool();
     private final VariableTool variableTool = new VariableTool();
@@ -69,16 +66,20 @@ class Bpmn2IntegrationTest {
     private String addStartEvent(Path file, String name) throws Exception {
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
+        args.addProperty("type", "start_event");
         args.addProperty("name", name);
-        JsonObject result = exec(addStartEventTool, args);
+        JsonObject result = exec(nodeTool, args);
         return result.get("id").getAsString();
     }
 
     private String addEndEvent(Path file, String name) throws Exception {
         JsonObject args = new JsonObject();
         args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
+        args.addProperty("type", "end_event");
         args.addProperty("name", name);
-        JsonObject result = exec(addEndEventTool, args);
+        JsonObject result = exec(nodeTool, args);
         return result.get("id").getAsString();
     }
 

@@ -229,13 +229,15 @@ class SignalToolTest {
         tool.execute(new Args(addSignalArgs));
 
         // Add a signal start event referencing this signal
-        AddStartEventTool addStartTool = new AddStartEventTool();
+        NodeTool nodeTool = new NodeTool();
         JsonObject addStartArgs = new JsonObject();
         addStartArgs.addProperty("file", file.toString());
+        addStartArgs.addProperty("action", "add");
+        addStartArgs.addProperty("type", "start_event");
         addStartArgs.addProperty("name", "SignalStart");
         addStartArgs.addProperty("id", "StartEvent_Signal");
         addStartArgs.addProperty("signalRef", "Signal_Ref");
-        addStartTool.execute(new Args(addStartArgs));
+        nodeTool.execute(new Args(addStartArgs));
 
         // Now try to remove the signal — should fail
         JsonObject removeArgs = new JsonObject();

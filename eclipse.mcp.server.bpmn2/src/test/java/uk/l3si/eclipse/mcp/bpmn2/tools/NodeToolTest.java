@@ -88,13 +88,208 @@ class NodeToolTest {
     void invalidActionThrowsError() {
         JsonObject args = new JsonObject();
         args.addProperty("file", "/dummy.bpmn2");
-        args.addProperty("action", "add");
+        args.addProperty("action", "invalid");
         args.addProperty("id", "Task_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> tool.execute(new Args(args)));
         assertTrue(ex.getMessage().contains("Invalid action"), ex.getMessage());
-        assertTrue(ex.getMessage().contains("add"), ex.getMessage());
+        assertTrue(ex.getMessage().contains("invalid"), ex.getMessage());
+    }
+
+    // ---- Add start event tests ----
+
+    @Test
+    void addStartEventWithSignalRef() throws Exception {
+        Path file = copyTestResource();
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
+        args.addProperty("type", "start_event");
+        args.addProperty("name", "Signal Start");
+        args.addProperty("signalRef", "Signal_1");
+
+        JsonObject result = executeAndSerialize(args);
+
+        assertEquals("startEvent", result.get("type").getAsString());
+
+        Bpmn2Document doc = Bpmn2Document.parse(file.toString());
+        Element node = doc.findNodeById(result.get("id").getAsString());
+        assertNotNull(node);
+
+        Element signalEventDef = findChildElement(node,
+                Bpmn2Document.NS_BPMN2, "signalEventDefinition");
+        assertNotNull(signalEventDef, "signalEventDefinition child should exist");
+        assertEquals("Signal_1", signalEventDef.getAttribute("signalRef"));
+
+        Element dataOutput = findChildElement(node,
+                Bpmn2Document.NS_BPMN2, "dataOutput");
+        assertNotNull(dataOutput, "signal start event should have dataOutput");
+
+        Element dataOutputAssoc = findChildElement(node,
+                Bpmn2Document.NS_BPMN2, "dataOutputAssociation");
+        assertNotNull(dataOutputAssoc, "signal start event should have dataOutputAssociation");
+
+        Element outputSet = findChildElement(node,
+                Bpmn2Document.NS_BPMN2, "outputSet");
+        assertNotNull(outputSet, "signal start event should have outputSet");
+    }
+
+    @Test
+    void duplicatePlainStartEventThrowsError() throws Exception {
+        // test-flow.bpmn2 already has StartEvent_1 (plain, no signal)
+        Path file = copyTestResource();
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
+        args.addProperty("type", "start_event");
+        args.addProperty("name", "Second Start");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains("plain startEvent"), ex.getMessage());
+    }
+
+    @Test
+    void invalidSignalRefThrowsError() throws Exception {
+        Path file = copyTestResource();
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
+        args.addProperty("type", "start_event");
+        args.addProperty("name", "Bad Signal Start");
+        args.addProperty("signalRef", "Signal_999");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains("Signal not found"), ex.getMessage());
+    }
+
+    // ---- Add end event tests ----
+
+    @Test
+    void addEndEvent() throws Exception {
+        Path file = copyTestResource();
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
+        args.addProperty("type", "end_event");
+        args.addProperty("name", "End");
+
+        JsonObject result = executeAndSerialize(args);
+
+        assertEquals("endEvent", result.get("type").getAsString());
+
+        Bpmn2Document doc = Bpmn2Document.parse(file.toString());
+        Element node = doc.findNodeById(result.get("id").getAsString());
+        assertNotNull(node);
+        assertEquals("endEvent", node.getLocalName());
+    }
+
+    @Test
+    void addEndEventWithCustomId() throws Exception {
+        Path file = copyTestResource();
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
+        args.addProperty("type", "end_event");
+        args.addProperty("name", "Custom End");
+        args.addProperty("id", "MyEnd");
+
+        JsonObject result = executeAndSerialize(args);
+
+        assertEquals("MyEnd", result.get("id").getAsString());
+
+        Bpmn2Document doc = Bpmn2Document.parse(file.toString());
+        assertNotNull(doc.findNodeById("MyEnd"));
+    }
+
+    @Test
+    void addEndEventDuplicateIdThrowsError() throws Exception {
+        Path file = copyTestResource();
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
+        args.addProperty("type", "end_event");
+        args.addProperty("name", "End");
+        args.addProperty("id", "Task_1");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains("ID already taken"), ex.getMessage());
+    }
+
+    // ---- Add extension point tests ----
+
+    @Test
+    void addExtensionPoint() throws Exception {
+        Path file = copyTestResource();
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
+        args.addProperty("type", "extension_point");
+        args.addProperty("name", "Web Review");
+        args.addProperty("groupId", "dynamo.review");
+
+        JsonObject result = executeAndSerialize(args);
+
+        assertEquals("userTask", result.get("type").getAsString());
+
+        Bpmn2Document doc = Bpmn2Document.parse(file.toString());
+        Element node = doc.findNodeById(result.get("id").getAsString());
+        assertNotNull(node);
+        assertEquals("userTask", node.getLocalName());
+
+        // Verify ioSpecification with 11 dataInputs
+        Element ioSpec = findChildElement(node, Bpmn2Document.NS_BPMN2, "ioSpecification");
+        assertNotNull(ioSpec, "ioSpecification should exist");
+
+        int dataInputCount = 0;
+        NodeList ioChildren = ioSpec.getChildNodes();
+        for (int i = 0; i < ioChildren.getLength(); i++) {
+            if (ioChildren.item(i) instanceof Element el
+                    && "dataInput".equals(el.getLocalName())) {
+                dataInputCount++;
+            }
+        }
+        assertEquals(11, dataInputCount, "UserTask should have 11 dataInputs");
+
+        // Verify dataOutputAssociation exists
+        Element dataOutputAssoc = findChildElement(node,
+                Bpmn2Document.NS_BPMN2, "dataOutputAssociation");
+        assertNotNull(dataOutputAssoc, "UserTask should have dataOutputAssociation");
+    }
+
+    @Test
+    void addExtensionPointWithoutGroupId() throws Exception {
+        Path file = copyTestResource();
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
+        args.addProperty("type", "extension_point");
+        args.addProperty("name", "No Group Review");
+
+        JsonObject result = executeAndSerialize(args);
+
+        assertEquals("userTask", result.get("type").getAsString());
+        assertNotNull(result.get("id"));
+    }
+
+    // ---- Add: invalid type ----
+
+    @Test
+    void addInvalidTypeThrowsError() throws Exception {
+        Path file = copyTestResource();
+        JsonObject args = new JsonObject();
+        args.addProperty("file", file.toString());
+        args.addProperty("action", "add");
+        args.addProperty("type", "bogus");
+        args.addProperty("name", "Test");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains("Invalid type"), ex.getMessage());
+        assertTrue(ex.getMessage().contains("bogus"), ex.getMessage());
     }
 
     // ---- Update name ----

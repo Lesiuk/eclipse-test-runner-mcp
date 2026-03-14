@@ -95,11 +95,8 @@ Parameters marked with **\*** are required. All others are optional.
 | `bpmn2_service_task` | Add a service task that calls a Java service method |
 | `bpmn2_subflow_call` | Add a call activity that invokes another BPMN2 subprocess |
 | `bpmn2_script_task` | Add a script task that executes inline Java code |
-| `bpmn2_extension_point` | Add a web extension point (jBPM human task) |
 | `bpmn2_gateway` | Add an exclusive gateway for branching or merging |
-| `bpmn2_start_event` | Add a start event (plain or signal-triggered) |
-| `bpmn2_end_event` | Add an end event |
-| `bpmn2_node` | Update or remove an existing node (action: update/remove) |
+| `bpmn2_node` | Add start/end event or extension point, update or remove a node (action: add/update/remove) |
 | `bpmn2_flow` | Add, update, or remove a sequence flow (action: add/update/remove) |
 | `bpmn2_variable` | Add or remove a process variable (action: add/remove) |
 | `bpmn2_signal` | Add or remove a signal definition (action: add/remove) |
@@ -141,14 +138,14 @@ bpmn2_variable (add)       → add processCommandFlow variable
 bpmn2_import (add)         → import a utility class for use in script tasks
 bpmn2_signal (add)         → define a signal for event-driven start events
 
-bpmn2_start_event          → add the main start event
+bpmn2_node (add start_event)→ add the main start event
 bpmn2_service_task         → call a Java service (validated against workspace)
 bpmn2_gateway              → add a diverging gateway for conditional branching
 bpmn2_script_task          → add inline Java logic
 bpmn2_subflow_call         → delegate to another BPMN2 subprocess
-bpmn2_extension_point      → add a web extension point (human task)
+bpmn2_node (add ext_point) → add a web extension point (human task)
 bpmn2_gateway              → add a converging gateway to merge branches
-bpmn2_end_event            → add the end event
+bpmn2_node (add end_event) → add the end event
 
 bpmn2_flow (add)           → connect nodes with sequence flows
 bpmn2_flow (add+condition) → add conditional branch with Java expression
