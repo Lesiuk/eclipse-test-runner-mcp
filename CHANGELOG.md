@@ -1,5 +1,14 @@
 # Changelog
 
+## bpmn2 v0.4.0
+
+- Compact tool set from 25 to 14 tools to reduce LLM context usage
+- Merge add/remove pairs into single tools with `action` parameter: `bpmn2_variable`, `bpmn2_signal`, `bpmn2_import`, `bpmn2_item_definition`, `bpmn2_text_annotation`
+- Merge flow tools into `bpmn2_flow` (action: add/update/remove)
+- Merge start event, end event, extension point into `bpmn2_node` (action: add/update/remove, type: start_event/end_event/extension_point)
+- Drop `add_` prefix from all tool names for consistency
+- **Breaking:** all tool names changed — update any scripts or prompts referencing old names
+
 ## bpmn2 v0.3.0
 
 - Add `bpmn2_add_text_annotation` — sticky-note diagram comments, optionally attached to nodes/flows
