@@ -14,8 +14,11 @@ public class DebugContext implements IDebugEventSetListener {
     private volatile IJavaThread currentThread;
     private volatile IJavaDebugTarget currentTarget;
 
-    public void register() {
-        DebugPlugin.getDefault().addDebugEventListener(this);
+    public DebugContext() {
+        DebugPlugin dp = DebugPlugin.getDefault();
+        if (dp != null) {
+            dp.addDebugEventListener(this);
+        }
     }
 
     public void unregister() {

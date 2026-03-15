@@ -4,6 +4,7 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.debug.ui.IDebugUIConstants;
 import org.eclipse.jface.preference.IPreferenceStore;
+import org.eclipse.ui.IStartup;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 import uk.l3si.eclipse.mcp.tools.ToolRegistry;
@@ -11,7 +12,7 @@ import uk.l3si.eclipse.mcp.tools.ToolRegistry;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-public class Activator extends AbstractUIPlugin {
+public class Activator extends AbstractUIPlugin implements IStartup {
 
     public static final String PLUGIN_ID = "eclipse.mcp.server";
 
@@ -37,11 +38,15 @@ public class Activator extends AbstractUIPlugin {
     @Override
     public void stop(BundleContext ctx) throws Exception {
         shutdownServer();
+        if (toolRegistry != null) {
+            toolRegistry.getDebugContext().unregister();
+        }
         plugin = null;
         super.stop(ctx);
     }
 
-    public void initServer() {
+    @Override
+    public void earlyStartup() {
         if (server != null) {
             return;
         }
@@ -54,6 +59,7 @@ public class Activator extends AbstractUIPlugin {
             log(IStatus.ERROR, "MCP HTTP server failed to start: " + ex.getMessage());
             server = null;
         }
+        applyDisabledTools();
     }
 
     /**

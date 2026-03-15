@@ -1,6 +1,10 @@
 package uk.l3si.eclipse.mcp.tools;
 
 import com.google.gson.JsonObject;
+import uk.l3si.eclipse.mcp.bpmn2.tools.*;
+import uk.l3si.eclipse.mcp.debugging.BreakpointManager;
+import uk.l3si.eclipse.mcp.debugging.DebugContext;
+import uk.l3si.eclipse.mcp.debugging.tools.*;
 import uk.l3si.eclipse.mcp.tools.impl.*;
 
 import java.util.ArrayList;
@@ -19,10 +23,15 @@ public class ToolRegistry {
     private final Set<String> disabledTools = new LinkedHashSet<>();
     private final Set<String> defaultDisabledTools = new LinkedHashSet<>();
 
+    private final DebugContext debugContext;
+
     public ToolRegistry() {
+        // Launch modes
         launchModes.put("run", "Normal test execution (default)");
         launchModes.put("coverage", "Run with EclEmma/JaCoCo code coverage — use 'get_coverage' afterwards for detailed results");
+        launchModes.put("debug", "Launch with debugger attached — set breakpoints first, then use debug tools to inspect suspended state");
 
+        // Core tools
         addTool(new ListProjectsTool());
         addTool(new ListLaunchConfigsTool());
         addTool(new ListLaunchesTool());
@@ -34,6 +43,41 @@ public class ToolRegistry {
         addTool(new GetConsoleOutputTool());
         addTool(new GetCoverageTool());
         addTool(new FindReferencesTool());
+
+        // Debugging tools
+        debugContext = new DebugContext();
+        BreakpointManager breakpointManager = new BreakpointManager();
+
+        addTool(new SetBreakpointTool(breakpointManager), "Debugging");
+        addTool(new RemoveBreakpointTool(breakpointManager), "Debugging");
+        addTool(new ListBreakpointsTool(breakpointManager), "Debugging");
+        addTool(new GetDebugStateTool(debugContext), "Debugging");
+        addTool(new ListThreadsTool(debugContext), "Debugging");
+        addTool(new GetStackTraceTool(debugContext), "Debugging");
+        addTool(new ListVariablesTool(debugContext), "Debugging");
+        addTool(new EvaluateExpressionTool(debugContext), "Debugging");
+        addTool(new StepTool(debugContext), "Debugging");
+        addTool(new ResumeTool(debugContext), "Debugging");
+
+        // BPMN2 tools (disabled by default)
+        addTool(new GetProcessTool(), "BPMN2", false);
+        addTool(new CreateProcessTool(), "BPMN2", false);
+        addTool(new AddServiceTaskTool(), "BPMN2", false);
+        addTool(new AddSubflowCallTool(), "BPMN2", false);
+        addTool(new AddScriptTaskTool(), "BPMN2", false);
+        addTool(new AddGatewayTool(), "BPMN2", false);
+        addTool(new NodeTool(), "BPMN2", false);
+        addTool(new FlowTool(), "BPMN2", false);
+        addTool(new VariableTool(), "BPMN2", false);
+        addTool(new SignalTool(), "BPMN2", false);
+        addTool(new ImportTool(), "BPMN2", false);
+        addTool(new ItemDefinitionTool(), "BPMN2", false);
+        addTool(new TextAnnotationTool(), "BPMN2", false);
+        addTool(new AutoLayoutTool(), "BPMN2", false);
+    }
+
+    public DebugContext getDebugContext() {
+        return debugContext;
     }
 
     public synchronized void addTool(McpTool tool) {
@@ -50,10 +94,6 @@ public class ToolRegistry {
         if (!enabledByDefault) {
             defaultDisabledTools.add(tool.getName());
         }
-    }
-
-    public synchronized void addLaunchMode(String name, String description) {
-        launchModes.put(name, description);
     }
 
     public synchronized Map<String, String> getLaunchModes() {
