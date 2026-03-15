@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.40.0
+
+- **`get_problems` now refreshes and builds before returning** — ensures compilation markers are up-to-date after external file edits, matching the refresh & build pattern used by `run_test`
+
 ## v0.39.0
 
 - **Consolidate startup** — delete `StartupHook`, `Activator` now implements `IStartup` directly
