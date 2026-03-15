@@ -8,6 +8,9 @@ import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunch;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class TerminateTool implements McpTool {
 
     @Override
@@ -29,25 +32,42 @@ public class TerminateTool implements McpTool {
                 .build();
     }
 
+    private static final long TERMINATION_TIMEOUT_MS = 10_000;
+    private static final long POLL_INTERVAL_MS = 100;
+
     @Override
     public Object execute(Args args) throws Exception {
         String configName = args.getString("name");
-        int count = 0;
+        List<ILaunch> toTerminate = new ArrayList<>();
 
         for (ILaunch launch : DebugPlugin.getDefault().getLaunchManager().getLaunches()) {
             if (launch.isTerminated()) continue;
             if (configName != null && !matchesConfig(launch, configName)) continue;
 
             launch.terminate();
-            count++;
+            toTerminate.add(launch);
         }
 
-        if (count == 0 && configName != null) {
+        if (toTerminate.isEmpty() && configName != null) {
             throw new IllegalArgumentException(
                     "No running launch found with name '" + configName + "'. "
                     + "Use 'terminate' without 'name' to terminate all, or check the launch configuration name.");
         }
-        return TerminateResult.builder().terminated(count).build();
+
+        // Wait for all launches to fully terminate
+        long deadline = System.currentTimeMillis() + TERMINATION_TIMEOUT_MS;
+        for (ILaunch launch : toTerminate) {
+            while (!launch.isTerminated() && System.currentTimeMillis() < deadline) {
+                Thread.sleep(POLL_INTERVAL_MS);
+            }
+            if (!launch.isTerminated()) {
+                throw new IllegalStateException(
+                        "Launch '" + (launch.getLaunchConfiguration() != null ? launch.getLaunchConfiguration().getName() : "unknown")
+                        + "' did not terminate within " + (TERMINATION_TIMEOUT_MS / 1000) + "s");
+            }
+        }
+
+        return TerminateResult.builder().terminated(toTerminate.size()).build();
     }
 
     private boolean matchesConfig(ILaunch launch, String name) {

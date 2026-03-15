@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.42.0
+
+- **`terminate` now waits for launches to fully die** — polls up to 10s after requesting termination, preventing race conditions where `run_test` would reject with "test already running" immediately after a successful terminate
+
 ## v0.41.0
 
 - **Extract `ProjectBuilder`** — shared refresh & build logic used by `run_test` and `get_problems`, eliminating duplication

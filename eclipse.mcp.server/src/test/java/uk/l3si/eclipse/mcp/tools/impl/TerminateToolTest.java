@@ -13,6 +13,7 @@ import org.mockito.MockedStatic;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doAnswer;
 
 public class TerminateToolTest {
 
@@ -53,12 +54,14 @@ public class TerminateToolTest {
         ILaunch launchNoConfig = mock(ILaunch.class);
         when(launchNoConfig.isTerminated()).thenReturn(false);
         when(launchNoConfig.getLaunchConfiguration()).thenReturn(null);
+        doAnswer(inv -> { when(launchNoConfig.isTerminated()).thenReturn(true); return null; }).when(launchNoConfig).terminate();
 
         ILaunch launchWithConfig = mock(ILaunch.class);
         when(launchWithConfig.isTerminated()).thenReturn(false);
         ILaunchConfiguration config = mock(ILaunchConfiguration.class);
         when(config.getName()).thenReturn("App");
         when(launchWithConfig.getLaunchConfiguration()).thenReturn(config);
+        doAnswer(inv -> { when(launchWithConfig.isTerminated()).thenReturn(true); return null; }).when(launchWithConfig).terminate();
 
         ILaunchManager manager = mock(ILaunchManager.class);
         when(manager.getLaunches()).thenReturn(new ILaunch[]{launchNoConfig, launchWithConfig});
@@ -91,6 +94,7 @@ public class TerminateToolTest {
         ILaunchConfiguration config2 = mock(ILaunchConfiguration.class);
         when(config2.getName()).thenReturn("AppB");
         when(launch2.getLaunchConfiguration()).thenReturn(config2);
+        doAnswer(inv -> { when(launch2.isTerminated()).thenReturn(true); return null; }).when(launch2).terminate();
 
         ILaunchManager manager = mock(ILaunchManager.class);
         when(manager.getLaunches()).thenReturn(new ILaunch[]{launch1, launch2});
