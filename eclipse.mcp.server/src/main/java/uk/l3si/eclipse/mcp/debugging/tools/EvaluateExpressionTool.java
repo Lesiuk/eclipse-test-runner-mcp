@@ -26,12 +26,16 @@ import org.eclipse.jdt.launching.JavaRuntime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 public class EvaluateExpressionTool implements McpTool {
 
     private static final long EVAL_TIMEOUT_MS = 30_000;
     private static final int MAX_ARRAY_PREVIEW = 10;
+
+    /** Only one evaluation can run at a time (Eclipse JDT limitation). */
+    private static final Semaphore EVAL_LOCK = new Semaphore(1, true);
 
     private final DebugContext debugContext;
 
@@ -88,12 +92,24 @@ public class EvaluateExpressionTool implements McpTool {
                     "Cannot determine Java project from launch configuration.");
         }
 
-        // Create evaluation engine
+        // Serialize evaluations — Eclipse JDT does not support concurrent evals
+        if (!EVAL_LOCK.tryAcquire(EVAL_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+            throw new IllegalStateException(
+                    "Timed out waiting for a previous evaluation to complete.");
+        }
+        try {
+            return doEvaluate(expression, frame, javaProject, target);
+        } finally {
+            EVAL_LOCK.release();
+        }
+    }
+
+    private Object doEvaluate(String expression, IJavaStackFrame frame,
+            IJavaProject javaProject, IJavaDebugTarget target) throws Exception {
         IAstEvaluationEngine engine = EvaluationManager.newAstEvaluationEngine(
                 javaProject, target);
 
         try {
-            // Evaluate asynchronously and wait
             CountDownLatch latch = new CountDownLatch(1);
             IEvaluationResult[] resultHolder = new IEvaluationResult[1];
 

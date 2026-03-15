@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.45.0
+
+- **`evaluate_expression` now queues concurrent calls** — uses a fair semaphore so parallel evaluations wait for the previous one to finish instead of failing with "Cannot perform nested evaluations" (Eclipse JDT limitation)
+
 ## v0.44.0
 
 - **Fix startup NPE** — restore separate `StartupHook` class for `IStartup`, since the extension registry creates its own instance where `start()` was never called. Bug introduced in v0.39.0.
