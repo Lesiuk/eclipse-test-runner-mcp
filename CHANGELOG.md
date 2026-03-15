@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.38.0
+
+- **Remove `inspect_variable` tool** — its functionality is now merged into `evaluate_expression`, which already handles variable inspection via expression evaluation
+- `evaluate_expression` now returns array element previews (first 10 elements) and truncation flags, matching the old `inspect_variable` output
+- Debug tool count reduced from 11 to 10
+
+## v0.37.0
+
+- **Merge all three plugins into a single JAR** — core, debugging, and BPMN2 tools are now shipped together. No more separate `eclipse.mcp.server-debugging` or `eclipse.mcp.server-bpmn2` JARs to install.
+- **BPMN2 tools disabled by default** — enable them in `Window > Preferences > MCP Server`. Debugging and core tools remain enabled by default.
+- Simplify release workflow — single version tag (`vX.Y.Z`), single JAR artifact
+- **Breaking:** existing users should remove the old debugging and BPMN2 JARs from `dropins/` before installing
+
 ## bpmn2 v0.4.0
 
 - Compact tool set from 25 to 14 tools to reduce LLM context usage

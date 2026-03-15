@@ -7,13 +7,11 @@
 
     <groupId>uk.l3si.eclipse.mcp</groupId>
     <artifactId>eclipse.mcp.parent</artifactId>
-    <version>0.36.0-SNAPSHOT</version>
+    <version>0.38.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <modules>
         <module>eclipse.mcp.server</module>
-        <module>eclipse.mcp.server.debugging</module>
-        <module>eclipse.mcp.server.bpmn2</module>
     </modules>
 
     <properties>
