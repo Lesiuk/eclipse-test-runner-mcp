@@ -4,7 +4,6 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.debug.ui.IDebugUIConstants;
 import org.eclipse.jface.preference.IPreferenceStore;
-import org.eclipse.ui.IStartup;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 import uk.l3si.eclipse.mcp.tools.ToolRegistry;
@@ -12,7 +11,7 @@ import uk.l3si.eclipse.mcp.tools.ToolRegistry;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-public class Activator extends AbstractUIPlugin implements IStartup {
+public class Activator extends AbstractUIPlugin {
 
     public static final String PLUGIN_ID = "eclipse.mcp.server";
 
@@ -45,15 +44,7 @@ public class Activator extends AbstractUIPlugin implements IStartup {
         super.stop(ctx);
     }
 
-    @Override
-    public void earlyStartup() {
-        // The extension registry creates a separate instance for IStartup,
-        // so delegate to the real singleton that OSGi activated via start().
-        Activator instance = getInstance();
-        if (instance != null && instance != this) {
-            instance.earlyStartup();
-            return;
-        }
+    void doEarlyStartup() {
         if (server != null) {
             return;
         }

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugin>
    <extension point="org.eclipse.ui.startup">
-      <startup class="uk.l3si.eclipse.mcp.Activator"/>
+      <startup class="uk.l3si.eclipse.mcp.StartupHook"/>
    </extension>
    <extension point="org.eclipse.ui.preferencePages">
       <page

@@ -1,8 +1,12 @@
 # Changelog
 
+## v0.44.0
+
+- **Fix startup NPE** — restore separate `StartupHook` class for `IStartup`, since the extension registry creates its own instance where `start()` was never called. Bug introduced in v0.39.0.
+
 ## v0.43.0
 
-- **Fix startup NPE** — `earlyStartup()` was called on a separate instance created by the extension registry, not the OSGi-activated singleton, so `toolRegistry` was null. Delegate to the real `Activator` instance. Bug introduced in v0.39.0 when `StartupHook` was merged into `Activator`.
+- Fix startup NPE — workaround with instance delegation (superseded by v0.44.0)
 
 ## v0.42.0
 
