@@ -17,21 +17,11 @@ Eclipse IDE plugin that lets AI coding assistants ([Claude Code](https://docs.an
 
 The plugin runs as an OSGi bundle inside Eclipse and exposes an HTTP endpoint on `127.0.0.1:5188`.
 
-Each release contains three JARs, versioned independently:
-
-| JAR | Required? | Description |
-|-----|-----------|-------------|
-| `eclipse.mcp.server_VERSION.jar` | **Yes** | Core plugin — test runner, coverage, workspace tools |
-| `eclipse.mcp.server-debugging_VERSION.jar` | No | Debug tools add-on — breakpoints, stepping, variable inspection |
-| `eclipse.mcp.server-bpmn2_VERSION.jar` | No | BPMN2 process editor — create and modify jBPM workflow files |
-
-All JARs are included in every release so you can always grab a compatible set from a single page, even when only one module has changed. The version in the filename tells you what's new.
-
-1. Download the latest JAR(s) from the [releases page](https://github.com/Lesiuk/eclipse-test-runner-mcp/releases/latest)
-2. Drop them into `<eclipse-install>/dropins/`
+1. Download `eclipse.mcp.server_VERSION.jar` from the [releases page](https://github.com/Lesiuk/eclipse-test-runner-mcp/releases/latest)
+2. Drop it into `<eclipse-install>/dropins/`
 3. Restart Eclipse
 
-Only the core JAR is needed for test running and coverage. Install the debugging JAR alongside it to add breakpoint and debugger tools — including a `debug` launch mode on `run_test`. Install the BPMN2 JAR to add process editing tools for jBPM workflow files.
+All tools (core, debugging, BPMN2) are included in a single JAR. Debugging tools are enabled by default. BPMN2 tools are disabled by default — enable them in `Window > Preferences > MCP Server`.
 
 ## Connecting an AI Assistant
 
@@ -54,7 +44,7 @@ claude mcp add eclipse --transport http http://127.0.0.1:5188/mcp -s user
 
 Parameters marked with **\*** are required. All others are optional.
 
-#### Core (`eclipse.mcp.server`)
+#### Core
 
 | Tool | Description |
 |------|-------------|
@@ -70,7 +60,7 @@ Parameters marked with **\*** are required. All others are optional.
 | `terminate` | Stop running launches |
 | `find_references` | Find all references to a class, method, or field |
 
-#### Debugging add-on (`eclipse.mcp.server.debugging`)
+#### Debugging
 
 | Tool | Description |
 |------|-------------|
@@ -86,7 +76,7 @@ Parameters marked with **\*** are required. All others are optional.
 | `step` | Step over, into, or return |
 | `resume` | Resume a suspended thread |
 
-#### BPMN2 process editor (`eclipse.mcp.server.bpmn2`)
+#### BPMN2 (disabled by default)
 
 | Tool | Description |
 |------|-------------|
@@ -162,7 +152,7 @@ bpmn2_get_process          → verify the complete process structure
 
 **`run_test`** `(config*, class*, method, project, dependencies[], mode)` → `{steps, success, compilationErrors[], launchResult{status, totalTests, passed, failed, failures[]}}`
 
-Full pipeline — refresh projects from disk, build (dependencies first, in order), check for compilation errors, then launch the test. Fails fast if compilation errors are found. Rejects the call if another test is already running. The `mode` parameter controls how the test launches: `run` (default), `coverage` (EclEmma/JaCoCo — use `get_coverage` afterwards), or `debug` (requires debug add-on — set breakpoints first).
+Full pipeline — refresh projects from disk, build (dependencies first, in order), check for compilation errors, then launch the test. Fails fast if compilation errors are found. Rejects the call if another test is already running. The `mode` parameter controls how the test launches: `run` (default), `coverage` (EclEmma/JaCoCo — use `get_coverage` afterwards), or `debug` (set breakpoints first).
 
 Uses an existing launch configuration as a template — inheriting VM arguments, classpath, and environment — while overriding just the test target (class/method).
 
@@ -212,7 +202,7 @@ Stops running launches. Optionally filtered by configuration name. Returns the n
 
 Find all references to a Java class, method, or field across all open workspace projects. Uses Eclipse's semantic search engine — finds actual usages, not just name matches. If `member` is omitted, finds references to the class itself. Handles method overloads (searches all overloads together). Results grouped by file with line numbers and source line context.
 
-#### Debugging (requires debug add-on)
+#### Debugging
 
 **`set_breakpoint`** `(class*, line*, condition)` → `{id, class, line, condition, enabled}`
 
@@ -268,7 +258,7 @@ Requires Java 17+ and Maven 3.9+.
 mvn package -B
 ```
 
-Output JARs land in each plugin's `target/` directory. Copy to Eclipse `dropins/` and restart.
+Output JAR lands in `eclipse.mcp.server/target/`. Copy to Eclipse `dropins/` and restart.
 
 ## [Changelog](CHANGELOG.md)
 

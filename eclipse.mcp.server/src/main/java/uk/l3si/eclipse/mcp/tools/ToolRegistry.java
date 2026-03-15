@@ -17,6 +17,7 @@ public class ToolRegistry {
     private final LinkedHashMap<String, String> toolGroups = new LinkedHashMap<>();
     private final LinkedHashMap<String, String> launchModes = new LinkedHashMap<>();
     private final Set<String> disabledTools = new LinkedHashSet<>();
+    private final Set<String> defaultDisabledTools = new LinkedHashSet<>();
 
     public ToolRegistry() {
         launchModes.put("run", "Normal test execution (default)");
@@ -40,8 +41,15 @@ public class ToolRegistry {
     }
 
     public synchronized void addTool(McpTool tool, String group) {
+        addTool(tool, group, true);
+    }
+
+    public synchronized void addTool(McpTool tool, String group, boolean enabledByDefault) {
         toolsByName.put(tool.getName(), tool);
         toolGroups.put(tool.getName(), group);
+        if (!enabledByDefault) {
+            defaultDisabledTools.add(tool.getName());
+        }
     }
 
     public synchronized void addLaunchMode(String name, String description) {
@@ -97,6 +105,10 @@ public class ToolRegistry {
 
     public synchronized boolean isToolEnabled(String toolName) {
         return !disabledTools.contains(toolName);
+    }
+
+    public synchronized Set<String> getDefaultDisabledTools() {
+        return new LinkedHashSet<>(defaultDisabledTools);
     }
 
     private void validateParameters(String toolName, McpTool tool, JsonObject arguments) {

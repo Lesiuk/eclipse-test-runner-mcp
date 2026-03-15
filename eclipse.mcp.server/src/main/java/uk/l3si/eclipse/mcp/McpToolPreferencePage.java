@@ -114,8 +114,9 @@ public class McpToolPreferencePage extends PreferencePage implements IWorkbenchP
 
     @Override
     protected void performDefaults() {
-        for (Button checkbox : checkboxes.values()) {
-            checkbox.setSelection(true);
+        Set<String> defaultDisabled = Activator.getInstance().getToolRegistry().getDefaultDisabledTools();
+        for (Map.Entry<String, Button> entry : checkboxes.entrySet()) {
+            entry.getValue().setSelection(!defaultDisabled.contains(entry.getKey()));
         }
         super.performDefaults();
     }

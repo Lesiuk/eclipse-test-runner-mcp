@@ -46,7 +46,6 @@ public class Activator extends AbstractUIPlugin {
             return;
         }
         suppressDebugActivation();
-        loadDisabledTools();
         server = new McpHttpServer(toolRegistry);
         try {
             server.start();
@@ -69,7 +68,7 @@ public class Activator extends AbstractUIPlugin {
         }
     }
 
-    private void loadDisabledTools() {
+    public void applyDisabledTools() {
         String disabled = getPreferenceStore().getString(McpToolPreferencePage.PREF_DISABLED_TOOLS);
         if (disabled != null && !disabled.isBlank()) {
             Set<String> disabledSet = new LinkedHashSet<>();
@@ -80,6 +79,8 @@ public class Activator extends AbstractUIPlugin {
                 }
             }
             toolRegistry.setDisabledTools(disabledSet);
+        } else {
+            toolRegistry.setDisabledTools(toolRegistry.getDefaultDisabledTools());
         }
     }
 

@@ -21,20 +21,13 @@ jobs:
           java-version: 17
           cache: maven
 
-      - name: Extract versions
+      - name: Extract version
         id: meta
         run: |
-          CORE_VER=$(grep 'Bundle-Version' eclipse.mcp.server/META-INF/MANIFEST.MF | sed 's/.*: *//;s/.qualifier//')
-          DEBUG_VER=$(grep 'Bundle-Version' eclipse.mcp.server.debugging/META-INF/MANIFEST.MF | sed 's/.*: *//;s/.qualifier//')
-          BPMN2_VER=$(grep 'Bundle-Version' eclipse.mcp.server.bpmn2/META-INF/MANIFEST.MF | sed 's/.*: *//;s/.qualifier//')
-          echo "core_version=${CORE_VER}" >> "$GITHUB_OUTPUT"
-          echo "debug_version=${DEBUG_VER}" >> "$GITHUB_OUTPUT"
-          echo "bpmn2_version=${BPMN2_VER}" >> "$GITHUB_OUTPUT"
-          echo "tag=core-${CORE_VER}+debugging-${DEBUG_VER}+bpmn2-${BPMN2_VER}" >> "$GITHUB_OUTPUT"
-          echo "title=Core ${CORE_VER} / Debugging ${DEBUG_VER} / BPMN2 ${BPMN2_VER}" >> "$GITHUB_OUTPUT"
-          echo "core_jar=eclipse.mcp.server_${CORE_VER}.jar" >> "$GITHUB_OUTPUT"
-          echo "debug_jar=eclipse.mcp.server-debugging_${DEBUG_VER}.jar" >> "$GITHUB_OUTPUT"
-          echo "bpmn2_jar=eclipse.mcp.server-bpmn2_${BPMN2_VER}.jar" >> "$GITHUB_OUTPUT"
+          VERSION=$(grep 'Bundle-Version' eclipse.mcp.server/META-INF/MANIFEST.MF | sed 's/.*: *//;s/.qualifier//')
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "jar=eclipse.mcp.server_${VERSION}.jar" >> "$GITHUB_OUTPUT"
 
       - name: Skip if already released
         id: guard
@@ -53,11 +46,7 @@ jobs:
         if: steps.guard.outputs.skip == 'false'
         run: |
           cp eclipse.mcp.server/target/eclipse.mcp.server-*.jar \
-             "${{ steps.meta.outputs.core_jar }}"
-          cp eclipse.mcp.server.debugging/target/eclipse.mcp.server.debugging-*.jar \
-             "${{ steps.meta.outputs.debug_jar }}"
-          cp eclipse.mcp.server.bpmn2/target/eclipse.mcp.server.bpmn2-*.jar \
-             "${{ steps.meta.outputs.bpmn2_jar }}"
+             "${{ steps.meta.outputs.jar }}"
 
           PREV_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || true)
           if [ -n "$PREV_TAG" ]; then
@@ -77,17 +66,11 @@ jobs:
           fi
 
           BODY+=$'\n\n'"## Installation"$'\n\n'
-          BODY+="| JAR | Description |"$'\n'
-          BODY+="|-----|-------------|"$'\n'
-          BODY+="| \`${{ steps.meta.outputs.core_jar }}\` | Core test runner (required) |"$'\n'
-          BODY+="| \`${{ steps.meta.outputs.debug_jar }}\` | Debug tools add-on (optional, requires core) |"$'\n'
-          BODY+="| \`${{ steps.meta.outputs.bpmn2_jar }}\` | BPMN2 process editor (optional, requires core) |"
+          BODY+="Drop \`${{ steps.meta.outputs.jar }}\` into \`<eclipse-install>/dropins/\` and restart Eclipse."
 
           gh release create "${{ steps.meta.outputs.tag }}" \
-            "${{ steps.meta.outputs.core_jar }}" \
-            "${{ steps.meta.outputs.debug_jar }}" \
-            "${{ steps.meta.outputs.bpmn2_jar }}" \
-            --title "${{ steps.meta.outputs.title }}" \
+            "${{ steps.meta.outputs.jar }}" \
+            --title "v${{ steps.meta.outputs.version }}" \
             --notes "$BODY"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
