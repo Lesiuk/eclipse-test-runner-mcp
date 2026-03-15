@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.39.0
+
+- **Consolidate startup** — delete `StartupHook`, `Activator` now implements `IStartup` directly
+- **All tool registration in `ToolRegistry` constructor** — core, debugging, and BPMN2 tools registered in one place
+- `DebugContext` self-registers its debug event listener in constructor
+
 ## v0.38.0
 
 - **Remove `inspect_variable` tool** — its functionality is now merged into `evaluate_expression`, which already handles variable inspection via expression evaluation
