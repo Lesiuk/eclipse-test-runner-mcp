@@ -47,6 +47,13 @@ public class Activator extends AbstractUIPlugin implements IStartup {
 
     @Override
     public void earlyStartup() {
+        // The extension registry creates a separate instance for IStartup,
+        // so delegate to the real singleton that OSGi activated via start().
+        Activator instance = getInstance();
+        if (instance != null && instance != this) {
+            instance.earlyStartup();
+            return;
+        }
         if (server != null) {
             return;
         }

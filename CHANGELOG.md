@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.43.0
+
+- **Fix startup NPE** — `earlyStartup()` was called on a separate instance created by the extension registry, not the OSGi-activated singleton, so `toolRegistry` was null. Delegate to the real `Activator` instance. Bug introduced in v0.39.0 when `StartupHook` was merged into `Activator`.
+
 ## v0.42.0
 
 - **`terminate` now waits for launches to fully die** — polls up to 10s after requesting termination, preventing race conditions where `run_test` would reject with "test already running" immediately after a successful terminate
