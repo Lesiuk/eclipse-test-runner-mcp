@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.41.0
+
+- **Extract `ProjectBuilder`** — shared refresh & build logic used by `run_test` and `get_problems`, eliminating duplication
+
 ## v0.40.0
 
 - **`get_problems` now refreshes and builds before returning** — ensures compilation markers are up-to-date after external file edits, matching the refresh & build pattern used by `run_test`
