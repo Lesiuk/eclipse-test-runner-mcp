@@ -5,7 +5,7 @@ import uk.l3si.eclipse.mcp.bpmn2.tools.*;
 import uk.l3si.eclipse.mcp.debugging.BreakpointManager;
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.debugging.tools.*;
-import uk.l3si.eclipse.mcp.tools.impl.*;
+import uk.l3si.eclipse.mcp.core.tools.*;
 
 import java.util.ArrayList;
 import java.util.Collections;

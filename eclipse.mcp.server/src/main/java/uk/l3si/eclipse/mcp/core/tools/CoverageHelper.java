@@ -1,4 +1,4 @@
-package uk.l3si.eclipse.mcp.tools.impl;
+package uk.l3si.eclipse.mcp.core.tools;
 
 import uk.l3si.eclipse.mcp.model.CoverageResult;
 import uk.l3si.eclipse.mcp.model.CoverageSummary;

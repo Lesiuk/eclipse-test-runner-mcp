@@ -1,4 +1,4 @@
-package uk.l3si.eclipse.mcp.tools.impl;
+package uk.l3si.eclipse.mcp.core.tools;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;

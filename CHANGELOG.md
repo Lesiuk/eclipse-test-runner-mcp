@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.56.0
+
+- **Restructure packages to consistent domain-based layout** — move `model/` → `core/model/`, `tools/impl/` → `core/tools/`; all three domains (`core`, `debugging`, `bpmn2`) now follow the same `{domain}/tools/` + `{domain}/model/` pattern; `tools/` retains only the shared framework (McpTool, Args, etc.)
+
 ## v0.55.0
 
 - **Use direct JDI imports instead of reflection** for `InvocationException` unwrapping — cleaner code, same behavior

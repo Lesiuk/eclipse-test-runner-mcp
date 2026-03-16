@@ -1,4 +1,4 @@
-package uk.l3si.eclipse.mcp.tools.impl;
+package uk.l3si.eclipse.mcp.core.tools;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;

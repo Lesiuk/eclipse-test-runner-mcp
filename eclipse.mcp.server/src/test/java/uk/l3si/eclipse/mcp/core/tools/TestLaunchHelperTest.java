@@ -1,4 +1,4 @@
-package uk.l3si.eclipse.mcp.tools.impl;
+package uk.l3si.eclipse.mcp.core.tools;
 
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
