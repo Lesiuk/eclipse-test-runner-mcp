@@ -1,5 +1,7 @@
 package uk.l3si.eclipse.mcp.tools.impl;
 
+import uk.l3si.eclipse.mcp.debugging.DebugContext;
+import uk.l3si.eclipse.mcp.debugging.DebugContext.WaitResult;
 import uk.l3si.eclipse.mcp.model.LaunchTestResult;
 import uk.l3si.eclipse.mcp.model.TestRunResult;
 import org.eclipse.core.resources.IProject;
@@ -93,7 +95,9 @@ public class TestLaunchHelper {
      * @param projectName if provided, overrides the project on the working copy;
      *                    if null, reads the project from the existing config
      */
-    public static LaunchTestResult launchTest(String configName, String className, String methodName, String projectName, String mode) throws Exception {
+    private static final int DEBUG_TIMEOUT_SECONDS = 30;
+
+    public static LaunchTestResult launchTest(String configName, String className, String methodName, String projectName, String mode, DebugContext debugContext) throws Exception {
         ILaunchConfiguration config = findTestConfig(configName);
 
         // Resolve project: user-provided or from existing config
@@ -159,11 +163,21 @@ public class TestLaunchHelper {
                 .className(className)
                 .method(methodName);
 
-        // In debug mode, return immediately — the debugger will suspend at breakpoints
-        // and the LLM should use get_debug_state to check status
+        // In debug mode, wait for breakpoint hit or termination
         if ("debug".equals(mode)) {
-            builder.testResultsError("Launched in debug mode. Use 'get_debug_state' to check if a breakpoint was hit, "
-                    + "then use debug tools (inspect_variable, evaluate_expression, step, resume) to interact with the debugger.");
+            WaitResult wait = debugContext.waitForSuspendOrTerminate(DEBUG_TIMEOUT_SECONDS);
+            switch (wait) {
+                case SUSPENDED -> builder
+                        .debugStopped(true)
+                        .debugReason(debugContext.getSuspendReason())
+                        .debugLocation(debugContext.getCurrentLocation());
+                case TERMINATED -> builder
+                        .debugStopped(true)
+                        .debugReason("terminated");
+                case TIMEOUT -> builder
+                        .debugStopped(false)
+                        .debugReason("timeout");
+            }
             return builder.build();
         }
 

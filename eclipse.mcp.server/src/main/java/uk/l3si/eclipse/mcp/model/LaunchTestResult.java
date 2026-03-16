@@ -2,6 +2,7 @@ package uk.l3si.eclipse.mcp.model;
 
 import com.google.gson.annotations.SerializedName;
 import lombok.Builder;
+import uk.l3si.eclipse.mcp.debugging.model.LocationInfo;
 
 @Builder(builderClassName = "Builder")
 public class LaunchTestResult {
@@ -12,4 +13,7 @@ public class LaunchTestResult {
     private String method;
     private TestRunResult testResults;
     private String testResultsError;
+    private Boolean debugStopped;
+    private String debugReason;
+    private LocationInfo debugLocation;
 }

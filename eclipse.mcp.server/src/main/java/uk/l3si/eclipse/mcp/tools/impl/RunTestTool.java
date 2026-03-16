@@ -1,5 +1,6 @@
 package uk.l3si.eclipse.mcp.tools.impl;
 
+import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.model.LaunchTestResult;
 import uk.l3si.eclipse.mcp.model.ProblemInfo;
 import uk.l3si.eclipse.mcp.model.RunTestResult;
@@ -19,9 +20,11 @@ import java.util.Map;
 public class RunTestTool implements McpTool {
 
     private final Map<String, String> launchModes;
+    private final DebugContext debugContext;
 
-    public RunTestTool(Map<String, String> launchModes) {
+    public RunTestTool(Map<String, String> launchModes, DebugContext debugContext) {
         this.launchModes = launchModes;
+        this.debugContext = debugContext;
     }
 
     @Override
@@ -96,7 +99,7 @@ public class RunTestTool implements McpTool {
         }
 
         // Launch test
-        LaunchTestResult launchResult = TestLaunchHelper.launchTest(configName, className, methodName, projectName, mode);
+        LaunchTestResult launchResult = TestLaunchHelper.launchTest(configName, className, methodName, projectName, mode, debugContext);
         return RunTestResult.builder()
                 .refreshedAndBuilt(builtProjects)
                 .launchResult(launchResult)

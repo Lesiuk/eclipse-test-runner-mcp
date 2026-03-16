@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.49.0
+
+- **`run_test` in debug mode waits for first breakpoint** — instead of returning immediately with a "use get_debug_state" message, blocks until a breakpoint is hit or the launch terminates, returning stop reason and location directly
+
 ## v0.48.0
 
 - **`step` converted from event listener to polling** — uses `DebugContext.waitForSuspendOrTerminate()` like `resume` and `get_debug_state`, eliminating `IDebugEventSetListener` registration
