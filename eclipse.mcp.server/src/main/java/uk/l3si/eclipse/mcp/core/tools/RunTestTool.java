@@ -44,7 +44,7 @@ public class RunTestTool implements McpTool {
              + "Waits for completion and returns test results. "
              + "In debug mode, waits for the first breakpoint hit or termination and returns the stop location. "
              + "If 'compilationErrors' is returned, fix the errors and retry. "
-             + "If tests fail, the returned stack trace is usually sufficient — only use 'get_failure_trace' when the full untruncated stack trace is needed.";
+             + "If tests fail, the returned stack trace is usually sufficient — use 'get_test_results' with class and method to get the full untruncated stack trace if needed.";
     }
 
     @Override

@@ -9,6 +9,8 @@ import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
+import java.util.Map;
+
 public class GetTestResultsTool implements McpTool {
 
     @Override
@@ -18,17 +20,18 @@ public class GetTestResultsTool implements McpTool {
 
     @Override
     public String getDescription() {
-        return "Get results of the most recent JUnit test run without re-running tests. "
-             + "Returns test counts, pass/fail status, and failure details including stack traces. "
-             + "Use this to re-check results of a previous run. "
-             + "Pass wait=true to wait for a currently running test to complete first. "
-             + "Cannot be used while a debug session is active — resume or terminate the debug session first.";
+        return "Get results of the most recent JUnit test run. "
+             + "Returns test counts, pass/fail status, and condensed failure messages. "
+             + "To get the full unabridged stack trace for a specific failure, pass class and method. "
+             + "Pass wait=true to wait for a running test to complete first.";
     }
 
     @Override
     public InputSchema getInputSchema() {
         return InputSchema.builder()
                 .property("wait", PropertySchema.bool("Wait for a running test to complete before returning results. Default: false"))
+                .property("class", PropertySchema.string("Fully qualified test class name (e.g. 'com.example.FooTest')"))
+                .property("method", PropertySchema.string("Test method name — when specified with class, returns full stack trace for that failure"))
                 .build();
     }
 
@@ -36,8 +39,30 @@ public class GetTestResultsTool implements McpTool {
     public Object execute(Args args) throws Exception {
         checkNoActiveDebugLaunch();
 
-        boolean wait = args.getBoolean("wait");
+        String className = args.getString("class");
+        String methodName = args.getString("method");
 
+        if (methodName != null && className == null) {
+            throw new IllegalArgumentException(
+                    "'class' is required when 'method' is specified.");
+        }
+
+        // Full trace mode: return the complete stack trace for a specific failure
+        if (methodName != null) {
+            String trace = TestResultsHelper.getFailureTrace(className, methodName);
+            if (trace == null) {
+                throw new IllegalArgumentException(
+                        "No failure trace found for " + className + "#" + methodName
+                        + ". Make sure a test run has completed and this test actually failed.");
+            }
+            return Map.of(
+                    "class", className,
+                    "method", methodName,
+                    "trace", trace);
+        }
+
+        // Summary mode: return test run results
+        boolean wait = args.getBoolean("wait");
         TestRunResult result = TestResultsHelper.collect(wait);
         if (result == null) {
             throw new IllegalStateException("No test runs found. Run a JUnit launch configuration first.");

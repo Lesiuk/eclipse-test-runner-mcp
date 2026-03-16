@@ -42,7 +42,6 @@ public class ToolRegistry {
         addTool(new RunTestTool(launchModes, debugContext));
         addTool(new GetTestResultsTool());
         addTool(new GetProblemsTool());
-        addTool(new GetFailureTraceTool());
         addTool(new GetConsoleOutputTool());
         addTool(new GetCoverageTool());
         addTool(new FindReferencesTool());
