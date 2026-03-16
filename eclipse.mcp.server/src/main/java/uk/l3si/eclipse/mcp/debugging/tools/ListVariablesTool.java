@@ -117,11 +117,18 @@ public class ListVariablesTool implements McpTool {
             if (length > preview) {
                 builder.truncated(true);
             }
-        } else if (value instanceof IJavaObject) {
-            builder.value(value.getValueString());
-            if (!EvaluateExpressionTool.isWellKnownType(value.getReferenceTypeName())) {
+        } else if (value instanceof IJavaObject obj) {
+            String typeName = obj.getReferenceTypeName();
+            if (EvaluateExpressionTool.isWellKnownType(typeName)
+                    || EvaluateExpressionTool.isCollectionType(typeName)
+                    || EvaluateExpressionTool.isMapType(typeName)) {
+                // Show toString() for well-known, collection, and map types
+                String display = safeToString(obj);
+                builder.value(display != null ? display : obj.getValueString());
+            } else {
+                builder.value(obj.getValueString());
                 List<String> fieldNames = new ArrayList<>();
-                for (IVariable v : value.getVariables()) {
+                for (IVariable v : obj.getVariables()) {
                     fieldNames.add(v.getName());
                 }
                 if (!fieldNames.isEmpty()) {
@@ -133,5 +140,19 @@ public class ListVariablesTool implements McpTool {
         }
 
         return builder.build();
+    }
+
+    private String safeToString(IJavaObject obj) {
+        try {
+            IJavaThread thread = debugContext.resolveThread(null);
+            IJavaValue result = obj.sendMessage("toString",
+                    "()Ljava/lang/String;", new IJavaValue[0], thread, false);
+            if (result != null) {
+                String s = result.getValueString();
+                return s.length() > 200 ? s.substring(0, 197) + "..." : s;
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 }

@@ -42,7 +42,9 @@ import org.eclipse.jdt.internal.debug.core.model.JDIThread;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
@@ -178,47 +180,201 @@ public class EvaluateExpressionTool implements McpTool {
         if (value.isNull()) {
             resultBuilder.value("null");
         } else if (value instanceof IJavaArray array) {
-            int length = array.getLength();
-            resultBuilder.value(value.getReferenceTypeName() + "[" + length + "]")
-                    .length(length);
-
-            // Show first N elements
-            int preview = Math.min(length, MAX_ARRAY_PREVIEW);
-            List<ArrayElementInfo> elements = new ArrayList<>();
-            for (int i = 0; i < preview; i++) {
-                IJavaValue elem = array.getValue(i);
-                elements.add(ArrayElementInfo.builder()
-                        .index(i)
-                        .type(elem.getReferenceTypeName())
-                        .value(elem.getValueString())
-                        .build());
-            }
-            resultBuilder.elements(elements);
-            if (length > preview) {
-                resultBuilder.truncated(true);
-            }
-        } else if (value instanceof IJavaObject) {
-            String rawValue = value.getValueString();
-            String typeName = value.getReferenceTypeName();
-            if ("java.lang.String".equals(typeName)) {
-                resultBuilder.value(tryParseJsonValue(rawValue));
-            } else {
-                resultBuilder.value(rawValue);
-            }
-            if (!isWellKnownType(typeName)) {
-                List<String> fieldNames = new ArrayList<>();
-                for (IVariable v : value.getVariables()) {
-                    fieldNames.add(v.getName());
-                }
-                if (!fieldNames.isEmpty()) {
-                    resultBuilder.fields(fieldNames);
-                }
-            }
+            formatArray(resultBuilder, array);
+        } else if (value instanceof IJavaObject obj) {
+            formatObject(resultBuilder, obj);
         } else {
             resultBuilder.value(value.getValueString());
         }
 
         return resultBuilder.build();
+    }
+
+    private void formatArray(ExpressionResult.ExpressionResultBuilder resultBuilder,
+            IJavaArray array) throws DebugException {
+        int length = array.getLength();
+        resultBuilder.value(array.getReferenceTypeName() + "[" + length + "]")
+                .length(length);
+
+        int preview = Math.min(length, MAX_ARRAY_PREVIEW);
+        List<ArrayElementInfo> elements = new ArrayList<>();
+        for (int i = 0; i < preview; i++) {
+            IJavaValue elem = array.getValue(i);
+            elements.add(ArrayElementInfo.builder()
+                    .index(i)
+                    .type(elem.getReferenceTypeName())
+                    .value(elem.getValueString())
+                    .build());
+        }
+        resultBuilder.elements(elements);
+        if (length > preview) {
+            resultBuilder.truncated(true);
+        }
+    }
+
+    private void formatObject(ExpressionResult.ExpressionResultBuilder resultBuilder,
+            IJavaObject obj) throws DebugException {
+        String typeName = obj.getReferenceTypeName();
+
+        if ("java.lang.String".equals(typeName)) {
+            resultBuilder.value(tryParseJsonValue(obj.getValueString()));
+            return;
+        }
+
+        if (isWellKnownType(typeName)) {
+            resultBuilder.value(invokeToString(obj));
+            return;
+        }
+
+        if (isCollectionType(typeName)) {
+            formatCollection(resultBuilder, obj);
+            return;
+        }
+
+        if (isMapType(typeName)) {
+            formatMap(resultBuilder, obj);
+            return;
+        }
+
+        // General objects: invoke toString() for a useful value, keep fields for drill-down
+        String display = invokeToString(obj);
+        resultBuilder.value(display != null ? display : obj.getValueString());
+
+        List<String> fieldNames = new ArrayList<>();
+        for (IVariable v : obj.getVariables()) {
+            fieldNames.add(v.getName());
+        }
+        if (!fieldNames.isEmpty()) {
+            resultBuilder.fields(fieldNames);
+        }
+    }
+
+    private void formatCollection(ExpressionResult.ExpressionResultBuilder resultBuilder,
+            IJavaObject obj) throws DebugException {
+        int size = invokeSize(obj);
+        resultBuilder.length(size);
+
+        try {
+            IJavaValue arrayValue = obj.sendMessage("toArray",
+                    "()[Ljava/lang/Object;", new IJavaValue[0],
+                    debugContext.resolveThread(null), false);
+
+            if (arrayValue instanceof IJavaArray array) {
+                int preview = Math.min(array.getLength(), MAX_ARRAY_PREVIEW);
+                List<String> items = new ArrayList<>();
+                for (int i = 0; i < preview; i++) {
+                    IJavaValue elem = array.getValue(i);
+                    items.add(elem.isNull() ? "null" : elementToString(elem));
+                }
+                resultBuilder.value(items);
+                if (array.getLength() > preview) {
+                    resultBuilder.truncated(true);
+                }
+                return;
+            }
+        } catch (Exception ignored) {
+        }
+
+        String display = invokeToString(obj);
+        resultBuilder.value(display != null ? truncate(display, 500) : obj.getValueString());
+    }
+
+    private void formatMap(ExpressionResult.ExpressionResultBuilder resultBuilder,
+            IJavaObject obj) throws DebugException {
+        int size = invokeSize(obj);
+        resultBuilder.length(size);
+
+        try {
+            // invoke entrySet().toArray() to get entries
+            IJavaValue entrySet = obj.sendMessage("entrySet",
+                    "()Ljava/util/Set;", new IJavaValue[0],
+                    debugContext.resolveThread(null), false);
+
+            if (entrySet instanceof IJavaObject entrySetObj) {
+                IJavaValue arrayValue = entrySetObj.sendMessage("toArray",
+                        "()[Ljava/lang/Object;", new IJavaValue[0],
+                        debugContext.resolveThread(null), false);
+
+                if (arrayValue instanceof IJavaArray array) {
+                    int preview = Math.min(array.getLength(), MAX_ARRAY_PREVIEW);
+                    Map<String, String> entries = new LinkedHashMap<>();
+                    for (int i = 0; i < preview; i++) {
+                        IJavaValue entry = array.getValue(i);
+                        if (entry instanceof IJavaObject entryObj) {
+                            String key = elementToString(
+                                    entryObj.sendMessage("getKey",
+                                            "()Ljava/lang/Object;", new IJavaValue[0],
+                                            debugContext.resolveThread(null), false));
+                            String val = elementToString(
+                                    entryObj.sendMessage("getValue",
+                                            "()Ljava/lang/Object;", new IJavaValue[0],
+                                            debugContext.resolveThread(null), false));
+                            entries.put(key, val);
+                        }
+                    }
+                    resultBuilder.value(entries);
+                    if (array.getLength() > preview) {
+                        resultBuilder.truncated(true);
+                    }
+                    return;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        // Fallback: toString()
+        String display = invokeToString(obj);
+        resultBuilder.value(display != null ? truncate(display, 500) : obj.getValueString());
+    }
+
+    private String invokeToString(IJavaObject obj) {
+        try {
+            IJavaValue result = obj.sendMessage("toString",
+                    "()Ljava/lang/String;", new IJavaValue[0],
+                    debugContext.resolveThread(null), false);
+            return result != null ? result.getValueString() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private int invokeSize(IJavaObject obj) {
+        try {
+            IJavaValue result = obj.sendMessage("size",
+                    "()I", new IJavaValue[0],
+                    debugContext.resolveThread(null), false);
+            return result != null ? Integer.parseInt(result.getValueString()) : -1;
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
+    private String elementToString(IJavaValue elem) throws DebugException {
+        if (elem instanceof IJavaObject obj) {
+            String ts = invokeToString(obj);
+            return ts != null ? ts : elem.getValueString();
+        }
+        return elem.getValueString();
+    }
+
+    private static String truncate(String s, int maxLen) {
+        return s.length() > maxLen ? s.substring(0, maxLen) + "..." : s;
+    }
+
+    static boolean isCollectionType(String typeName) {
+        if (typeName == null) return false;
+        if (typeName.startsWith("java.util.")) {
+            String simple = typeName.substring(10);
+            return simple.contains("List") || simple.contains("Set")
+                    || simple.contains("Queue") || simple.contains("Deque")
+                    || simple.contains("Stack") || simple.contains("Vector");
+        }
+        return false;
+    }
+
+    static boolean isMapType(String typeName) {
+        return typeName != null && typeName.startsWith("java.util.")
+                && typeName.substring(10).contains("Map");
     }
 
     /**

@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.62.0
+
+- **Smart collection/map formatting in `evaluate_expression` and `list_variables`** — ArrayList returns `["item1", "item2", ...]` as a flat JSON array; HashMap returns `{"key": "value", ...}` as a JSON object; both include `length` and `truncated` for large collections (preview capped at 10 elements)
+- **Auto-invoke `toString()` on custom objects** — shows meaningful representation (e.g. `Order{id=42, total=99.99}`) instead of `Order (id=1234)`
+- No internal fields shown for collections, maps, or well-known JDK types
+
 ## v0.61.0
 
 - **Skip fields for well-known JDK types** in `evaluate_expression` and `list_variables` — String, Integer, Boolean, BigDecimal, UUID, Date/Time types, etc. no longer show internal fields like `hash`, `coder`, `value`, reducing output noise for the LLM
