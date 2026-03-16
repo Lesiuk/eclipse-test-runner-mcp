@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.58.0
+
+- **Extract shared `StackTraceFilter`** — reuse framework-frame filtering between test results and expression evaluation; reads class/method fields directly from JDI `StackTraceElement` for smart filtering (skips JUnit, JDK, Eclipse internals)
+
 ## v0.57.0
 
 - **`evaluate_expression` error includes stack trace** — invokes `getStackTrace()` on the target VM exception via JDI to show where the exception was thrown (up to 10 frames)

@@ -2,6 +2,7 @@ package uk.l3si.eclipse.mcp.core.tools;
 
 import uk.l3si.eclipse.mcp.model.TestFailureInfo;
 import uk.l3si.eclipse.mcp.model.TestRunResult;
+import uk.l3si.eclipse.mcp.tools.StackTraceFilter;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.ILaunchManager;
@@ -205,11 +206,6 @@ class TestResultsHelper {
 
     private static final int MAX_MESSAGE_FRAMES = 3;
     private static final String FRAME_PREFIX = "at ";
-    private static final String[] FRAMEWORK_PREFIXES = {
-            "at org.junit.",
-            "at org.eclipse.jdt.internal.junit.",
-            "at java.base/"
-    };
 
     static String extractMessage(String trace, String testClassName) {
         String testClassPrefix = FRAME_PREFIX + testClassName + ".";
@@ -227,7 +223,7 @@ class TestResultsHelper {
                 sb.append('\n').append(lines[i]);
             } else if (kept < MAX_MESSAGE_FRAMES
                     && trimmed.startsWith(FRAME_PREFIX)
-                    && !isFrameworkFrame(trimmed)) {
+                    && !StackTraceFilter.isFrameworkFrame(trimmed.substring(FRAME_PREFIX.length()))) {
                 if (omitted > 0) {
                     sb.append("\n\t... ").append(omitted).append(" more");
                     omitted = 0;
@@ -242,13 +238,6 @@ class TestResultsHelper {
             sb.append("\n\t... ").append(omitted).append(" more");
         }
         return sb.toString();
-    }
-
-    private static boolean isFrameworkFrame(String trimmedLine) {
-        for (String prefix : FRAMEWORK_PREFIXES) {
-            if (trimmedLine.startsWith(prefix)) return true;
-        }
-        return false;
     }
 
     static String getFailureTrace(String className, String methodName) {

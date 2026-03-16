@@ -4,6 +4,7 @@ import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.debugging.model.ArrayElementInfo;
 import uk.l3si.eclipse.mcp.debugging.model.ExpressionResult;
 import uk.l3si.eclipse.mcp.tools.Args;
+import uk.l3si.eclipse.mcp.tools.StackTraceFilter;
 import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
@@ -29,6 +30,7 @@ import com.google.gson.JsonSyntaxException;
 import com.sun.jdi.ArrayReference;
 import com.sun.jdi.ClassType;
 import com.sun.jdi.Field;
+import com.sun.jdi.IntegerValue;
 import com.sun.jdi.InvocationException;
 import com.sun.jdi.Method;
 import com.sun.jdi.ObjectReference;
@@ -48,6 +50,7 @@ public class EvaluateExpressionTool implements McpTool {
 
     private static final long EVAL_TIMEOUT_MS = 60_000;
     private static final int MAX_ARRAY_PREVIEW = 10;
+    private static final int MAX_STACK_FRAMES = 10;
 
     /** Only one evaluation can run at a time (Eclipse JDT limitation). */
     private static final Semaphore EVAL_LOCK = new Semaphore(1, true);
@@ -282,19 +285,44 @@ public class EvaluateExpressionTool implements McpTool {
                 return null;
             }
 
-            int limit = Math.min(stackArray.length(), 10);
             StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < limit; i++) {
+            int kept = 0;
+            int omitted = 0;
+            for (int i = 0; i < stackArray.length(); i++) {
                 Value elem = stackArray.getValue(i);
-                if (elem instanceof ObjectReference steRef) {
-                    String line = invokeToString(steRef, threadRef);
-                    if (line != null) {
-                        sb.append("\n\tat ").append(line);
-                    }
+                if (!(elem instanceof ObjectReference steRef)) continue;
+
+                String className = readStringField(steRef, "declaringClass");
+                if (StackTraceFilter.isFrameworkFrame(className)) {
+                    omitted++;
+                    continue;
                 }
+                if (kept >= MAX_STACK_FRAMES) {
+                    omitted++;
+                    continue;
+                }
+                if (omitted > 0) {
+                    sb.append("\n\t... ").append(omitted).append(" more");
+                    omitted = 0;
+                }
+                String methodName = readStringField(steRef, "methodName");
+                String fileName = readStringField(steRef, "fileName");
+                int lineNumber = readIntField(steRef, "lineNumber");
+                sb.append("\n\tat ")
+                  .append(className != null ? className : "Unknown")
+                  .append('.').append(methodName != null ? methodName : "unknown")
+                  .append('(');
+                if (fileName != null) {
+                    sb.append(fileName);
+                    if (lineNumber >= 0) sb.append(':').append(lineNumber);
+                } else {
+                    sb.append("Unknown Source");
+                }
+                sb.append(')');
+                kept++;
             }
-            if (stackArray.length() > limit) {
-                sb.append("\n\t... ").append(stackArray.length() - limit).append(" more");
+            if (omitted > 0) {
+                sb.append("\n\t... ").append(omitted).append(" more");
             }
             return sb.length() > 0 ? sb.toString() : null;
         } catch (Exception e) {
@@ -302,18 +330,30 @@ public class EvaluateExpressionTool implements McpTool {
         }
     }
 
-    private static String invokeToString(ObjectReference objRef, ThreadReference threadRef) {
+    private static String readStringField(ObjectReference objRef, String fieldName) {
         try {
-            if (!(objRef.referenceType() instanceof ClassType ct)) return null;
-            Method toString = ct.concreteMethodByName("toString", "()Ljava/lang/String;");
-            if (toString == null) return null;
-            Value val = objRef.invokeMethod(
-                    threadRef, toString, Collections.emptyList(),
-                    ObjectReference.INVOKE_SINGLE_THREADED);
-            return val instanceof StringReference sr ? sr.value() : null;
-        } catch (Exception e) {
-            return null;
+            Field field = objRef.referenceType().fieldByName(fieldName);
+            if (field == null) return null;
+            Value value = objRef.getValue(field);
+            if (value instanceof StringReference strRef) {
+                return strRef.value();
+            }
+        } catch (Exception ignored) {
         }
+        return null;
+    }
+
+    private static int readIntField(ObjectReference objRef, String fieldName) {
+        try {
+            Field field = objRef.referenceType().fieldByName(fieldName);
+            if (field == null) return -1;
+            Value value = objRef.getValue(field);
+            if (value instanceof IntegerValue intVal) {
+                return intVal.value();
+            }
+        } catch (Exception ignored) {
+        }
+        return -1;
     }
 
     /**
