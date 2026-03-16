@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.66.0
+
+- **Remove `list_threads` tool** — rarely used; thread info is available via `get_debug_state`
+- Tool count reduced from 17 to 16
+
 ## v0.65.0
 
 - **Reject duplicate breakpoints** — `breakpoint action='set'` now checks for an existing breakpoint at the same class and line before creating a new one, preventing accidental duplicates

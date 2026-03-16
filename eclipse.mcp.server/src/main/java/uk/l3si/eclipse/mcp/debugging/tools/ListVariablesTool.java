@@ -44,7 +44,7 @@ public class ListVariablesTool implements McpTool {
     @Override
     public InputSchema getInputSchema() {
         return InputSchema.builder()
-                .property("thread_id", PropertySchema.builder().type("integer").description("Thread ID (from list_threads). Defaults to the current suspended thread.").build())
+                .property("thread_id", PropertySchema.builder().type("integer").description("Thread ID. Defaults to the current suspended thread.").build())
                 .property("frame_index", PropertySchema.builder().type("integer").description("Stack frame index (0 = top, from get_stack_trace). Defaults to 0.").build())
                 .build();
     }

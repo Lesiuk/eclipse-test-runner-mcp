@@ -206,7 +206,7 @@ class DebugContextTest {
         IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> debugContext.resolveThread(null));
         assertTrue(ex.getMessage().contains("no thread is currently suspended"));
-        assertTrue(ex.getMessage().contains("list_threads"));
+        assertTrue(ex.getMessage().contains("get_debug_state"));
     }
 
     @Test

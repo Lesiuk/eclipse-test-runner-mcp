@@ -65,7 +65,6 @@ Parameters marked with **\*** are required. All others are optional.
 |------|-------------|
 | `breakpoint` | Manage breakpoints (action: set/remove/list) |
 | `get_debug_state` | Check if debugger is active/suspended |
-| `list_threads` | All threads in the debug session |
 | `get_stack_trace` | Stack trace for a suspended thread |
 | `list_variables` | List all visible variables in the current stack frame |
 | `evaluate_expression` | Evaluate a Java expression in a suspended frame |
@@ -201,10 +200,6 @@ Manage breakpoints. `action='set'` (requires `class`, `line`; optional `conditio
 **`get_debug_state`** `()` → `{active, suspended, thread, threadId, location{class, method, line, sourceName, source}, reason}`
 
 Check whether a debug session is active and if a thread is suspended (e.g. at a breakpoint or after a step).
-
-**`list_threads`** `()` → `{threads[{name, id, state, location}]}`
-
-List all threads in the debug session with their state (running, suspended, terminated).
 
 **`get_stack_trace`** `(thread_id)` → `{thread, frames[{index, class, method, line, sourceName}]}`
 

@@ -49,7 +49,6 @@ public class ToolRegistry {
 
         addTool(new BreakpointTool(breakpointManager), "Debugging");
         addTool(new GetDebugStateTool(debugContext), "Debugging");
-        addTool(new ListThreadsTool(debugContext), "Debugging");
         addTool(new GetStackTraceTool(debugContext), "Debugging");
         addTool(new ListVariablesTool(debugContext), "Debugging");
         addTool(new EvaluateExpressionTool(debugContext), "Debugging");

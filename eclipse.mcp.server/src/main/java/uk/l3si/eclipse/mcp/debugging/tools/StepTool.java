@@ -45,7 +45,7 @@ public class StepTool implements McpTool {
                         List.of("over", "into", "return", "resume")))
                 .property("thread_id", PropertySchema.builder()
                         .type("integer")
-                        .description("Thread ID (from list_threads). Defaults to the current suspended thread.")
+                        .description("Thread ID. Defaults to the current suspended thread.")
                         .build())
                 .property("timeout", PropertySchema.builder()
                         .type("integer")

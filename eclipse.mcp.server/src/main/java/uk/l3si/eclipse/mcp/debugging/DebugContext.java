@@ -95,7 +95,7 @@ public class DebugContext implements IDebugEventSetListener {
                 if (currentTarget != null && !currentTarget.isTerminated()) {
                     throw new IllegalStateException(
                             "Debug session is active but no thread is currently suspended. "
-                            + "Use 'list_threads' to see all threads, or step with action='resume' may have been called already.");
+                            + "Use 'get_debug_state' to check the current state, or step with action='resume' may have been called already.");
                 }
                 throw new IllegalStateException(
                         "No debug session active. Launch a test with mode='debug' first.");

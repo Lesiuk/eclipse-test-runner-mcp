@@ -39,7 +39,7 @@ public class GetStackTraceTool implements McpTool {
     @Override
     public InputSchema getInputSchema() {
         return InputSchema.builder()
-                .property("thread_id", PropertySchema.builder().type("integer").description("Thread ID (from list_threads). Defaults to the current suspended thread.").build())
+                .property("thread_id", PropertySchema.builder().type("integer").description("Thread ID. Defaults to the current suspended thread.").build())
                 .build();
     }
 
