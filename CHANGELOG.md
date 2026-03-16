@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.51.0
+
+- **Increase debug launch timeout to 5 minutes** — 30s was too short for apps that take time to start before hitting a breakpoint
+
 ## v0.50.0
 
 - **Fix stale tool descriptions** — `list_variables` and `get_stack_trace` referenced removed `inspect_variable` tool; `run_test` now mentions debug mode waiting behavior

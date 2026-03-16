@@ -95,7 +95,7 @@ public class TestLaunchHelper {
      * @param projectName if provided, overrides the project on the working copy;
      *                    if null, reads the project from the existing config
      */
-    private static final int DEBUG_TIMEOUT_SECONDS = 30;
+    private static final int DEBUG_TIMEOUT_SECONDS = 300;
 
     public static LaunchTestResult launchTest(String configName, String className, String methodName, String projectName, String mode, DebugContext debugContext) throws Exception {
         ILaunchConfiguration config = findTestConfig(configName);
