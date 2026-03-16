@@ -213,22 +213,25 @@ public class TestResultsHelper {
         StringBuilder sb = new StringBuilder(lines[0].trim());
         int kept = 0;
         int omitted = 0;
+        boolean hasFrames = false;
         for (int i = 1; i < lines.length; i++) {
             String trimmed = lines[i].trim();
             if (trimmed.startsWith(testClassPrefix)) {
-                if (omitted > 0) {
+                if (omitted > 0 && hasFrames) {
                     sb.append("\n\t... ").append(omitted).append(" more");
-                    omitted = 0;
                 }
+                omitted = 0;
                 sb.append('\n').append(lines[i]);
+                hasFrames = true;
             } else if (kept < MAX_MESSAGE_FRAMES
                     && trimmed.startsWith(FRAME_PREFIX)
                     && !StackTraceFilter.isFrameworkFrame(trimmed.substring(FRAME_PREFIX.length()))) {
-                if (omitted > 0) {
+                if (omitted > 0 && hasFrames) {
                     sb.append("\n\t... ").append(omitted).append(" more");
-                    omitted = 0;
                 }
+                omitted = 0;
                 sb.append('\n').append(lines[i]);
+                hasFrames = true;
                 kept++;
             } else if (trimmed.startsWith(FRAME_PREFIX)) {
                 omitted++;

@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.60.0
+
+- **Handle `InvalidStackFrameException` gracefully** in `list_variables`, `get_stack_trace`, and `evaluate_expression` — returns actionable guidance ("Use 'get_debug_state' to check current state") instead of raw JDI exception
+- **Increase `resume` and `step` timeouts to 5 minutes** (was 30s) — matches `run_test` debug mode timeout, prevents premature timeouts on slow test runs
+
 ## v0.59.0
 
 - **`resume` and `step` return test results on termination** — when resuming or stepping causes the debugged test to finish (no more breakpoints, test completes), the response now includes `testResults` with pass/fail counts, elapsed time, and failure details — same data as `run_test` and `get_test_results`, eliminating the need for a separate `get_test_results` call after debug sessions end

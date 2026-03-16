@@ -67,18 +67,20 @@ class ExtractMessageTest {
         assertFalse(result.contains("org.junit."), "should filter org.junit frames");
         assertFalse(result.contains("org.eclipse.jdt.internal.junit."), "should filter Eclipse JDT frames");
         assertFalse(result.contains("java.base/"), "should filter java.base frames");
+        assertFalse(result.contains("... 3 more"), "should not show omitted marker for leading framework frames");
         assertTrue(result.contains("com.example.FooTest.testIt"), "should keep test class frame");
     }
 
     @Test
-    void omittedCountShownBetweenFrames() {
+    void leadingFrameworkFramesSilentlyDropped() {
         String trace = String.join("\n",
                 "java.lang.AssertionError: fail",
                 "\tat org.junit.Assert.fail(Assert.java:1)",
                 "\tat org.junit.Runner.run(Runner.java:2)",
                 "\tat com.example.FooTest.testIt(FooTest.java:5)");
         String result = TestResultsHelper.extractMessage(trace, TEST_CLASS);
-        assertTrue(result.contains("... 2 more"), "should show omitted count before test class frame");
+        assertFalse(result.contains("... 2 more"), "should not show omitted marker for leading framework frames");
+        assertTrue(result.contains("com.example.FooTest.testIt"), "should keep test class frame");
     }
 
     @Test

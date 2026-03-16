@@ -15,7 +15,7 @@ import java.util.List;
 
 public class StepTool implements McpTool {
 
-    private static final int STEP_TIMEOUT_SECONDS = 30;
+    private static final int STEP_TIMEOUT_SECONDS = 300;
 
     private final DebugContext debugContext;
 

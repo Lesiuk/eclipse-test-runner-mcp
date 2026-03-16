@@ -1,5 +1,6 @@
 package uk.l3si.eclipse.mcp.debugging.tools;
 
+import com.sun.jdi.InvalidStackFrameException;
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.debugging.model.ArrayElementInfo;
 import uk.l3si.eclipse.mcp.debugging.model.ExpressionResult;
@@ -117,6 +118,10 @@ public class EvaluateExpressionTool implements McpTool {
         }
         try {
             return doEvaluate(expression, frame, javaProject, target);
+        } catch (InvalidStackFrameException e) {
+            throw new IllegalStateException(
+                    "Stack frame is no longer valid — the thread may have resumed or the program terminated. "
+                    + "Use 'get_debug_state' to check the current state before retrying.");
         } finally {
             EVAL_LOCK.release();
         }
@@ -302,7 +307,9 @@ public class EvaluateExpressionTool implements McpTool {
                     continue;
                 }
                 if (omitted > 0) {
-                    sb.append("\n\t... ").append(omitted).append(" more");
+                    if (kept > 0) {
+                        sb.append("\n\t... ").append(omitted).append(" more");
+                    }
                     omitted = 0;
                 }
                 String methodName = readStringField(steRef, "methodName");

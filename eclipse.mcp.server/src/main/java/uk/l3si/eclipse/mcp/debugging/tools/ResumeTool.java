@@ -13,7 +13,7 @@ import org.eclipse.jdt.debug.core.IJavaThread;
 
 public class ResumeTool implements McpTool {
 
-    private static final int DEFAULT_TIMEOUT_SECONDS = 30;
+    private static final int DEFAULT_TIMEOUT_SECONDS = 300;
 
     private final DebugContext debugContext;
 

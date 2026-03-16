@@ -8,6 +8,7 @@ import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
+import com.sun.jdi.InvalidStackFrameException;
 import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.model.IVariable;
 import org.eclipse.jdt.debug.core.IJavaArray;
@@ -63,26 +64,31 @@ public class ListVariablesTool implements McpTool {
         }
         IJavaStackFrame frame = debugContext.resolveFrame(thread, frameIndex);
 
-        List<VariableResult> variables = new ArrayList<>();
-        for (IVariable v : frame.getVariables()) {
-            try {
-                if (v.getValue() instanceof IJavaValue javaValue) {
-                    variables.add(formatValue(v.getName(), javaValue));
+        try {
+            List<VariableResult> variables = new ArrayList<>();
+            for (IVariable v : frame.getVariables()) {
+                try {
+                    if (v.getValue() instanceof IJavaValue javaValue) {
+                        variables.add(formatValue(v.getName(), javaValue));
+                    }
+                } catch (DebugException e) {
+                    variables.add(VariableResult.builder()
+                            .name(v.getName())
+                            .type("unknown")
+                            .value("<error: " + e.getMessage() + ">")
+                            .build());
                 }
-            } catch (DebugException e) {
-                // Include the variable with an error indicator rather than failing entirely
-                variables.add(VariableResult.builder()
-                        .name(v.getName())
-                        .type("unknown")
-                        .value("<error: " + e.getMessage() + ">")
-                        .build());
             }
-        }
 
-        return ListVariablesResult.builder()
-                .frame(frame.getDeclaringTypeName() + "." + frame.getMethodName() + ":" + frame.getLineNumber())
-                .variables(variables)
-                .build();
+            return ListVariablesResult.builder()
+                    .frame(frame.getDeclaringTypeName() + "." + frame.getMethodName() + ":" + frame.getLineNumber())
+                    .variables(variables)
+                    .build();
+        } catch (InvalidStackFrameException e) {
+            throw new IllegalStateException(
+                    "Stack frame is no longer valid — the thread may have resumed or the program terminated. "
+                    + "Use 'get_debug_state' to check the current state before retrying.");
+        }
     }
 
     private VariableResult formatValue(String name, IJavaValue value) throws DebugException {

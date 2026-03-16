@@ -7,6 +7,7 @@ import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
+import com.sun.jdi.InvalidStackFrameException;
 import org.eclipse.debug.core.model.IStackFrame;
 import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
@@ -50,28 +51,34 @@ public class GetStackTraceTool implements McpTool {
             throw new IllegalStateException("Thread '" + thread.getName() + "' is not suspended.");
         }
 
-        List<FrameInfo> frameList = new ArrayList<>();
-        IStackFrame[] frames = thread.getStackFrames();
-        for (int i = 0; i < frames.length; i++) {
-            if (!(frames[i] instanceof IJavaStackFrame frame)) continue;
+        try {
+            List<FrameInfo> frameList = new ArrayList<>();
+            IStackFrame[] frames = thread.getStackFrames();
+            for (int i = 0; i < frames.length; i++) {
+                if (!(frames[i] instanceof IJavaStackFrame frame)) continue;
 
-            FrameInfo.FrameInfoBuilder infoBuilder = FrameInfo.builder()
-                    .index(i)
-                    .className(frame.getDeclaringTypeName())
-                    .method(frame.getMethodName())
-                    .line(frame.getLineNumber());
-            try {
-                String sourceName = frame.getSourceName();
-                if (sourceName != null) {
-                    infoBuilder.sourceName(sourceName);
-                }
-            } catch (Exception ignored) {}
-            frameList.add(infoBuilder.build());
+                FrameInfo.FrameInfoBuilder infoBuilder = FrameInfo.builder()
+                        .index(i)
+                        .className(frame.getDeclaringTypeName())
+                        .method(frame.getMethodName())
+                        .line(frame.getLineNumber());
+                try {
+                    String sourceName = frame.getSourceName();
+                    if (sourceName != null) {
+                        infoBuilder.sourceName(sourceName);
+                    }
+                } catch (Exception ignored) {}
+                frameList.add(infoBuilder.build());
+            }
+
+            return StackTraceResult.builder()
+                    .thread(thread.getName())
+                    .frames(frameList)
+                    .build();
+        } catch (InvalidStackFrameException e) {
+            throw new IllegalStateException(
+                    "Stack frame is no longer valid — the thread may have resumed or the program terminated. "
+                    + "Use 'get_debug_state' to check the current state before retrying.");
         }
-
-        return StackTraceResult.builder()
-                .thread(thread.getName())
-                .frames(frameList)
-                .build();
     }
 }
