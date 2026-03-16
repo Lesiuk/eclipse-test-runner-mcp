@@ -133,7 +133,7 @@ public class TestLaunchHelper {
             var bpManager = DebugPlugin.getDefault().getBreakpointManager();
             if (bpManager.getBreakpoints().length == 0) {
                 throw new IllegalStateException(
-                        "No breakpoints set. Set at least one breakpoint with 'set_breakpoint' before launching in debug mode.");
+                        "No breakpoints set. Set at least one breakpoint with breakpoint action='set' before launching in debug mode.");
             }
             bpManager.setEnabled(true);
         }

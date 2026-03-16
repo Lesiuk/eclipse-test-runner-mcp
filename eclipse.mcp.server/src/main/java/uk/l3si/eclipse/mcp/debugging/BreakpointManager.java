@@ -80,7 +80,7 @@ public class BreakpointManager {
         IJavaLineBreakpoint bp = findBreakpointById(id);
         if (bp == null) {
             throw new IllegalArgumentException(
-                    "Breakpoint not found with ID: " + id + ". Use 'list_breakpoints' to see all current breakpoints and their IDs.");
+                    "Breakpoint not found with ID: " + id + ". Use breakpoint action='list' to see all current breakpoints and their IDs.");
         }
         bp.delete();
         return RemoveBreakpointResult.builder()

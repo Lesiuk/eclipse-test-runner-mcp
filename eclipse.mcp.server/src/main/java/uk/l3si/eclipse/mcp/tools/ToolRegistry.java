@@ -48,9 +48,7 @@ public class ToolRegistry {
         addTool(new FindReferencesTool());
         BreakpointManager breakpointManager = new BreakpointManager();
 
-        addTool(new SetBreakpointTool(breakpointManager), "Debugging");
-        addTool(new RemoveBreakpointTool(breakpointManager), "Debugging");
-        addTool(new ListBreakpointsTool(breakpointManager), "Debugging");
+        addTool(new BreakpointTool(breakpointManager), "Debugging");
         addTool(new GetDebugStateTool(debugContext), "Debugging");
         addTool(new ListThreadsTool(debugContext), "Debugging");
         addTool(new GetStackTraceTool(debugContext), "Debugging");
