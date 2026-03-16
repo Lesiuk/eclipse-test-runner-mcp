@@ -1,14 +1,21 @@
 package uk.l3si.eclipse.mcp.debugging.tools;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.eclipse.jdt.debug.core.IJavaThread;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import uk.l3si.eclipse.mcp.core.tools.TestResultsHelper;
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.debugging.DebugContext.WaitResult;
 import uk.l3si.eclipse.mcp.debugging.model.LocationInfo;
+import uk.l3si.eclipse.mcp.model.TestFailureInfo;
+import uk.l3si.eclipse.mcp.model.TestRunResult;
 import uk.l3si.eclipse.mcp.tools.Args;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -148,6 +155,151 @@ class StepToolTest {
     }
 
     @Test
+    void terminationDuringStepWithTestResults() throws Exception {
+        IJavaThread thread = mock(IJavaThread.class);
+        when(thread.isSuspended()).thenReturn(true);
+        when(thread.getName()).thenReturn("main");
+        when(debugContext.resolveThread(null)).thenReturn(thread);
+        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TERMINATED);
+
+        TestRunResult testRunResult = TestRunResult.builder()
+                .status("COMPLETED")
+                .totalTests(5)
+                .passed(5)
+                .failed(0)
+                .errors(0)
+                .ignored(0)
+                .elapsedSeconds(0.45)
+                .failures(List.of())
+                .build();
+
+        try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
+            mocked.when(() -> TestResultsHelper.collect(false)).thenReturn(testRunResult);
+
+            JsonObject args = new JsonObject();
+            args.addProperty("action", "over");
+            JsonObject result = executeAndSerialize(args);
+
+            assertTrue(result.get("terminated").getAsBoolean());
+
+            JsonObject testResults = result.getAsJsonObject("testResults");
+            assertNotNull(testResults, "testResults should be present when test finishes");
+            assertEquals("COMPLETED", testResults.get("status").getAsString());
+            assertEquals(5, testResults.get("totalTests").getAsInt());
+            assertEquals(5, testResults.get("passed").getAsInt());
+            assertEquals(0, testResults.get("failed").getAsInt());
+        }
+    }
+
+    @Test
+    void terminationDuringStepWithFailedTestResults() throws Exception {
+        IJavaThread thread = mock(IJavaThread.class);
+        when(thread.isSuspended()).thenReturn(true);
+        when(thread.getName()).thenReturn("main");
+        when(debugContext.resolveThread(null)).thenReturn(thread);
+        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TERMINATED);
+
+        TestRunResult testRunResult = TestRunResult.builder()
+                .status("COMPLETED")
+                .totalTests(2)
+                .passed(1)
+                .failed(1)
+                .errors(0)
+                .ignored(0)
+                .elapsedSeconds(2.1)
+                .failures(List.of(
+                        TestFailureInfo.builder()
+                                .className("com.example.CalcTest")
+                                .method("testAdd")
+                                .kind("FAILURE")
+                                .message("expected: <4> but was: <5>")
+                                .expected("4")
+                                .actual("5")
+                                .build()))
+                .build();
+
+        try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
+            mocked.when(() -> TestResultsHelper.collect(false)).thenReturn(testRunResult);
+
+            JsonObject args = new JsonObject();
+            args.addProperty("action", "return");
+            JsonObject result = executeAndSerialize(args);
+
+            assertTrue(result.get("terminated").getAsBoolean());
+
+            JsonObject testResults = result.getAsJsonObject("testResults");
+            assertNotNull(testResults);
+            assertEquals(1, testResults.get("failed").getAsInt());
+
+            JsonArray failures = testResults.getAsJsonArray("failures");
+            assertEquals(1, failures.size());
+            JsonObject failure = failures.get(0).getAsJsonObject();
+            assertEquals("com.example.CalcTest", failure.get("class").getAsString());
+            assertEquals("testAdd", failure.get("method").getAsString());
+            assertEquals("4", failure.get("expected").getAsString());
+            assertEquals("5", failure.get("actual").getAsString());
+        }
+    }
+
+    @Test
+    void terminationDuringStepWithNoTestResults() throws Exception {
+        IJavaThread thread = mock(IJavaThread.class);
+        when(thread.isSuspended()).thenReturn(true);
+        when(thread.getName()).thenReturn("main");
+        when(debugContext.resolveThread(null)).thenReturn(thread);
+        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TERMINATED);
+
+        try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
+            mocked.when(() -> TestResultsHelper.collect(false)).thenReturn(null);
+
+            JsonObject args = new JsonObject();
+            args.addProperty("action", "over");
+            JsonObject result = executeAndSerialize(args);
+
+            assertTrue(result.get("terminated").getAsBoolean());
+            assertFalse(result.has("testResults"), "testResults should be absent when no results available");
+        }
+    }
+
+    @Test
+    void terminationDuringStepCollectionExceptionReturnsNullTestResults() throws Exception {
+        IJavaThread thread = mock(IJavaThread.class);
+        when(thread.isSuspended()).thenReturn(true);
+        when(thread.getName()).thenReturn("main");
+        when(debugContext.resolveThread(null)).thenReturn(thread);
+        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TERMINATED);
+
+        try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
+            mocked.when(() -> TestResultsHelper.collect(false))
+                    .thenThrow(new RuntimeException("JUnit model unavailable"));
+
+            JsonObject args = new JsonObject();
+            args.addProperty("action", "into");
+            JsonObject result = executeAndSerialize(args);
+
+            assertTrue(result.get("terminated").getAsBoolean());
+            assertFalse(result.has("testResults"), "testResults should be absent on collection error");
+        }
+    }
+
+    @Test
+    void suspendedDoesNotCollectTestResults() throws Exception {
+        IJavaThread thread = mock(IJavaThread.class);
+        when(thread.isSuspended()).thenReturn(true);
+        when(thread.getName()).thenReturn("main");
+        when(debugContext.resolveThread(null)).thenReturn(thread);
+        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.SUSPENDED);
+
+        try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
+            JsonObject args = new JsonObject();
+            args.addProperty("action", "over");
+            executeAndSerialize(args);
+
+            mocked.verifyNoInteractions();
+        }
+    }
+
+    @Test
     void stepTimeout() throws Exception {
         IJavaThread thread = mock(IJavaThread.class);
         when(thread.isSuspended()).thenReturn(true);
@@ -160,6 +312,23 @@ class StepToolTest {
 
         JsonObject result = executeAndSerialize(args);
         assertTrue(result.get("reason").getAsString().contains("timed out"));
+    }
+
+    @Test
+    void timeoutDoesNotCollectTestResults() throws Exception {
+        IJavaThread thread = mock(IJavaThread.class);
+        when(thread.isSuspended()).thenReturn(true);
+        when(thread.getName()).thenReturn("main");
+        when(debugContext.resolveThread(null)).thenReturn(thread);
+        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TIMEOUT);
+
+        try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
+            JsonObject args = new JsonObject();
+            args.addProperty("action", "over");
+            executeAndSerialize(args);
+
+            mocked.verifyNoInteractions();
+        }
     }
 
     @Test

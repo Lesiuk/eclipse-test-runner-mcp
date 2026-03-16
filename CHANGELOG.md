@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.59.0
+
+- **`resume` and `step` return test results on termination** — when resuming or stepping causes the debugged test to finish (no more breakpoints, test completes), the response now includes `testResults` with pass/fail counts, elapsed time, and failure details — same data as `run_test` and `get_test_results`, eliminating the need for a separate `get_test_results` call after debug sessions end
+- Make `TestResultsHelper` public — reuse test result collection across core and debugging tools
+
 ## v0.58.0
 
 - **Extract shared `StackTraceFilter`** — reuse framework-frame filtering between test results and expression evaluation; reads class/method fields directly from JDI `StackTraceElement` for smart filtering (skips JUnit, JDK, Eclipse internals)

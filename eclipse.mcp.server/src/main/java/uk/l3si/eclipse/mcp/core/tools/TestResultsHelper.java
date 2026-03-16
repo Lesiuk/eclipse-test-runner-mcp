@@ -21,12 +21,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 @SuppressWarnings("restriction")
-class TestResultsHelper {
+public class TestResultsHelper {
 
     private static final long POST_TERMINATION_GRACE_MS = 5 * 1000;
     private static final long POLL_INTERVAL_MS = 100;
 
-    static TestRunResult waitAndCollect(ILaunch launch) throws InterruptedException {
+    public static TestRunResult waitAndCollect(ILaunch launch) throws InterruptedException {
         JUnitModel model = JUnitCorePlugin.getModel();
         TestRunSession session = findSession(model, launch);
         if (session == null) {
@@ -37,7 +37,7 @@ class TestResultsHelper {
         return buildResult(session);
     }
 
-    static TestRunResult collect(boolean wait) throws InterruptedException {
+    public static TestRunResult collect(boolean wait) throws InterruptedException {
         JUnitModel model = JUnitCorePlugin.getModel();
         TestRunSession session;
 
