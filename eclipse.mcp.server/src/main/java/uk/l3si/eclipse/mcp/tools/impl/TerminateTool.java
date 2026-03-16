@@ -54,7 +54,7 @@ public class TerminateTool implements McpTool {
                     + "Use 'terminate' without 'name' to terminate all, or check the launch configuration name.");
         }
 
-        // Wait for all launches to fully terminate
+        // Wait for all launches to fully terminate, then remove from manager
         long deadline = System.currentTimeMillis() + TERMINATION_TIMEOUT_MS;
         for (ILaunch launch : toTerminate) {
             while (!launch.isTerminated() && System.currentTimeMillis() < deadline) {
@@ -66,6 +66,11 @@ public class TerminateTool implements McpTool {
                         + "' did not terminate within " + (TERMINATION_TIMEOUT_MS / 1000) + "s");
             }
         }
+
+        // Remove terminated launches so subsequent checkNoTestRunning() calls
+        // don't see stale entries even if called concurrently
+        DebugPlugin.getDefault().getLaunchManager()
+                .removeLaunches(toTerminate.toArray(new ILaunch[0]));
 
         return TerminateResult.builder().terminated(toTerminate.size()).build();
     }

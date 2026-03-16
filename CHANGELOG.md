@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.53.0
+
+- **`terminate` removes launches from manager after termination** — prevents `run_test` from seeing stale "still running" entries when called immediately after terminate
+
 ## v0.52.0
 
 - **Increase `evaluate_expression` timeout to 60s** — both semaphore acquire and evaluation latch
