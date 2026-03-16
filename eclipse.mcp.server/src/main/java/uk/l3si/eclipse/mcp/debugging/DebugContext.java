@@ -218,25 +218,36 @@ public class DebugContext implements IDebugEventSetListener {
                 String source = type.getTypeRoot().getSource();
                 if (source == null) continue;
 
-                String[] lines = source.split("\\R", -1);
-                int currentIdx = line - 1;  // convert 1-based line to 0-based index
-                int start = Math.max(0, currentIdx - 2);
-                int end = Math.min(lines.length - 1, currentIdx + 2);
-                StringBuilder sb = new StringBuilder();
-                for (int i = start; i <= end; i++) {
-                    if (sb.length() > 0) sb.append('\n');
-                    int lineNum = i + 1;
-                    if (lineNum == line) {
-                        sb.append(lineNum).append(": > ").append(lines[i]);
-                    } else {
-                        sb.append(lineNum).append(":   ").append(lines[i]);
-                    }
-                }
-                return sb.toString();
+                return formatSourceContext(source, line);
             }
         } catch (Exception ignored) {
         }
         return null;
+    }
+
+    /**
+     * Format source lines around the given 1-based line number.
+     * Returns ~5 lines with line numbers, marking the current line with '>'.
+     * Returns null if the source is null or the line is out of range.
+     */
+    static String formatSourceContext(String source, int line) {
+        if (source == null || line <= 0) return null;
+        String[] lines = source.split("\\R", -1);
+        int currentIdx = line - 1;
+        if (currentIdx >= lines.length) return null;
+        int start = Math.max(0, currentIdx - 2);
+        int end = Math.min(lines.length - 1, currentIdx + 2);
+        StringBuilder sb = new StringBuilder();
+        for (int i = start; i <= end; i++) {
+            if (sb.length() > 0) sb.append('\n');
+            int lineNum = i + 1;
+            if (lineNum == line) {
+                sb.append(lineNum).append(": > ").append(lines[i]);
+            } else {
+                sb.append(lineNum).append(":   ").append(lines[i]);
+            }
+        }
+        return sb.toString();
     }
 
     /**

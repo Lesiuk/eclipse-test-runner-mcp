@@ -356,6 +356,117 @@ class DebugContextTest {
         assertTrue(debugContext.isSuspended());
     }
 
+    // --- formatSourceContext ---
+
+    private static final String SOURCE = String.join("\n",
+            "package com.example;",             // line 1
+            "",                                 // line 2
+            "public class App {",               // line 3
+            "    public void run() {",          // line 4
+            "        int total = 0;",           // line 5
+            "        for (var item : items) {", // line 6
+            "            total += item.getValue();", // line 7
+            "            logger.debug(\"added\", item);", // line 8
+            "        }",                        // line 9
+            "    }",                            // line 10
+            "}");                               // line 11
+
+    @Test
+    void formatSourceContextMiddleOfFile() {
+        String result = DebugContext.formatSourceContext(SOURCE, 7);
+        assertNotNull(result);
+        String[] lines = result.split("\n");
+        assertEquals(5, lines.length);
+        assertTrue(lines[0].startsWith("5:   "));
+        assertTrue(lines[1].startsWith("6:   "));
+        assertTrue(lines[2].startsWith("7: > "));
+        assertTrue(lines[2].contains("total += item.getValue()"));
+        assertTrue(lines[3].startsWith("8:   "));
+        assertTrue(lines[4].startsWith("9:   "));
+    }
+
+    @Test
+    void formatSourceContextFirstLine() {
+        String result = DebugContext.formatSourceContext(SOURCE, 1);
+        assertNotNull(result);
+        String[] lines = result.split("\n");
+        assertEquals(3, lines.length);
+        assertTrue(lines[0].startsWith("1: > "));
+        assertTrue(lines[0].contains("package com.example;"));
+        assertTrue(lines[1].startsWith("2:   "));
+        assertTrue(lines[2].startsWith("3:   "));
+    }
+
+    @Test
+    void formatSourceContextSecondLine() {
+        String result = DebugContext.formatSourceContext(SOURCE, 2);
+        assertNotNull(result);
+        String[] lines = result.split("\n");
+        assertEquals(4, lines.length);
+        assertTrue(lines[0].startsWith("1:   "));
+        assertTrue(lines[1].startsWith("2: > "));
+    }
+
+    @Test
+    void formatSourceContextLastLine() {
+        String result = DebugContext.formatSourceContext(SOURCE, 11);
+        assertNotNull(result);
+        String[] lines = result.split("\n");
+        assertEquals(3, lines.length);
+        assertTrue(lines[2].startsWith("11: > "));
+    }
+
+    @Test
+    void formatSourceContextSecondToLastLine() {
+        String result = DebugContext.formatSourceContext(SOURCE, 10);
+        assertNotNull(result);
+        String[] lines = result.split("\n");
+        assertEquals(4, lines.length);
+        assertTrue(lines[2].startsWith("10: > "));
+    }
+
+    @Test
+    void formatSourceContextNullReturnsNull() {
+        assertNull(DebugContext.formatSourceContext(null, 5));
+    }
+
+    @Test
+    void formatSourceContextZeroLineReturnsNull() {
+        assertNull(DebugContext.formatSourceContext(SOURCE, 0));
+    }
+
+    @Test
+    void formatSourceContextNegativeLineReturnsNull() {
+        assertNull(DebugContext.formatSourceContext(SOURCE, -1));
+    }
+
+    @Test
+    void formatSourceContextLineOutOfRangeReturnsNull() {
+        assertNull(DebugContext.formatSourceContext(SOURCE, 999));
+    }
+
+    @Test
+    void formatSourceContextSingleLine() {
+        String result = DebugContext.formatSourceContext("only line", 1);
+        assertEquals("1: > only line", result);
+    }
+
+    @Test
+    void formatSourceContextWindowsLineEndings() {
+        String source = "line1\r\nline2\r\nline3\r\nline4\r\nline5";
+        String result = DebugContext.formatSourceContext(source, 3);
+        assertNotNull(result);
+        String[] lines = result.split("\n");
+        assertEquals(5, lines.length);
+        assertTrue(lines[2].startsWith("3: > "));
+        assertTrue(lines[2].contains("line3"));
+        for (String line : lines) {
+            assertFalse(line.contains("\r"));
+        }
+    }
+
+    // --- isSuspended ---
+
     @Test
     void isSuspendedReturnsFalseAfterResume() {
         IJavaThread thread = mock(IJavaThread.class);
