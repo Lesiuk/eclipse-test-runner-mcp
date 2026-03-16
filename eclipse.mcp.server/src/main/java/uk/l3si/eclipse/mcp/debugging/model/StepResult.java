@@ -7,9 +7,8 @@ import uk.l3si.eclipse.mcp.model.TestRunResult;
 public class StepResult {
     private String action;
     private String thread;
+    private LocationInfo location;
     private Boolean terminated;
     private String reason;
-    private LocationInfo location;
-    private String error;
     private TestRunResult testResults;
 }

@@ -57,7 +57,6 @@ public class ToolRegistry {
         addTool(new ListVariablesTool(debugContext), "Debugging");
         addTool(new EvaluateExpressionTool(debugContext), "Debugging");
         addTool(new StepTool(debugContext), "Debugging");
-        addTool(new ResumeTool(debugContext), "Debugging");
 
         // BPMN2 tools (disabled by default)
         addTool(new GetProcessTool(), "BPMN2", false);

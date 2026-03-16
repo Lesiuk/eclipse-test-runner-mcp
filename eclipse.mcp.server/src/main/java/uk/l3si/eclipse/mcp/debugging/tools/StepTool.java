@@ -15,7 +15,7 @@ import java.util.List;
 
 public class StepTool implements McpTool {
 
-    private static final int STEP_TIMEOUT_SECONDS = 300;
+    private static final int DEFAULT_TIMEOUT_SECONDS = 300;
 
     private final DebugContext debugContext;
 
@@ -30,22 +30,26 @@ public class StepTool implements McpTool {
 
     @Override
     public String getDescription() {
-        return "Perform a step operation in the debugger. "
-             + "'over' steps to the next line, 'into' steps into a method call, "
-             + "'return' steps out of the current method. "
-             + "Waits for the step to complete and returns the new location. "
-             + "When stepping causes the program to terminate (e.g. test finishes), includes test results if available.";
+        return "Control debugger execution. "
+             + "'over' = next line, 'into' = enter method, 'return' = exit method, "
+             + "'resume' = run until next breakpoint or termination. "
+             + "Returns the new location with source context. "
+             + "On termination, includes test results if available.";
     }
 
     @Override
     public InputSchema getInputSchema() {
         return InputSchema.builder()
                 .property("action", PropertySchema.stringEnum(
-                        "Step action: 'over' (next line), 'into' (enter method), 'return' (exit method).",
-                        List.of("over", "into", "return")))
+                        "Step action: 'over' (next line), 'into' (enter method), 'return' (exit method), 'resume' (continue).",
+                        List.of("over", "into", "return", "resume")))
                 .property("thread_id", PropertySchema.builder()
                         .type("integer")
                         .description("Thread ID (from list_threads). Defaults to the current suspended thread.")
+                        .build())
+                .property("timeout", PropertySchema.builder()
+                        .type("integer")
+                        .description("Timeout in seconds (default: " + DEFAULT_TIMEOUT_SECONDS + ").")
                         .build())
                 .required(List.of("action"))
                 .build();
@@ -53,13 +57,18 @@ public class StepTool implements McpTool {
 
     @Override
     public Object execute(Args args) throws Exception {
-        String action = args.requireString("action", "Step action: over, into, or return");
+        String action = args.requireString("action", "Step action: over, into, return, or resume");
 
-        if (!action.equals("over") && !action.equals("into") && !action.equals("return")) {
-            throw new IllegalArgumentException("Invalid step action: '" + action + "'. Must be 'over', 'into', or 'return'.");
+        if (!action.equals("over") && !action.equals("into")
+                && !action.equals("return") && !action.equals("resume")) {
+            throw new IllegalArgumentException(
+                    "Invalid step action: '" + action + "'. Must be 'over', 'into', 'return', or 'resume'.");
         }
 
         Long threadId = args.getLong("thread_id");
+        int timeoutSeconds = args.getInt("timeout") != null
+                ? args.getInt("timeout") : DEFAULT_TIMEOUT_SECONDS;
+
         IJavaThread thread = debugContext.resolveThread(threadId);
         if (!thread.isSuspended()) {
             throw new IllegalStateException("Thread '" + thread.getName() + "' is not suspended.");
@@ -71,9 +80,10 @@ public class StepTool implements McpTool {
             case "over" -> thread.stepOver();
             case "into" -> thread.stepInto();
             case "return" -> thread.stepReturn();
+            case "resume" -> thread.resume();
         }
 
-        WaitResult wait = debugContext.waitForSuspendOrTerminate(STEP_TIMEOUT_SECONDS);
+        WaitResult wait = debugContext.waitForSuspendOrTerminate(timeoutSeconds);
 
         StepResult.StepResultBuilder result = StepResult.builder()
                 .action(action)
@@ -81,18 +91,16 @@ public class StepTool implements McpTool {
 
         return switch (wait) {
             case SUSPENDED -> result
+                    .reason(debugContext.getSuspendReason())
                     .location(debugContext.getCurrentLocation())
                     .build();
             case TERMINATED -> result
                     .terminated(true)
-                    .reason("Thread terminated after step '" + action
-                            + "'. The program may have finished or thrown an unhandled exception.")
+                    .reason("terminated")
                     .testResults(collectTestResults())
                     .build();
             case TIMEOUT -> result
-                    .terminated(false)
-                    .reason("Step '" + action + "' timed out after " + STEP_TIMEOUT_SECONDS
-                            + " seconds. The thread may still be running.")
+                    .reason("timeout")
                     .build();
         };
     }

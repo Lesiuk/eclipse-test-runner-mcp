@@ -85,6 +85,7 @@ class StepToolTest {
         when(debugContext.resolveThread(null)).thenReturn(thread);
 
         when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.getSuspendReason()).thenReturn("breakpoint");
         when(debugContext.getCurrentLocation()).thenReturn(
                 LocationInfo.builder()
                         .className("com.example.App")
@@ -99,6 +100,7 @@ class StepToolTest {
         JsonObject result = executeAndSerialize(args);
         assertEquals("over", result.get("action").getAsString());
         assertEquals("main", result.get("thread").getAsString());
+        assertEquals("breakpoint", result.get("reason").getAsString());
 
         JsonObject location = result.getAsJsonObject("location");
         assertEquals("com.example.App", location.get("class").getAsString());
@@ -115,6 +117,7 @@ class StepToolTest {
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
         when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.getSuspendReason()).thenReturn("suspended");
 
         JsonObject args = new JsonObject();
         args.addProperty("action", "into");
@@ -130,6 +133,7 @@ class StepToolTest {
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
         when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.getSuspendReason()).thenReturn("suspended");
 
         JsonObject args = new JsonObject();
         args.addProperty("action", "return");
@@ -151,7 +155,7 @@ class StepToolTest {
 
         JsonObject result = executeAndSerialize(args);
         assertTrue(result.get("terminated").getAsBoolean());
-        assertTrue(result.get("reason").getAsString().contains("terminated"));
+        assertEquals("terminated", result.get("reason").getAsString());
     }
 
     @Test
@@ -289,6 +293,7 @@ class StepToolTest {
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
         when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.getSuspendReason()).thenReturn("breakpoint");
 
         try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
             JsonObject args = new JsonObject();
@@ -311,7 +316,7 @@ class StepToolTest {
         args.addProperty("action", "over");
 
         JsonObject result = executeAndSerialize(args);
-        assertTrue(result.get("reason").getAsString().contains("timed out"));
+        assertEquals("timeout", result.get("reason").getAsString());
     }
 
     @Test
@@ -339,6 +344,7 @@ class StepToolTest {
         when(debugContext.resolveThread(null)).thenReturn(thread);
 
         when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.getSuspendReason()).thenReturn("breakpoint");
         when(debugContext.getCurrentLocation()).thenReturn(
                 LocationInfo.builder()
                         .className("com.example.Other")
@@ -362,6 +368,7 @@ class StepToolTest {
         when(thread.getName()).thenReturn("worker");
         when(debugContext.resolveThread(55L)).thenReturn(thread);
         when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.getSuspendReason()).thenReturn("suspended");
 
         JsonObject args = new JsonObject();
         args.addProperty("action", "over");
@@ -370,5 +377,116 @@ class StepToolTest {
         JsonObject result = executeAndSerialize(args);
         assertEquals("worker", result.get("thread").getAsString());
         verify(debugContext).resolveThread(55L);
+    }
+
+    // --- Resume action tests ---
+
+    @Test
+    void resumeCallsThreadResume() throws Exception {
+        IJavaThread thread = mock(IJavaThread.class);
+        when(thread.isSuspended()).thenReturn(true);
+        when(thread.getName()).thenReturn("main");
+        when(debugContext.resolveThread(null)).thenReturn(thread);
+
+        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.getSuspendReason()).thenReturn("breakpoint");
+        when(debugContext.getCurrentLocation()).thenReturn(
+                LocationInfo.builder()
+                        .className("com.example.App")
+                        .method("doStuff")
+                        .line(42)
+                        .sourceName("App.java")
+                        .build());
+
+        JsonObject args = new JsonObject();
+        args.addProperty("action", "resume");
+
+        JsonObject result = executeAndSerialize(args);
+
+        verify(thread).resume();
+        assertEquals("resume", result.get("action").getAsString());
+        assertEquals("breakpoint", result.get("reason").getAsString());
+    }
+
+    @Test
+    void resumeWithTimeout() throws Exception {
+        IJavaThread thread = mock(IJavaThread.class);
+        when(thread.isSuspended()).thenReturn(true);
+        when(thread.getName()).thenReturn("main");
+        when(debugContext.resolveThread(null)).thenReturn(thread);
+
+        when(debugContext.waitForSuspendOrTerminate(1)).thenReturn(WaitResult.TIMEOUT);
+
+        JsonObject args = new JsonObject();
+        args.addProperty("action", "resume");
+        args.addProperty("timeout", 1);
+
+        JsonObject result = executeAndSerialize(args);
+
+        verify(thread).resume();
+        assertEquals("timeout", result.get("reason").getAsString());
+    }
+
+    @Test
+    void resumeTerminatesWithTestResults() throws Exception {
+        IJavaThread thread = mock(IJavaThread.class);
+        when(thread.isSuspended()).thenReturn(true);
+        when(thread.getName()).thenReturn("main");
+        when(debugContext.resolveThread(null)).thenReturn(thread);
+        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TERMINATED);
+
+        TestRunResult testRunResult = TestRunResult.builder()
+                .status("COMPLETED")
+                .totalTests(3)
+                .passed(2)
+                .failed(1)
+                .errors(0)
+                .ignored(0)
+                .elapsedSeconds(1.23)
+                .failures(List.of(
+                        TestFailureInfo.builder()
+                                .className("com.example.FooTest")
+                                .method("testBar")
+                                .kind("FAILURE")
+                                .message("expected true but was false")
+                                .build()))
+                .build();
+
+        try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
+            mocked.when(() -> TestResultsHelper.collect(false)).thenReturn(testRunResult);
+
+            JsonObject args = new JsonObject();
+            args.addProperty("action", "resume");
+            JsonObject result = executeAndSerialize(args);
+
+            verify(thread).resume();
+            assertTrue(result.get("terminated").getAsBoolean());
+            assertEquals("terminated", result.get("reason").getAsString());
+
+            JsonObject testResults = result.getAsJsonObject("testResults");
+            assertNotNull(testResults, "testResults should be present when test finishes");
+            assertEquals("COMPLETED", testResults.get("status").getAsString());
+            assertEquals(3, testResults.get("totalTests").getAsInt());
+            assertEquals(1, testResults.get("failed").getAsInt());
+        }
+    }
+
+    @Test
+    void customTimeoutIsUsed() throws Exception {
+        IJavaThread thread = mock(IJavaThread.class);
+        when(thread.isSuspended()).thenReturn(true);
+        when(thread.getName()).thenReturn("main");
+        when(debugContext.resolveThread(null)).thenReturn(thread);
+
+        when(debugContext.waitForSuspendOrTerminate(10)).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.getSuspendReason()).thenReturn("breakpoint");
+
+        JsonObject args = new JsonObject();
+        args.addProperty("action", "resume");
+        args.addProperty("timeout", 10);
+
+        executeAndSerialize(args);
+
+        verify(debugContext).waitForSuspendOrTerminate(10);
     }
 }
