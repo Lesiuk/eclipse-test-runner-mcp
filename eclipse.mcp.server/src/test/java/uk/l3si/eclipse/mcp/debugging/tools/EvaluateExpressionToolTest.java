@@ -165,6 +165,51 @@ class EvaluateExpressionToolTest {
     }
 
     @Test
+    void duplicateErrorMessagesAreDeduped() throws Exception {
+        IJavaThread thread = mock(IJavaThread.class);
+        IJavaStackFrame frame = mock(IJavaStackFrame.class);
+        IJavaDebugTarget target = mock(IJavaDebugTarget.class);
+        ILaunch launch = mock(ILaunch.class);
+        ILaunchConfiguration launchConfig = mock(ILaunchConfiguration.class);
+        IJavaProject javaProject = mock(IJavaProject.class);
+        IAstEvaluationEngine engine = mock(IAstEvaluationEngine.class);
+
+        when(debugContext.resolveThread(null)).thenReturn(thread);
+        when(debugContext.resolveFrame(thread, null)).thenReturn(frame);
+        when(debugContext.getCurrentTarget()).thenReturn(target);
+        when(target.getLaunch()).thenReturn(launch);
+        when(launch.getLaunchConfiguration()).thenReturn(launchConfig);
+
+        IEvaluationResult evalResult = mock(IEvaluationResult.class);
+        when(evalResult.hasErrors()).thenReturn(true);
+        when(evalResult.getErrorMessages()).thenReturn(new String[]{
+                "x cannot be resolved", "x cannot be resolved"});
+        when(evalResult.getException()).thenReturn(null);
+
+        doAnswer(invocation -> {
+            IEvaluationListener listener = invocation.getArgument(2);
+            listener.evaluationComplete(evalResult);
+            return null;
+        }).when(engine).evaluate(anyString(), any(), any(), anyInt(), anyBoolean());
+
+        try (MockedStatic<JavaRuntime> javaRuntimeMock = mockStatic(JavaRuntime.class);
+             MockedStatic<EvaluationManager> evalManagerMock = mockStatic(EvaluationManager.class)) {
+
+            javaRuntimeMock.when(() -> JavaRuntime.getJavaProject(launchConfig))
+                    .thenReturn(javaProject);
+            evalManagerMock.when(() -> EvaluationManager.newAstEvaluationEngine(javaProject, target))
+                    .thenReturn(engine);
+
+            JsonObject args = new JsonObject();
+            args.addProperty("expression", "x + x");
+
+            RuntimeException ex = assertThrows(RuntimeException.class,
+                    () -> tool.execute(new Args(args)));
+            assertEquals("x cannot be resolved", ex.getMessage());
+        }
+    }
+
+    @Test
     void noActiveTarget() throws Exception {
         IJavaThread thread = mock(IJavaThread.class);
         IJavaStackFrame frame = mock(IJavaStackFrame.class);

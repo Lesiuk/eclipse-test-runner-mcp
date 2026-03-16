@@ -39,6 +39,7 @@ import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
 import org.eclipse.jdt.internal.debug.core.model.JDIThread;
 
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -157,7 +158,7 @@ public class EvaluateExpressionTool implements McpTool {
             if (evalResult.hasErrors()) {
                 String[] messages = evalResult.getErrorMessages();
                 String errorMsg = messages != null && messages.length > 0
-                        ? String.join("; ", messages)
+                        ? String.join("; ", Arrays.stream(messages).distinct().toArray(String[]::new))
                         : "Expression evaluation failed";
                 if (evalResult.getException() != null) {
                     errorMsg += ": " + unwrapEvalException(evalResult.getException(), frame);
