@@ -150,6 +150,24 @@ class BreakpointToolTest {
         verify(breakpointManager).setBreakpoint("com.example.Foo", 99, "i == 0");
     }
 
+    @Test
+    void setDuplicateBreakpointThrows() throws Exception {
+        when(breakpointManager.setBreakpoint("com.example.MyService", 42, null))
+                .thenThrow(new IllegalArgumentException(
+                        "A breakpoint already exists at com.example.MyService:42 (ID: 1). "
+                        + "Use breakpoint action='remove' to remove it first, or action='list' to see all breakpoints."));
+
+        JsonObject args = new JsonObject();
+        args.addProperty("action", "set");
+        args.addProperty("class", "com.example.MyService");
+        args.addProperty("line", "42");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> tool.execute(new Args(args)));
+        assertTrue(ex.getMessage().contains("already exists"));
+        assertTrue(ex.getMessage().contains("MyService:42"));
+    }
+
     // --- action=remove ---
 
     @Test
