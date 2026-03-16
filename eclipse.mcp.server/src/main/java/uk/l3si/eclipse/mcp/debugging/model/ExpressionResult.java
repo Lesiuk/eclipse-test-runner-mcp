@@ -9,6 +9,5 @@ public class ExpressionResult {
     private Object value;
     private Integer length;
     private List<String> fields;
-    private List<ArrayElementInfo> elements;
     private Boolean truncated;
 }

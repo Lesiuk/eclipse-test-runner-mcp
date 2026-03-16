@@ -1,7 +1,6 @@
 package uk.l3si.eclipse.mcp.debugging.tools;
 
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
-import uk.l3si.eclipse.mcp.debugging.model.ArrayElementInfo;
 import uk.l3si.eclipse.mcp.debugging.model.ListVariablesResult;
 import uk.l3si.eclipse.mcp.debugging.model.VariableResult;
 import uk.l3si.eclipse.mcp.tools.Args;
@@ -37,10 +36,9 @@ public class ListVariablesTool implements McpTool {
 
     @Override
     public String getDescription() {
-        return "List all visible variables in the current stack frame with their types and values. "
-             + "Shows local variables, method parameters, and 'this' fields. "
-             + "For objects, shows field names. For arrays, shows length and first few elements. "
-             + "Use 'evaluate_expression' to drill deeper (e.g. 'obj.field', 'arr[5]').";
+        return "List all visible variables in the current stack frame with types and values. "
+             + "Collections and maps show their contents. Arrays show first elements as a flat list. "
+             + "For custom objects, shows field names — use 'evaluate_expression' to inspect them.";
     }
 
     @Override
@@ -100,20 +98,15 @@ public class ListVariablesTool implements McpTool {
             builder.value("null");
         } else if (value instanceof IJavaArray array) {
             int length = array.getLength();
-            builder.value(value.getReferenceTypeName() + "[" + length + "]")
-                    .length(length);
+            builder.length(length);
 
             int preview = Math.min(length, MAX_ARRAY_PREVIEW);
-            List<ArrayElementInfo> elements = new ArrayList<>();
+            List<String> items = new ArrayList<>();
             for (int i = 0; i < preview; i++) {
                 IJavaValue elem = array.getValue(i);
-                elements.add(ArrayElementInfo.builder()
-                        .index(i)
-                        .type(elem.getReferenceTypeName())
-                        .value(elem.getValueString())
-                        .build());
+                items.add(elem.isNull() ? "null" : elem.getValueString());
             }
-            builder.elements(elements);
+            builder.value(items);
             if (length > preview) {
                 builder.truncated(true);
             }

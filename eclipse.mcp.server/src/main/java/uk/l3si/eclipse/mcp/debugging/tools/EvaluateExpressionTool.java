@@ -2,7 +2,6 @@ package uk.l3si.eclipse.mcp.debugging.tools;
 
 import com.sun.jdi.InvalidStackFrameException;
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
-import uk.l3si.eclipse.mcp.debugging.model.ArrayElementInfo;
 import uk.l3si.eclipse.mcp.debugging.model.ExpressionResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.StackTraceFilter;
@@ -73,9 +72,10 @@ public class EvaluateExpressionTool implements McpTool {
     @Override
     public String getDescription() {
         return "Evaluate a Java expression in the context of the current stack frame. "
-             + "Can access local variables, inspect fields, call methods, check conditions, or modify state. "
-             + "For objects, returns the list of field names. For arrays, returns the size and first elements. "
-             + "Examples: 'myList.size()', 'myObj.field', 'x > 0 && y != null', 'obj.toString()'. "
+             + "Can read variables, inspect fields, call methods, or check conditions. "
+             + "Collections and maps are shown as JSON arrays/objects. "
+             + "Tip: inspect multiple fields at once with 'obj.getId() + \"|\" + obj.getName()' "
+             + "or use 'java.util.Arrays.asList(obj.getId(), obj.getName())'. "
              + "The thread must be suspended at a breakpoint or after a step.";
     }
 
@@ -193,20 +193,15 @@ public class EvaluateExpressionTool implements McpTool {
     private void formatArray(ExpressionResult.ExpressionResultBuilder resultBuilder,
             IJavaArray array) throws DebugException {
         int length = array.getLength();
-        resultBuilder.value(array.getReferenceTypeName() + "[" + length + "]")
-                .length(length);
+        resultBuilder.length(length);
 
         int preview = Math.min(length, MAX_ARRAY_PREVIEW);
-        List<ArrayElementInfo> elements = new ArrayList<>();
+        List<String> items = new ArrayList<>();
         for (int i = 0; i < preview; i++) {
             IJavaValue elem = array.getValue(i);
-            elements.add(ArrayElementInfo.builder()
-                    .index(i)
-                    .type(elem.getReferenceTypeName())
-                    .value(elem.getValueString())
-                    .build());
+            items.add(elem.isNull() ? "null" : elementToString(elem));
         }
-        resultBuilder.elements(elements);
+        resultBuilder.value(items);
         if (length > preview) {
             resultBuilder.truncated(true);
         }

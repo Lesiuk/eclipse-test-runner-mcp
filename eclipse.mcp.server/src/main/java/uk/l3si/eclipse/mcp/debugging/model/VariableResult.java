@@ -7,9 +7,8 @@ import lombok.Builder;
 public class VariableResult {
     private String name;
     private String type;
-    private String value;
+    private Object value;
     private Integer length;
     private List<String> fields;
-    private List<ArrayElementInfo> elements;
     private Boolean truncated;
 }

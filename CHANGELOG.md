@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.63.0
+
+- **Flat array format** — arrays now shown as `["a", "b", "c"]` instead of indexed objects, matching collection format
+- **Better tool descriptions** — `evaluate_expression` now suggests multi-field inspection patterns; `list_variables` description updated for new output format
+- Remove unused `ArrayElementInfo` model and `elements` field from results
+
 ## v0.62.0
 
 - **Smart collection/map formatting in `evaluate_expression` and `list_variables`** — ArrayList returns `["item1", "item2", ...]` as a flat JSON array; HashMap returns `{"key": "value", ...}` as a JSON object; both include `length` and `truncated` for large collections (preview capped at 10 elements)
