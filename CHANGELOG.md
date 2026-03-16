@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.55.0
+
+- **Use direct JDI imports instead of reflection** for `InvocationException` unwrapping — cleaner code, same behavior
+
 ## v0.54.0
 
 - **`evaluate_expression` error now includes exception message** — reads `detailMessage` field from the target VM exception (e.g. `NoSuchElementException: Cannot locate element` instead of just `NoSuchElementException thrown in target VM`)

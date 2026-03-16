@@ -26,6 +26,11 @@ import org.eclipse.jdt.launching.JavaRuntime;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+import com.sun.jdi.Field;
+import com.sun.jdi.InvocationException;
+import com.sun.jdi.ObjectReference;
+import com.sun.jdi.StringReference;
+import com.sun.jdi.Value;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -225,16 +230,15 @@ public class EvaluateExpressionTool implements McpTool {
         Throwable root = ex.getStatus() != null
                 ? ex.getStatus().getException() : ex.getCause();
         for (Throwable t = root; t != null; t = t.getCause()) {
-            if ("com.sun.jdi.InvocationException".equals(t.getClass().getName())) {
+            if (t instanceof InvocationException invEx) {
                 try {
-                    Object objRef = t.getClass().getMethod("exception").invoke(t);
-                    Object type = objRef.getClass().getMethod("type").invoke(objRef);
-                    String name = (String) type.getClass().getMethod("name").invoke(type);
+                    ObjectReference objRef = invEx.exception();
+                    String name = objRef.type().name();
                     String message = readDetailMessage(objRef);
                     return message != null
                             ? name + ": " + message
                             : name + " thrown in target VM";
-                } catch (ReflectiveOperationException ignored) {
+                } catch (Exception ignored) {
                     break;
                 }
             }
@@ -244,22 +248,15 @@ public class EvaluateExpressionTool implements McpTool {
 
     /**
      * Read the {@code detailMessage} field from an exception ObjectReference
-     * in the target VM via reflection (no method invocation in the target VM).
+     * in the target VM (field read only, no method invocation in the target VM).
      */
-    private static String readDetailMessage(Object objRef) {
+    private static String readDetailMessage(ObjectReference objRef) {
         try {
-            Object refType = objRef.getClass().getMethod("referenceType").invoke(objRef);
-            Object field = refType.getClass().getMethod("fieldByName", String.class)
-                    .invoke(refType, "detailMessage");
+            Field field = objRef.referenceType().fieldByName("detailMessage");
             if (field == null) return null;
-
-            // Find getValue(Field) — iterate to avoid needing the Field interface class
-            for (java.lang.reflect.Method m : objRef.getClass().getMethods()) {
-                if ("getValue".equals(m.getName()) && m.getParameterCount() == 1) {
-                    Object value = m.invoke(objRef, field);
-                    if (value == null) return null;
-                    return (String) value.getClass().getMethod("value").invoke(value);
-                }
+            Value value = objRef.getValue(field);
+            if (value instanceof StringReference strRef) {
+                return strRef.value();
             }
         } catch (Exception ignored) {
         }
