@@ -23,6 +23,10 @@ import org.eclipse.jdt.debug.eval.IEvaluationResult;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.launching.JavaRuntime;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -134,7 +138,7 @@ public class EvaluateExpressionTool implements McpTool {
                         ? String.join("; ", messages)
                         : "Expression evaluation failed";
                 if (evalResult.getException() != null) {
-                    errorMsg += ": " + evalResult.getException().getMessage();
+                    errorMsg += ": " + unwrapEvalException(evalResult.getException());
                 }
                 throw new RuntimeException(errorMsg);
             }
@@ -174,7 +178,12 @@ public class EvaluateExpressionTool implements McpTool {
                 resultBuilder.truncated(true);
             }
         } else if (value instanceof IJavaObject) {
-            resultBuilder.value(value.getValueString());
+            String rawValue = value.getValueString();
+            if ("java.lang.String".equals(value.getReferenceTypeName())) {
+                resultBuilder.value(tryParseJsonValue(rawValue));
+            } else {
+                resultBuilder.value(rawValue);
+            }
             List<String> fieldNames = new ArrayList<>();
             for (IVariable v : value.getVariables()) {
                 fieldNames.add(v.getName());
@@ -187,5 +196,46 @@ public class EvaluateExpressionTool implements McpTool {
         }
 
         return resultBuilder.build();
+    }
+
+    /**
+     * Try to parse a string as JSON. If it's a valid JSON object or array,
+     * return the parsed {@link JsonElement} so Gson serialises it inline
+     * instead of double-encoding it as a string.
+     */
+    private static Object tryParseJsonValue(String raw) {
+        if (raw != null && raw.length() >= 2
+                && (raw.charAt(0) == '{' || raw.charAt(0) == '[')) {
+            try {
+                JsonElement el = JsonParser.parseString(raw);
+                if (el.isJsonObject() || el.isJsonArray()) {
+                    return el;
+                }
+            } catch (JsonSyntaxException ignored) {
+            }
+        }
+        return raw;
+    }
+
+    /**
+     * Walk the cause chain of the evaluation exception to find the real
+     * target-VM exception type (typically hidden inside an InvocationException).
+     */
+    private static String unwrapEvalException(DebugException ex) {
+        Throwable root = ex.getStatus() != null
+                ? ex.getStatus().getException() : ex.getCause();
+        for (Throwable t = root; t != null; t = t.getCause()) {
+            if ("com.sun.jdi.InvocationException".equals(t.getClass().getName())) {
+                try {
+                    Object objRef = t.getClass().getMethod("exception").invoke(t);
+                    Object type = objRef.getClass().getMethod("type").invoke(objRef);
+                    String name = (String) type.getClass().getMethod("name").invoke(type);
+                    return name + " thrown in target VM";
+                } catch (ReflectiveOperationException ignored) {
+                    break;
+                }
+            }
+        }
+        return ex.getMessage();
     }
 }

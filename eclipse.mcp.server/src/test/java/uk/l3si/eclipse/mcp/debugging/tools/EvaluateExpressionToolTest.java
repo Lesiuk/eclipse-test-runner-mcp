@@ -9,6 +9,7 @@ import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.model.IVariable;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.debug.core.IJavaDebugTarget;
+import org.eclipse.jdt.debug.core.IJavaObject;
 import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
 import org.eclipse.jdt.debug.core.IJavaValue;
@@ -338,6 +339,110 @@ class EvaluateExpressionToolTest {
 
             assertThrows(RuntimeException.class, () -> tool.execute(new Args(args)));
             verify(engine).dispose();
+        }
+    }
+
+    @Test
+    void stringValueContainingJsonReturnsParsedObject() throws Exception {
+        IJavaThread thread = mock(IJavaThread.class);
+        IJavaStackFrame frame = mock(IJavaStackFrame.class);
+        IJavaDebugTarget target = mock(IJavaDebugTarget.class);
+        ILaunch launch = mock(ILaunch.class);
+        ILaunchConfiguration launchConfig = mock(ILaunchConfiguration.class);
+        IJavaProject javaProject = mock(IJavaProject.class);
+        IAstEvaluationEngine engine = mock(IAstEvaluationEngine.class);
+
+        when(debugContext.resolveThread(null)).thenReturn(thread);
+        when(debugContext.resolveFrame(thread, null)).thenReturn(frame);
+        when(debugContext.getCurrentTarget()).thenReturn(target);
+        when(target.getLaunch()).thenReturn(launch);
+        when(launch.getLaunchConfiguration()).thenReturn(launchConfig);
+
+        IJavaObject resultValue = mock(IJavaObject.class);
+        when(resultValue.getReferenceTypeName()).thenReturn("java.lang.String");
+        when(resultValue.isNull()).thenReturn(false);
+        when(resultValue.getValueString()).thenReturn("{\"key\":\"value\",\"count\":42}");
+        when(resultValue.getVariables()).thenReturn(new IVariable[]{});
+
+        IEvaluationResult evalResult = mock(IEvaluationResult.class);
+        when(evalResult.hasErrors()).thenReturn(false);
+        when(evalResult.getValue()).thenReturn(resultValue);
+
+        doAnswer(invocation -> {
+            IEvaluationListener listener = invocation.getArgument(2);
+            listener.evaluationComplete(evalResult);
+            return null;
+        }).when(engine).evaluate(anyString(), any(), any(), anyInt(), anyBoolean());
+
+        try (MockedStatic<JavaRuntime> javaRuntimeMock = mockStatic(JavaRuntime.class);
+             MockedStatic<EvaluationManager> evalManagerMock = mockStatic(EvaluationManager.class)) {
+
+            javaRuntimeMock.when(() -> JavaRuntime.getJavaProject(launchConfig))
+                    .thenReturn(javaProject);
+            evalManagerMock.when(() -> EvaluationManager.newAstEvaluationEngine(javaProject, target))
+                    .thenReturn(engine);
+
+            JsonObject args = new JsonObject();
+            args.addProperty("expression", "obj.toJson()");
+
+            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+            assertEquals("java.lang.String", result.get("type").getAsString());
+            // value should be a parsed JSON object, not a double-encoded string
+            assertTrue(result.get("value").isJsonObject());
+            JsonObject valueObj = result.get("value").getAsJsonObject();
+            assertEquals("value", valueObj.get("key").getAsString());
+            assertEquals(42, valueObj.get("count").getAsInt());
+        }
+    }
+
+    @Test
+    void stringValueWithPlainTextRemainsString() throws Exception {
+        IJavaThread thread = mock(IJavaThread.class);
+        IJavaStackFrame frame = mock(IJavaStackFrame.class);
+        IJavaDebugTarget target = mock(IJavaDebugTarget.class);
+        ILaunch launch = mock(ILaunch.class);
+        ILaunchConfiguration launchConfig = mock(ILaunchConfiguration.class);
+        IJavaProject javaProject = mock(IJavaProject.class);
+        IAstEvaluationEngine engine = mock(IAstEvaluationEngine.class);
+
+        when(debugContext.resolveThread(null)).thenReturn(thread);
+        when(debugContext.resolveFrame(thread, null)).thenReturn(frame);
+        when(debugContext.getCurrentTarget()).thenReturn(target);
+        when(target.getLaunch()).thenReturn(launch);
+        when(launch.getLaunchConfiguration()).thenReturn(launchConfig);
+
+        IJavaObject resultValue = mock(IJavaObject.class);
+        when(resultValue.getReferenceTypeName()).thenReturn("java.lang.String");
+        when(resultValue.isNull()).thenReturn(false);
+        when(resultValue.getValueString()).thenReturn("hello world");
+        when(resultValue.getVariables()).thenReturn(new IVariable[]{});
+
+        IEvaluationResult evalResult = mock(IEvaluationResult.class);
+        when(evalResult.hasErrors()).thenReturn(false);
+        when(evalResult.getValue()).thenReturn(resultValue);
+
+        doAnswer(invocation -> {
+            IEvaluationListener listener = invocation.getArgument(2);
+            listener.evaluationComplete(evalResult);
+            return null;
+        }).when(engine).evaluate(anyString(), any(), any(), anyInt(), anyBoolean());
+
+        try (MockedStatic<JavaRuntime> javaRuntimeMock = mockStatic(JavaRuntime.class);
+             MockedStatic<EvaluationManager> evalManagerMock = mockStatic(EvaluationManager.class)) {
+
+            javaRuntimeMock.when(() -> JavaRuntime.getJavaProject(launchConfig))
+                    .thenReturn(javaProject);
+            evalManagerMock.when(() -> EvaluationManager.newAstEvaluationEngine(javaProject, target))
+                    .thenReturn(engine);
+
+            JsonObject args = new JsonObject();
+            args.addProperty("expression", "name");
+
+            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+            assertEquals("java.lang.String", result.get("type").getAsString());
+            // plain text should remain a string
+            assertTrue(result.get("value").isJsonPrimitive());
+            assertEquals("hello world", result.get("value").getAsString());
         }
     }
 }

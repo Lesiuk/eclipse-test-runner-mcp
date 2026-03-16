@@ -6,7 +6,7 @@ import lombok.Builder;
 @Builder
 public class ExpressionResult {
     private String type;
-    private String value;
+    private Object value;
     private Integer length;
     private List<String> fields;
     private List<ArrayElementInfo> elements;

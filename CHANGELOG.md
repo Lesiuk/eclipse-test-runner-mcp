@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.46.0
+
+- **`evaluate_expression` unwraps InvocationException** — error messages now show the actual target-VM exception type (e.g. `NullPointerException thrown in target VM`) instead of the generic JDI wrapper
+- **`evaluate_expression` returns JSON values as objects** — when a `java.lang.String` value contains valid JSON, it is returned as a parsed object instead of a double-encoded string
+
 ## v0.45.0
 
 - **`evaluate_expression` now queues concurrent calls** — uses a fair semaphore so parallel evaluations wait for the previous one to finish instead of failing with "Cannot perform nested evaluations" (Eclipse JDT limitation)
