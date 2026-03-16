@@ -32,7 +32,7 @@ public class GetStackTraceTool implements McpTool {
         return "Get the stack trace (list of frames) for a suspended thread. "
              + "Defaults to the thread that hit the most recent breakpoint. "
              + "Each frame shows class, method, line number, and source file name. "
-             + "Use the frame index with 'inspect_variable' or 'evaluate_expression' to work in a specific frame's context.";
+             + "Use the frame index with 'evaluate_expression' to work in a specific frame's context.";
     }
 
     @Override

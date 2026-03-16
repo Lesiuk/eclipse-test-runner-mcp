@@ -1,5 +1,6 @@
 package uk.l3si.eclipse.mcp.tools.impl;
 
+import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.model.LaunchTestResult;
 import uk.l3si.eclipse.mcp.model.ProblemInfo;
 import uk.l3si.eclipse.mcp.model.RunTestResult;
@@ -19,9 +20,11 @@ import java.util.Map;
 public class RunTestTool implements McpTool {
 
     private final Map<String, String> launchModes;
+    private final DebugContext debugContext;
 
-    public RunTestTool(Map<String, String> launchModes) {
+    public RunTestTool(Map<String, String> launchModes, DebugContext debugContext) {
         this.launchModes = launchModes;
+        this.debugContext = debugContext;
     }
 
     @Override
@@ -39,6 +42,7 @@ public class RunTestTool implements McpTool {
              + "(e.g. build 'mocks' before 'ui_tests'). "
              + "Fails if a test is already running — use 'terminate' to stop it first. "
              + "Waits for completion and returns test results. "
+             + "In debug mode, waits for the first breakpoint hit or termination and returns the stop location. "
              + "If 'compilationErrors' is returned, fix the errors and retry. "
              + "If tests fail, the returned stack trace is usually sufficient — only use 'get_failure_trace' when the full untruncated stack trace is needed.";
     }
@@ -96,7 +100,7 @@ public class RunTestTool implements McpTool {
         }
 
         // Launch test
-        LaunchTestResult launchResult = TestLaunchHelper.launchTest(configName, className, methodName, projectName, mode);
+        LaunchTestResult launchResult = TestLaunchHelper.launchTest(configName, className, methodName, projectName, mode, debugContext);
         return RunTestResult.builder()
                 .refreshedAndBuilt(builtProjects)
                 .launchResult(launchResult)

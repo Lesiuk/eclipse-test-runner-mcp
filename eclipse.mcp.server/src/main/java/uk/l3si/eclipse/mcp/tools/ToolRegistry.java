@@ -31,21 +31,21 @@ public class ToolRegistry {
         launchModes.put("coverage", "Run with EclEmma/JaCoCo code coverage — use 'get_coverage' afterwards for detailed results");
         launchModes.put("debug", "Launch with debugger attached — set breakpoints first, then use debug tools to inspect suspended state");
 
+        // Debugging tools — create early so RunTestTool can use it
+        debugContext = new DebugContext();
+
         // Core tools
         addTool(new ListProjectsTool());
         addTool(new ListLaunchConfigsTool());
         addTool(new ListLaunchesTool());
         addTool(new TerminateTool());
-        addTool(new RunTestTool(launchModes));
+        addTool(new RunTestTool(launchModes, debugContext));
         addTool(new GetTestResultsTool());
         addTool(new GetProblemsTool());
         addTool(new GetFailureTraceTool());
         addTool(new GetConsoleOutputTool());
         addTool(new GetCoverageTool());
         addTool(new FindReferencesTool());
-
-        // Debugging tools
-        debugContext = new DebugContext();
         BreakpointManager breakpointManager = new BreakpointManager();
 
         addTool(new SetBreakpointTool(breakpointManager), "Debugging");

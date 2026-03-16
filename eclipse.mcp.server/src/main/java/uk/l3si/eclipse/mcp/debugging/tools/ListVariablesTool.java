@@ -39,8 +39,7 @@ public class ListVariablesTool implements McpTool {
         return "List all visible variables in the current stack frame with their types and values. "
              + "Shows local variables, method parameters, and 'this' fields. "
              + "For objects, shows field names. For arrays, shows length and first few elements. "
-             + "Use 'inspect_variable' to drill deeper into specific variables "
-             + "(e.g. 'obj.field', 'arr[5]' for truncated arrays).";
+             + "Use 'evaluate_expression' to drill deeper (e.g. 'obj.field', 'arr[5]').";
     }
 
     @Override
