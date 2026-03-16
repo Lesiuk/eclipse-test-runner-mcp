@@ -1,23 +1,19 @@
 package uk.l3si.eclipse.mcp.debugging.tools;
 
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
+import uk.l3si.eclipse.mcp.debugging.DebugContext.WaitResult;
 import uk.l3si.eclipse.mcp.debugging.model.StepResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
-import org.eclipse.debug.core.DebugEvent;
-import org.eclipse.debug.core.DebugPlugin;
-import org.eclipse.debug.core.IDebugEventSetListener;
 import org.eclipse.jdt.debug.core.IJavaThread;
 
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 public class StepTool implements McpTool {
 
-    private static final long STEP_TIMEOUT_SECONDS = 30;
+    private static final int STEP_TIMEOUT_SECONDS = 30;
 
     private final DebugContext debugContext;
 
@@ -66,66 +62,34 @@ public class StepTool implements McpTool {
             throw new IllegalStateException("Thread '" + thread.getName() + "' is not suspended.");
         }
 
-        // Set up a latch to wait for the step to complete (suspend or terminate)
-        CountDownLatch stepComplete = new CountDownLatch(1);
-        IDebugEventSetListener listener = events -> {
-            for (DebugEvent event : events) {
-                if (event.getSource() == thread) {
-                    if (event.getKind() == DebugEvent.SUSPEND
-                            && (event.getDetail() == DebugEvent.STEP_END
-                                || event.getDetail() == DebugEvent.BREAKPOINT)) {
-                        stepComplete.countDown();
-                        return;
-                    }
-                    if (event.getKind() == DebugEvent.TERMINATE) {
-                        stepComplete.countDown();
-                        return;
-                    }
-                }
-            }
-        };
+        String threadName = thread.getName();
 
-        DebugPlugin plugin = DebugPlugin.getDefault();
-        if (plugin == null) {
-            throw new IllegalStateException("Debug plugin is not available.");
-        }
-        plugin.addDebugEventListener(listener);
-        try {
-            // Initiate the step
-            switch (action) {
-                case "over" -> thread.stepOver();
-                case "into" -> thread.stepInto();
-                case "return" -> thread.stepReturn();
-            }
-
-            // Wait for the step to complete
-            boolean completed = stepComplete.await(STEP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            if (!completed) {
-                throw new IllegalStateException(
-                        "Step '" + action + "' timed out after " + STEP_TIMEOUT_SECONDS
-                        + " seconds. The thread may still be running.");
-            }
-        } finally {
-            DebugPlugin dp = DebugPlugin.getDefault();
-            if (dp != null) {
-                dp.removeDebugEventListener(listener);
-            }
+        switch (action) {
+            case "over" -> thread.stepOver();
+            case "into" -> thread.stepInto();
+            case "return" -> thread.stepReturn();
         }
 
-        // Build the result with the new location
-        StepResult.StepResultBuilder resultBuilder = StepResult.builder()
+        WaitResult wait = debugContext.waitForSuspendOrTerminate(STEP_TIMEOUT_SECONDS);
+
+        StepResult.StepResultBuilder result = StepResult.builder()
                 .action(action)
-                .thread(thread.getName());
+                .thread(threadName);
 
-        if (thread.isTerminated()) {
-            return resultBuilder
-                    .terminated(true)
-                    .reason("Thread terminated after step '" + action + "'. The program may have finished or thrown an unhandled exception.")
+        return switch (wait) {
+            case SUSPENDED -> result
+                    .location(debugContext.getCurrentLocation())
                     .build();
-        }
-
-        resultBuilder.location(debugContext.getCurrentLocation());
-
-        return resultBuilder.build();
+            case TERMINATED -> result
+                    .terminated(true)
+                    .reason("Thread terminated after step '" + action
+                            + "'. The program may have finished or thrown an unhandled exception.")
+                    .build();
+            case TIMEOUT -> result
+                    .terminated(false)
+                    .reason("Step '" + action + "' timed out after " + STEP_TIMEOUT_SECONDS
+                            + " seconds. The thread may still be running.")
+                    .build();
+        };
     }
 }

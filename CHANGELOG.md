@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.48.0
+
+- **`step` converted from event listener to polling** — uses `DebugContext.waitForSuspendOrTerminate()` like `resume` and `get_debug_state`, eliminating `IDebugEventSetListener` registration
+- **Extract shared poll/location/reason helpers into `DebugContext`** — `waitForSuspendOrTerminate()`, `getCurrentLocation()`, and `getSuspendReason()` eliminate duplication across `resume`, `step`, and `get_debug_state`
+
 ## v0.47.0
 
 - **`resume` now blocks until next breakpoint or termination** — polls for suspend/terminate instead of returning immediately, returns stop reason and location (breakpoint, terminated, or timeout)
