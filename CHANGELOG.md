@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.50.0
+
+- **Fix stale tool descriptions** — `list_variables` and `get_stack_trace` referenced removed `inspect_variable` tool; `run_test` now mentions debug mode waiting behavior
+
 ## v0.49.0
 
 - **`run_test` in debug mode waits for first breakpoint** — instead of returning immediately with a "use get_debug_state" message, blocks until a breakpoint is hit or the launch terminates, returning stop reason and location directly
