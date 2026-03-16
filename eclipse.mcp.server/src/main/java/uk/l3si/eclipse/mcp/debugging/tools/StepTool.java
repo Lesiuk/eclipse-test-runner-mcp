@@ -1,8 +1,10 @@
 package uk.l3si.eclipse.mcp.debugging.tools;
 
+import uk.l3si.eclipse.mcp.core.tools.TestResultsHelper;
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.debugging.DebugContext.WaitResult;
 import uk.l3si.eclipse.mcp.debugging.model.StepResult;
+import uk.l3si.eclipse.mcp.model.TestRunResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
@@ -31,7 +33,8 @@ public class StepTool implements McpTool {
         return "Perform a step operation in the debugger. "
              + "'over' steps to the next line, 'into' steps into a method call, "
              + "'return' steps out of the current method. "
-             + "Waits for the step to complete and returns the new location.";
+             + "Waits for the step to complete and returns the new location. "
+             + "When stepping causes the program to terminate (e.g. test finishes), includes test results if available.";
     }
 
     @Override
@@ -84,6 +87,7 @@ public class StepTool implements McpTool {
                     .terminated(true)
                     .reason("Thread terminated after step '" + action
                             + "'. The program may have finished or thrown an unhandled exception.")
+                    .testResults(collectTestResults())
                     .build();
             case TIMEOUT -> result
                     .terminated(false)
@@ -91,5 +95,13 @@ public class StepTool implements McpTool {
                             + " seconds. The thread may still be running.")
                     .build();
         };
+    }
+
+    private TestRunResult collectTestResults() {
+        try {
+            return TestResultsHelper.collect(false);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

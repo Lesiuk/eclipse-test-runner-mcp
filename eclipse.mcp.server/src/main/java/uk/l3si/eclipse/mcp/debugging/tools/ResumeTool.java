@@ -1,8 +1,10 @@
 package uk.l3si.eclipse.mcp.debugging.tools;
 
+import uk.l3si.eclipse.mcp.core.tools.TestResultsHelper;
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.debugging.DebugContext.WaitResult;
 import uk.l3si.eclipse.mcp.debugging.model.ResumeResult;
+import uk.l3si.eclipse.mcp.model.TestRunResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
@@ -29,6 +31,7 @@ public class ResumeTool implements McpTool {
         return "Resume execution of a suspended thread. "
              + "Blocks until the thread hits a breakpoint, terminates, or the timeout is reached. "
              + "Returns the new stop location when a breakpoint is hit. "
+             + "When the program terminates (e.g. test finishes), includes test results if available. "
              + "Defaults to the current suspended thread if no thread_id is given.";
     }
 
@@ -74,11 +77,20 @@ public class ResumeTool implements McpTool {
             case TERMINATED -> result
                     .stopped(true)
                     .reason("terminated")
+                    .testResults(collectTestResults())
                     .build();
             case TIMEOUT -> result
                     .stopped(false)
                     .reason("timeout")
                     .build();
         };
+    }
+
+    private TestRunResult collectTestResults() {
+        try {
+            return TestResultsHelper.collect(false);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
