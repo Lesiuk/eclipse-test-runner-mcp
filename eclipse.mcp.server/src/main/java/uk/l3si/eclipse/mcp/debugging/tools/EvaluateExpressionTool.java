@@ -26,13 +26,19 @@ import org.eclipse.jdt.launching.JavaRuntime;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+import com.sun.jdi.ArrayReference;
+import com.sun.jdi.ClassType;
 import com.sun.jdi.Field;
 import com.sun.jdi.InvocationException;
+import com.sun.jdi.Method;
 import com.sun.jdi.ObjectReference;
 import com.sun.jdi.StringReference;
+import com.sun.jdi.ThreadReference;
 import com.sun.jdi.Value;
+import org.eclipse.jdt.internal.debug.core.model.JDIThread;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
@@ -143,7 +149,7 @@ public class EvaluateExpressionTool implements McpTool {
                         ? String.join("; ", messages)
                         : "Expression evaluation failed";
                 if (evalResult.getException() != null) {
-                    errorMsg += ": " + unwrapEvalException(evalResult.getException());
+                    errorMsg += ": " + unwrapEvalException(evalResult.getException(), frame);
                 }
                 throw new RuntimeException(errorMsg);
             }
@@ -226,7 +232,7 @@ public class EvaluateExpressionTool implements McpTool {
      * Walk the cause chain of the evaluation exception to find the real
      * target-VM exception type (typically hidden inside an InvocationException).
      */
-    private static String unwrapEvalException(DebugException ex) {
+    private static String unwrapEvalException(DebugException ex, IJavaStackFrame frame) {
         Throwable root = ex.getStatus() != null
                 ? ex.getStatus().getException() : ex.getCause();
         for (Throwable t = root; t != null; t = t.getCause()) {
@@ -235,15 +241,79 @@ public class EvaluateExpressionTool implements McpTool {
                     ObjectReference objRef = invEx.exception();
                     String name = objRef.type().name();
                     String message = readDetailMessage(objRef);
-                    return message != null
+                    String result = message != null
                             ? name + ": " + message
                             : name + " thrown in target VM";
+                    String stackTrace = readExceptionStackTrace(objRef, frame);
+                    if (stackTrace != null) {
+                        result += stackTrace;
+                    }
+                    return result;
                 } catch (Exception ignored) {
                     break;
                 }
             }
         }
         return ex.getMessage();
+    }
+
+    /**
+     * Invoke {@code getStackTrace()} on the exception in the target VM and
+     * format the resulting {@code StackTraceElement[]} as a standard Java
+     * stack trace string. Returns {@code null} if the stack trace cannot be
+     * retrieved (best-effort).
+     */
+    private static String readExceptionStackTrace(ObjectReference objRef, IJavaStackFrame frame) {
+        try {
+            IJavaThread javaThread = (IJavaThread) frame.getThread();
+            if (!(javaThread instanceof JDIThread jdiThread)) return null;
+            ThreadReference threadRef = jdiThread.getUnderlyingThread();
+
+            if (!(objRef.referenceType() instanceof ClassType classType)) return null;
+            Method getStackTrace = classType.concreteMethodByName(
+                    "getStackTrace", "()[Ljava/lang/StackTraceElement;");
+            if (getStackTrace == null) return null;
+
+            Value result = objRef.invokeMethod(
+                    threadRef, getStackTrace, Collections.emptyList(),
+                    ObjectReference.INVOKE_SINGLE_THREADED);
+
+            if (!(result instanceof ArrayReference stackArray) || stackArray.length() == 0) {
+                return null;
+            }
+
+            int limit = Math.min(stackArray.length(), 10);
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < limit; i++) {
+                Value elem = stackArray.getValue(i);
+                if (elem instanceof ObjectReference steRef) {
+                    String line = invokeToString(steRef, threadRef);
+                    if (line != null) {
+                        sb.append("\n\tat ").append(line);
+                    }
+                }
+            }
+            if (stackArray.length() > limit) {
+                sb.append("\n\t... ").append(stackArray.length() - limit).append(" more");
+            }
+            return sb.length() > 0 ? sb.toString() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String invokeToString(ObjectReference objRef, ThreadReference threadRef) {
+        try {
+            if (!(objRef.referenceType() instanceof ClassType ct)) return null;
+            Method toString = ct.concreteMethodByName("toString", "()Ljava/lang/String;");
+            if (toString == null) return null;
+            Value val = objRef.invokeMethod(
+                    threadRef, toString, Collections.emptyList(),
+                    ObjectReference.INVOKE_SINGLE_THREADED);
+            return val instanceof StringReference sr ? sr.value() : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**

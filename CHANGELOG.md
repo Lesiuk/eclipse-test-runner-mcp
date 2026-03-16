@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.57.0
+
+- **`evaluate_expression` error includes stack trace** — invokes `getStackTrace()` on the target VM exception via JDI to show where the exception was thrown (up to 10 frames)
+
 ## v0.56.0
 
 - **Restructure packages to consistent domain-based layout** — move `model/` → `core/model/`, `tools/impl/` → `core/tools/`; all three domains (`core`, `debugging`, `bpmn2`) now follow the same `{domain}/tools/` + `{domain}/model/` pattern; `tools/` retains only the shared framework (McpTool, Args, etc.)
