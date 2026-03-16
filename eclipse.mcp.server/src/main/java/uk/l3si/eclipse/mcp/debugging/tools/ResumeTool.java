@@ -1,6 +1,7 @@
 package uk.l3si.eclipse.mcp.debugging.tools;
 
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
+import uk.l3si.eclipse.mcp.debugging.DebugContext.WaitResult;
 import uk.l3si.eclipse.mcp.debugging.model.ResumeResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
@@ -9,6 +10,8 @@ import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.jdt.debug.core.IJavaThread;
 
 public class ResumeTool implements McpTool {
+
+    private static final int DEFAULT_TIMEOUT_SECONDS = 30;
 
     private final DebugContext debugContext;
 
@@ -24,7 +27,8 @@ public class ResumeTool implements McpTool {
     @Override
     public String getDescription() {
         return "Resume execution of a suspended thread. "
-             + "The thread will continue running until it hits another breakpoint or terminates. "
+             + "Blocks until the thread hits a breakpoint, terminates, or the timeout is reached. "
+             + "Returns the new stop location when a breakpoint is hit. "
              + "Defaults to the current suspended thread if no thread_id is given.";
     }
 
@@ -34,6 +38,10 @@ public class ResumeTool implements McpTool {
                 .property("thread_id", PropertySchema.builder()
                         .type("integer")
                         .description("Thread ID (from list_threads). Defaults to the current suspended thread.")
+                        .build())
+                .property("timeout", PropertySchema.builder()
+                        .type("integer")
+                        .description("Timeout in seconds (default: " + DEFAULT_TIMEOUT_SECONDS + ").")
                         .build())
                 .build();
     }
@@ -46,11 +54,31 @@ public class ResumeTool implements McpTool {
             throw new IllegalStateException("Thread '" + thread.getName() + "' is not suspended.");
         }
 
+        int timeoutSeconds = args.getInt("timeout") != null
+                ? args.getInt("timeout") : DEFAULT_TIMEOUT_SECONDS;
+
+        String threadName = thread.getName();
         thread.resume();
 
-        return ResumeResult.builder()
-                .resumed(true)
-                .thread(thread.getName())
-                .build();
+        WaitResult wait = debugContext.waitForSuspendOrTerminate(timeoutSeconds);
+
+        ResumeResult.ResumeResultBuilder result = ResumeResult.builder()
+                .thread(threadName);
+
+        return switch (wait) {
+            case SUSPENDED -> result
+                    .stopped(true)
+                    .reason(debugContext.getSuspendReason())
+                    .location(debugContext.getCurrentLocation())
+                    .build();
+            case TERMINATED -> result
+                    .stopped(true)
+                    .reason("terminated")
+                    .build();
+            case TIMEOUT -> result
+                    .stopped(false)
+                    .reason("timeout")
+                    .build();
+        };
     }
 }

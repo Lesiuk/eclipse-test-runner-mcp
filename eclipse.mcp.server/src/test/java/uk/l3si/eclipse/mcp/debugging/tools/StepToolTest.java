@@ -6,13 +6,13 @@ import org.eclipse.debug.core.DebugEvent;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.IDebugEventSetListener;
 import org.eclipse.debug.core.model.IStackFrame;
-import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
+import uk.l3si.eclipse.mcp.debugging.model.LocationInfo;
 import uk.l3si.eclipse.mcp.tools.Args;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -83,12 +83,13 @@ class StepToolTest {
         when(thread.isTerminated()).thenReturn(false);
         when(debugContext.resolveThread(null)).thenReturn(thread);
 
-        IJavaStackFrame frame = mock(IJavaStackFrame.class);
-        when(frame.getDeclaringTypeName()).thenReturn("com.example.App");
-        when(frame.getMethodName()).thenReturn("run");
-        when(frame.getLineNumber()).thenReturn(15);
-        when(frame.getSourceName()).thenReturn("App.java");
-        when(thread.getStackFrames()).thenReturn(new IStackFrame[]{frame});
+        when(debugContext.getCurrentLocation()).thenReturn(
+                LocationInfo.builder()
+                        .className("com.example.App")
+                        .method("run")
+                        .line(15)
+                        .sourceName("App.java")
+                        .build());
 
         DebugPlugin plugin = mock(DebugPlugin.class);
 
@@ -228,12 +229,13 @@ class StepToolTest {
         when(thread.isTerminated()).thenReturn(false);
         when(debugContext.resolveThread(null)).thenReturn(thread);
 
-        IJavaStackFrame frame = mock(IJavaStackFrame.class);
-        when(frame.getDeclaringTypeName()).thenReturn("com.example.Other");
-        when(frame.getMethodName()).thenReturn("handle");
-        when(frame.getLineNumber()).thenReturn(99);
-        when(frame.getSourceName()).thenReturn("Other.java");
-        when(thread.getStackFrames()).thenReturn(new IStackFrame[]{frame});
+        when(debugContext.getCurrentLocation()).thenReturn(
+                LocationInfo.builder()
+                        .className("com.example.Other")
+                        .method("handle")
+                        .line(99)
+                        .sourceName("Other.java")
+                        .build());
 
         DebugPlugin plugin = mock(DebugPlugin.class);
         ArgumentCaptor<IDebugEventSetListener> listenerCaptor = ArgumentCaptor.forClass(IDebugEventSetListener.class);

@@ -2,13 +2,11 @@ package uk.l3si.eclipse.mcp.debugging.tools;
 
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.debugging.model.DebugStateResult;
-import uk.l3si.eclipse.mcp.debugging.model.LocationInfo;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.jdt.debug.core.IJavaDebugTarget;
-import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
 
 public class GetDebugStateTool implements McpTool {
@@ -53,41 +51,11 @@ public class GetDebugStateTool implements McpTool {
         boolean waitForSuspend = args.getBoolean("wait_for_suspend", true);
 
         if (waitForSuspend) {
-            waitForSuspend(args);
+            int timeoutSeconds = args.getInt("timeout") != null
+                    ? args.getInt("timeout") : DEFAULT_TIMEOUT_SECONDS;
+            debugContext.waitForSuspendOrTerminate(timeoutSeconds);
         }
 
-        return buildState();
-    }
-
-    private static final int POLL_INTERVAL_MS = 500;
-
-    private void waitForSuspend(Args args) throws Exception {
-        if (debugContext.isSuspended()) {
-            return;
-        }
-
-        IJavaDebugTarget target = debugContext.getCurrentTarget();
-        if (target == null || target.isTerminated()) {
-            return;
-        }
-
-        int timeoutSeconds = args.getInt("timeout") != null
-                ? args.getInt("timeout") : DEFAULT_TIMEOUT_SECONDS;
-        long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
-
-        while (System.currentTimeMillis() < deadline) {
-            Thread.sleep(POLL_INTERVAL_MS);
-            if (debugContext.isSuspended()) {
-                return;
-            }
-            target = debugContext.getCurrentTarget();
-            if (target == null || target.isTerminated()) {
-                return;
-            }
-        }
-    }
-
-    private Object buildState() throws Exception {
         IJavaDebugTarget target = debugContext.getCurrentTarget();
         if (target == null || target.isTerminated()) {
             return DebugStateResult.builder()
@@ -102,40 +70,14 @@ public class GetDebugStateTool implements McpTool {
 
         if (thread != null && thread.isSuspended()) {
             resultBuilder.suspended(true)
-                    .thread(thread.getName());
+                    .thread(thread.getName())
+                    .reason(debugContext.getSuspendReason())
+                    .location(debugContext.getCurrentLocation());
             try {
                 long threadId = thread.getThreadObject().getUniqueId();
                 resultBuilder.threadId(threadId);
             } catch (Exception e) {
                 resultBuilder.error("Could not read thread ID: " + e.getMessage());
-            }
-
-            try {
-                var frames = thread.getStackFrames();
-                if (frames.length > 0 && frames[0] instanceof IJavaStackFrame frame) {
-                    LocationInfo.LocationInfoBuilder locationBuilder = LocationInfo.builder()
-                            .className(frame.getDeclaringTypeName())
-                            .method(frame.getMethodName())
-                            .line(frame.getLineNumber());
-                    if (frame.getSourceName() != null) {
-                        locationBuilder.sourceName(frame.getSourceName());
-                    }
-                    resultBuilder.location(locationBuilder.build());
-                }
-            } catch (Exception e) {
-                resultBuilder.error("Could not read stack frame: " + e.getMessage());
-            }
-
-            // Include reason if available
-            try {
-                var breakpoints = thread.getBreakpoints();
-                if (breakpoints != null && breakpoints.length > 0) {
-                    resultBuilder.reason("breakpoint");
-                } else {
-                    resultBuilder.reason("step");
-                }
-            } catch (Exception e) {
-                resultBuilder.reason("unknown");
             }
         } else {
             resultBuilder.suspended(false);

@@ -2,15 +2,14 @@ package uk.l3si.eclipse.mcp.debugging.tools;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import org.eclipse.debug.core.model.IBreakpoint;
-import org.eclipse.debug.core.model.IStackFrame;
 import org.eclipse.jdt.debug.core.IJavaDebugTarget;
 import org.eclipse.jdt.debug.core.IJavaObject;
-import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
+import uk.l3si.eclipse.mcp.debugging.DebugContext.WaitResult;
+import uk.l3si.eclipse.mcp.debugging.model.LocationInfo;
 import uk.l3si.eclipse.mcp.tools.Args;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -99,17 +98,14 @@ class GetDebugStateToolTest {
         when(thread.getThreadObject()).thenReturn(threadObj);
         when(debugContext.getCurrentThread()).thenReturn(thread);
 
-        // Stack frame
-        IJavaStackFrame frame = mock(IJavaStackFrame.class);
-        when(frame.getDeclaringTypeName()).thenReturn("com.example.MyService");
-        when(frame.getMethodName()).thenReturn("doWork");
-        when(frame.getLineNumber()).thenReturn(25);
-        when(frame.getSourceName()).thenReturn("MyService.java");
-        when(thread.getStackFrames()).thenReturn(new IStackFrame[]{frame});
-
-        // Breakpoint reason
-        IBreakpoint bp = mock(IBreakpoint.class);
-        when(thread.getBreakpoints()).thenReturn(new IBreakpoint[]{bp});
+        when(debugContext.getSuspendReason()).thenReturn("breakpoint");
+        when(debugContext.getCurrentLocation()).thenReturn(
+                LocationInfo.builder()
+                        .className("com.example.MyService")
+                        .method("doWork")
+                        .line(25)
+                        .sourceName("MyService.java")
+                        .build());
 
         JsonObject result = executeNoWait();
         assertTrue(result.get("active").getAsBoolean());
@@ -126,7 +122,7 @@ class GetDebugStateToolTest {
     }
 
     @Test
-    void suspendedAfterStep() throws Exception {
+    void suspendedNotAtBreakpoint() throws Exception {
         IJavaDebugTarget target = mock(IJavaDebugTarget.class);
         when(target.isTerminated()).thenReturn(false);
         when(debugContext.getCurrentTarget()).thenReturn(target);
@@ -139,11 +135,10 @@ class GetDebugStateToolTest {
         when(thread.getThreadObject()).thenReturn(threadObj);
         when(debugContext.getCurrentThread()).thenReturn(thread);
 
-        when(thread.getStackFrames()).thenReturn(new IStackFrame[]{});
-        when(thread.getBreakpoints()).thenReturn(new IBreakpoint[]{});
+        when(debugContext.getSuspendReason()).thenReturn("suspended");
 
         JsonObject result = executeNoWait();
-        assertEquals("step", result.get("reason").getAsString());
+        assertEquals("suspended", result.get("reason").getAsString());
     }
 
     @Test
@@ -151,7 +146,7 @@ class GetDebugStateToolTest {
         IJavaDebugTarget target = mock(IJavaDebugTarget.class);
         when(target.isTerminated()).thenReturn(false);
         when(debugContext.getCurrentTarget()).thenReturn(target);
-        when(debugContext.isSuspended()).thenReturn(true);
+        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.SUSPENDED);
 
         IJavaThread thread = mock(IJavaThread.class);
         when(thread.isSuspended()).thenReturn(true);
@@ -159,11 +154,9 @@ class GetDebugStateToolTest {
         IJavaObject threadObj = mock(IJavaObject.class);
         when(threadObj.getUniqueId()).thenReturn(1L);
         when(thread.getThreadObject()).thenReturn(threadObj);
-        when(thread.getStackFrames()).thenReturn(new IStackFrame[]{});
-        when(thread.getBreakpoints()).thenReturn(new IBreakpoint[]{});
         when(debugContext.getCurrentThread()).thenReturn(thread);
+        when(debugContext.getSuspendReason()).thenReturn("breakpoint");
 
-        // Default (no args) — wait_for_suspend=true, but already suspended so returns immediately
         JsonObject result = GSON.toJsonTree(tool.execute(new Args(null))).getAsJsonObject();
         assertTrue(result.get("active").getAsBoolean());
         assertTrue(result.get("suspended").getAsBoolean());
@@ -172,20 +165,16 @@ class GetDebugStateToolTest {
     @Test
     void waitForSuspendNoActiveSession() throws Exception {
         when(debugContext.getCurrentTarget()).thenReturn(null);
-        when(debugContext.isSuspended()).thenReturn(false);
+        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TERMINATED);
 
-        // Default (no args) — wait_for_suspend=true, but no session so returns immediately
         JsonObject result = GSON.toJsonTree(tool.execute(new Args(null))).getAsJsonObject();
         assertFalse(result.get("active").getAsBoolean());
     }
 
     @Test
     void waitForSuspendSessionTerminatesDuringPoll() throws Exception {
-        IJavaDebugTarget target = mock(IJavaDebugTarget.class);
-        when(debugContext.isSuspended()).thenReturn(false);
-        // First call: active; second call (after poll): terminated
-        when(debugContext.getCurrentTarget()).thenReturn(target).thenReturn(null);
-        when(target.isTerminated()).thenReturn(false);
+        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TERMINATED);
+        when(debugContext.getCurrentTarget()).thenReturn(null);
 
         JsonObject args = new JsonObject();
         args.addProperty("wait_for_suspend", true);
@@ -200,8 +189,7 @@ class GetDebugStateToolTest {
         IJavaDebugTarget target = mock(IJavaDebugTarget.class);
         when(target.isTerminated()).thenReturn(false);
         when(debugContext.getCurrentTarget()).thenReturn(target);
-        // First check: not suspended; after first poll: suspended
-        when(debugContext.isSuspended()).thenReturn(false).thenReturn(true);
+        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.SUSPENDED);
 
         IJavaThread thread = mock(IJavaThread.class);
         when(thread.isSuspended()).thenReturn(true);
@@ -209,9 +197,8 @@ class GetDebugStateToolTest {
         IJavaObject threadObj = mock(IJavaObject.class);
         when(threadObj.getUniqueId()).thenReturn(42L);
         when(thread.getThreadObject()).thenReturn(threadObj);
-        when(thread.getStackFrames()).thenReturn(new IStackFrame[]{});
-        when(thread.getBreakpoints()).thenReturn(new IBreakpoint[]{mock(IBreakpoint.class)});
         when(debugContext.getCurrentThread()).thenReturn(thread);
+        when(debugContext.getSuspendReason()).thenReturn("breakpoint");
 
         JsonObject args = new JsonObject();
         args.addProperty("wait_for_suspend", true);
@@ -224,7 +211,7 @@ class GetDebugStateToolTest {
     }
 
     @Test
-    void suspendedWithBreakpointException() throws Exception {
+    void suspendedWithReasonException() throws Exception {
         IJavaDebugTarget target = mock(IJavaDebugTarget.class);
         when(target.isTerminated()).thenReturn(false);
         when(debugContext.getCurrentTarget()).thenReturn(target);
@@ -237,8 +224,7 @@ class GetDebugStateToolTest {
         when(thread.getThreadObject()).thenReturn(threadObj);
         when(debugContext.getCurrentThread()).thenReturn(thread);
 
-        when(thread.getStackFrames()).thenReturn(new IStackFrame[]{});
-        when(thread.getBreakpoints()).thenThrow(new RuntimeException("error"));
+        when(debugContext.getSuspendReason()).thenReturn("unknown");
 
         JsonObject result = executeNoWait();
         assertEquals("unknown", result.get("reason").getAsString());

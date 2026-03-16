@@ -1,7 +1,8 @@
 # Changelog
 
-## v0.46.0
+## v0.47.0
 
+- **`resume` now blocks until next breakpoint or termination** — polls for suspend/terminate instead of returning immediately, returns stop reason and location (breakpoint, terminated, or timeout)
 - **`evaluate_expression` unwraps InvocationException** — error messages now show the actual target-VM exception type (e.g. `NullPointerException thrown in target VM`) instead of the generic JDI wrapper
 - **`evaluate_expression` returns JSON values as objects** — when a `java.lang.String` value contains valid JSON, it is returned as a parsed object instead of a double-encoded string
 

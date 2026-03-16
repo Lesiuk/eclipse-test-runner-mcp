@@ -1,7 +1,6 @@
 package uk.l3si.eclipse.mcp.debugging.tools;
 
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
-import uk.l3si.eclipse.mcp.debugging.model.LocationInfo;
 import uk.l3si.eclipse.mcp.debugging.model.StepResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
@@ -10,7 +9,6 @@ import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.debug.core.DebugEvent;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.IDebugEventSetListener;
-import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
 
 import java.util.List;
@@ -126,24 +124,7 @@ public class StepTool implements McpTool {
                     .build();
         }
 
-        try {
-            var frames = thread.getStackFrames();
-            if (frames.length > 0 && frames[0] instanceof IJavaStackFrame frame) {
-                LocationInfo.LocationInfoBuilder locationBuilder = LocationInfo.builder()
-                        .className(frame.getDeclaringTypeName())
-                        .method(frame.getMethodName())
-                        .line(frame.getLineNumber());
-                try {
-                    String sourceName = frame.getSourceName();
-                    if (sourceName != null) {
-                        locationBuilder.sourceName(sourceName);
-                    }
-                } catch (Exception ignored) {}
-                resultBuilder.location(locationBuilder.build());
-            }
-        } catch (Exception e) {
-            resultBuilder.error("Could not read location after step: " + e.getMessage());
-        }
+        resultBuilder.location(debugContext.getCurrentLocation());
 
         return resultBuilder.build();
     }

@@ -1,5 +1,7 @@
 package uk.l3si.eclipse.mcp.debugging;
 
+import uk.l3si.eclipse.mcp.debugging.model.LocationInfo;
+
 import org.eclipse.debug.core.DebugEvent;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.IDebugEventSetListener;
@@ -139,5 +141,69 @@ public class DebugContext implements IDebugEventSetListener {
     public synchronized boolean isSuspended() {
         IJavaThread thread = currentThread;
         return thread != null && thread.isSuspended();
+    }
+
+    public enum WaitResult { SUSPENDED, TERMINATED, TIMEOUT }
+
+    private static final int POLL_INTERVAL_MS = 500;
+
+    /**
+     * Poll until a thread suspends, the target terminates, or the timeout expires.
+     */
+    public WaitResult waitForSuspendOrTerminate(int timeoutSeconds) throws InterruptedException {
+        if (isSuspended()) return WaitResult.SUSPENDED;
+
+        IJavaDebugTarget target = getCurrentTarget();
+        if (target == null || target.isTerminated()) return WaitResult.TERMINATED;
+
+        long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
+        while (System.currentTimeMillis() < deadline) {
+            Thread.sleep(POLL_INTERVAL_MS);
+            if (isSuspended()) return WaitResult.SUSPENDED;
+            target = getCurrentTarget();
+            if (target == null || target.isTerminated()) return WaitResult.TERMINATED;
+        }
+        return WaitResult.TIMEOUT;
+    }
+
+    /**
+     * Build a {@link LocationInfo} from the top frame of the current suspended thread,
+     * or {@code null} if unavailable.
+     */
+    public LocationInfo getCurrentLocation() {
+        IJavaThread thread = currentThread;
+        if (thread == null || !thread.isSuspended()) return null;
+        try {
+            var frames = thread.getStackFrames();
+            if (frames.length > 0 && frames[0] instanceof IJavaStackFrame frame) {
+                LocationInfo.LocationInfoBuilder loc = LocationInfo.builder()
+                        .className(frame.getDeclaringTypeName())
+                        .method(frame.getMethodName())
+                        .line(frame.getLineNumber());
+                try {
+                    String sourceName = frame.getSourceName();
+                    if (sourceName != null) {
+                        loc.sourceName(sourceName);
+                    }
+                } catch (Exception ignored) {}
+                return loc.build();
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    /**
+     * Return "breakpoint" if the current thread hit a breakpoint, "suspended" otherwise,
+     * or {@code null} if no thread is suspended.
+     */
+    public String getSuspendReason() {
+        IJavaThread thread = currentThread;
+        if (thread == null || !thread.isSuspended()) return null;
+        try {
+            var breakpoints = thread.getBreakpoints();
+            return (breakpoints != null && breakpoints.length > 0) ? "breakpoint" : "suspended";
+        } catch (Exception e) {
+            return "unknown";
+        }
     }
 }
