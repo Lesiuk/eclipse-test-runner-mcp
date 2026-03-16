@@ -3,6 +3,7 @@
 ## v0.66.0
 
 - **Remove `list_threads` tool** — rarely used; thread info is available via `get_debug_state`
+- **Deduplicate error messages in `evaluate_expression`** — when the same error appears multiple times (e.g. unresolved variable referenced twice), it is now shown only once
 - Tool count reduced from 17 to 16
 
 ## v0.65.0
