@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.65.0
+
+- **Reject duplicate breakpoints** — `breakpoint action='set'` now checks for an existing breakpoint at the same class and line before creating a new one, preventing accidental duplicates
+
 ## v0.64.0
 
 - **Source context in debug stop locations** — `step`, `get_debug_state`, and `run_test` (debug mode) now return ~5 lines of source code around the stop point, with the current line marked by `>`, eliminating the need to read the source file after every breakpoint hit or step

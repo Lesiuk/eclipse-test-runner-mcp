@@ -51,6 +51,15 @@ public class BreakpointManager {
             validatedLine = validateBreakpointLocation(source, line);
         }
 
+        // Check for existing breakpoint at the same location
+        IJavaLineBreakpoint existing = findBreakpointAt(className, validatedLine);
+        if (existing != null) {
+            throw new IllegalArgumentException(
+                    "A breakpoint already exists at " + className + ":" + validatedLine
+                    + " (ID: " + existing.getMarker().getId() + "). "
+                    + "Use breakpoint action='remove' to remove it first, or action='list' to see all breakpoints.");
+        }
+
         IJavaLineBreakpoint bp = JDIDebugModel.createLineBreakpoint(
                 resource, className, validatedLine, -1, -1, 0, true, null);
 
@@ -120,6 +129,23 @@ public class BreakpointManager {
         return ListBreakpointsResult.builder()
                 .breakpoints(list)
                 .build();
+    }
+
+    private IJavaLineBreakpoint findBreakpointAt(String className, int line) {
+        IBreakpoint[] allBreakpoints = DebugPlugin.getDefault()
+                .getBreakpointManager().getBreakpoints(JDIDebugModel.getPluginIdentifier());
+        for (IBreakpoint bp : allBreakpoints) {
+            if (bp instanceof IJavaLineBreakpoint lineBp && bp.getMarker() != null) {
+                try {
+                    if (className.equals(lineBp.getTypeName())
+                            && lineBp.getLineNumber() == line) {
+                        return lineBp;
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        return null;
     }
 
     private IJavaLineBreakpoint findBreakpointById(long id) {
