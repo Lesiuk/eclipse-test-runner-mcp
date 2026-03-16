@@ -4,6 +4,8 @@ import lombok.Builder;
 
 @Builder
 public class ResumeResult {
-    private boolean resumed;
     private String thread;
+    private boolean stopped;
+    private String reason;
+    private LocationInfo location;
 }

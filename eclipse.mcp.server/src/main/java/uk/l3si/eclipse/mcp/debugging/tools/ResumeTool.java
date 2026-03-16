@@ -1,14 +1,20 @@
 package uk.l3si.eclipse.mcp.debugging.tools;
 
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
+import uk.l3si.eclipse.mcp.debugging.model.LocationInfo;
 import uk.l3si.eclipse.mcp.debugging.model.ResumeResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
+import org.eclipse.jdt.debug.core.IJavaDebugTarget;
+import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
 
 public class ResumeTool implements McpTool {
+
+    private static final int DEFAULT_TIMEOUT_SECONDS = 30;
+    private static final int POLL_INTERVAL_MS = 500;
 
     private final DebugContext debugContext;
 
@@ -24,7 +30,8 @@ public class ResumeTool implements McpTool {
     @Override
     public String getDescription() {
         return "Resume execution of a suspended thread. "
-             + "The thread will continue running until it hits another breakpoint or terminates. "
+             + "Blocks until the thread hits a breakpoint, terminates, or the timeout is reached. "
+             + "Returns the new stop location when a breakpoint is hit. "
              + "Defaults to the current suspended thread if no thread_id is given.";
     }
 
@@ -34,6 +41,10 @@ public class ResumeTool implements McpTool {
                 .property("thread_id", PropertySchema.builder()
                         .type("integer")
                         .description("Thread ID (from list_threads). Defaults to the current suspended thread.")
+                        .build())
+                .property("timeout", PropertySchema.builder()
+                        .type("integer")
+                        .description("Timeout in seconds (default: " + DEFAULT_TIMEOUT_SECONDS + ").")
                         .build())
                 .build();
     }
@@ -46,11 +57,73 @@ public class ResumeTool implements McpTool {
             throw new IllegalStateException("Thread '" + thread.getName() + "' is not suspended.");
         }
 
+        int timeoutSeconds = args.getInt("timeout") != null
+                ? args.getInt("timeout") : DEFAULT_TIMEOUT_SECONDS;
+
+        String threadName = thread.getName();
         thread.resume();
 
+        // Poll until suspended again, terminated, or timeout
+        long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
+        while (System.currentTimeMillis() < deadline) {
+            Thread.sleep(POLL_INTERVAL_MS);
+
+            if (debugContext.isSuspended()) {
+                return buildSuspendedResult(threadName);
+            }
+
+            IJavaDebugTarget target = debugContext.getCurrentTarget();
+            if (target == null || target.isTerminated()) {
+                return ResumeResult.builder()
+                        .thread(threadName)
+                        .stopped(true)
+                        .reason("terminated")
+                        .build();
+            }
+        }
+
         return ResumeResult.builder()
-                .resumed(true)
-                .thread(thread.getName())
+                .thread(threadName)
+                .stopped(false)
+                .reason("timeout")
                 .build();
+    }
+
+    private ResumeResult buildSuspendedResult(String threadName) throws Exception {
+        ResumeResult.ResumeResultBuilder result = ResumeResult.builder()
+                .thread(threadName)
+                .stopped(true);
+
+        IJavaThread thread = debugContext.getCurrentThread();
+        if (thread != null && thread.isSuspended()) {
+            // Determine reason
+            try {
+                var breakpoints = thread.getBreakpoints();
+                result.reason(breakpoints != null && breakpoints.length > 0
+                        ? "breakpoint" : "suspended");
+            } catch (Exception e) {
+                result.reason("suspended");
+            }
+
+            // Capture location
+            try {
+                var frames = thread.getStackFrames();
+                if (frames.length > 0 && frames[0] instanceof IJavaStackFrame frame) {
+                    LocationInfo.LocationInfoBuilder loc = LocationInfo.builder()
+                            .className(frame.getDeclaringTypeName())
+                            .method(frame.getMethodName())
+                            .line(frame.getLineNumber());
+                    try {
+                        String sourceName = frame.getSourceName();
+                        if (sourceName != null) {
+                            loc.sourceName(sourceName);
+                        }
+                    } catch (Exception ignored) {}
+                    result.location(loc.build());
+                }
+            } catch (Exception ignored) {}
+        }
+
+        return result.build();
     }
 }
