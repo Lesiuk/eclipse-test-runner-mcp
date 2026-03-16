@@ -43,6 +43,7 @@ import org.eclipse.jdt.internal.debug.core.model.JDIThread;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -198,17 +199,20 @@ public class EvaluateExpressionTool implements McpTool {
             }
         } else if (value instanceof IJavaObject) {
             String rawValue = value.getValueString();
-            if ("java.lang.String".equals(value.getReferenceTypeName())) {
+            String typeName = value.getReferenceTypeName();
+            if ("java.lang.String".equals(typeName)) {
                 resultBuilder.value(tryParseJsonValue(rawValue));
             } else {
                 resultBuilder.value(rawValue);
             }
-            List<String> fieldNames = new ArrayList<>();
-            for (IVariable v : value.getVariables()) {
-                fieldNames.add(v.getName());
-            }
-            if (!fieldNames.isEmpty()) {
-                resultBuilder.fields(fieldNames);
+            if (!isWellKnownType(typeName)) {
+                List<String> fieldNames = new ArrayList<>();
+                for (IVariable v : value.getVariables()) {
+                    fieldNames.add(v.getName());
+                }
+                if (!fieldNames.isEmpty()) {
+                    resultBuilder.fields(fieldNames);
+                }
             }
         } else {
             resultBuilder.value(value.getValueString());
@@ -222,6 +226,22 @@ public class EvaluateExpressionTool implements McpTool {
      * return the parsed {@link JsonElement} so Gson serialises it inline
      * instead of double-encoding it as a string.
      */
+    private static final Set<String> WELL_KNOWN_TYPES = Set.of(
+            "java.lang.String", "java.lang.Integer", "java.lang.Long",
+            "java.lang.Double", "java.lang.Float", "java.lang.Boolean",
+            "java.lang.Byte", "java.lang.Short", "java.lang.Character",
+            "java.lang.Number", "java.math.BigDecimal", "java.math.BigInteger",
+            "java.lang.StringBuilder", "java.lang.StringBuffer",
+            "java.util.Date", "java.time.LocalDate", "java.time.LocalDateTime",
+            "java.time.Instant", "java.time.ZonedDateTime",
+            "java.util.UUID", "java.net.URI", "java.net.URL",
+            "java.io.File", "java.nio.file.Path");
+
+    static boolean isWellKnownType(String typeName) {
+        return typeName != null && (WELL_KNOWN_TYPES.contains(typeName)
+                || typeName.startsWith("java.lang.") && typeName.indexOf('.', 10) == -1);
+    }
+
     private static Object tryParseJsonValue(String raw) {
         if (raw != null && raw.length() >= 2
                 && (raw.charAt(0) == '{' || raw.charAt(0) == '[')) {

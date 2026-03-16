@@ -119,12 +119,14 @@ public class ListVariablesTool implements McpTool {
             }
         } else if (value instanceof IJavaObject) {
             builder.value(value.getValueString());
-            List<String> fieldNames = new ArrayList<>();
-            for (IVariable v : value.getVariables()) {
-                fieldNames.add(v.getName());
-            }
-            if (!fieldNames.isEmpty()) {
-                builder.fields(fieldNames);
+            if (!EvaluateExpressionTool.isWellKnownType(value.getReferenceTypeName())) {
+                List<String> fieldNames = new ArrayList<>();
+                for (IVariable v : value.getVariables()) {
+                    fieldNames.add(v.getName());
+                }
+                if (!fieldNames.isEmpty()) {
+                    builder.fields(fieldNames);
+                }
             }
         } else {
             builder.value(value.getValueString());

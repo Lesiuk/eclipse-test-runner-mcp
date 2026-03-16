@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.61.0
+
+- **Skip fields for well-known JDK types** in `evaluate_expression` and `list_variables` — String, Integer, Boolean, BigDecimal, UUID, Date/Time types, etc. no longer show internal fields like `hash`, `coder`, `value`, reducing output noise for the LLM
+
 ## v0.60.0
 
 - **Handle `InvalidStackFrameException` gracefully** in `list_variables`, `get_stack_trace`, and `evaluate_expression` — returns actionable guidance ("Use 'get_debug_state' to check current state") instead of raw JDI exception
