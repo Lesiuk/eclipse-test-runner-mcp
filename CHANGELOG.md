@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.64.0
+
+- **Source context in debug stop locations** — `step`, `get_debug_state`, and `run_test` (debug mode) now return ~5 lines of source code around the stop point, with the current line marked by `>`, eliminating the need to read the source file after every breakpoint hit or step
+- **Merge `step` + `resume` into single `step` tool** — `resume` is now `step` with `action='resume'`; all actions support a `timeout` parameter and return terse reason values (`breakpoint`, `terminated`, `timeout`)
+- **Merge `set_breakpoint` + `remove_breakpoint` + `list_breakpoints` into single `breakpoint` tool** — action-based dispatch (`set`, `remove`, `list`) following the same pattern as BPMN2 tools
+- **Merge `get_failure_trace` into `get_test_results`** — pass `class` and `method` to get the full unabridged stack trace for a specific failure; no params returns the normal summary
+- **Tool count reduced from 21 to 17** — fewer tool definitions means less LLM context overhead per request
+
 ## v0.63.0
 
 - **Flat array format** — arrays now shown as `["a", "b", "c"]` instead of indexed objects, matching collection format

@@ -49,8 +49,7 @@ Parameters marked with **\*** are required. All others are optional.
 | Tool | Description |
 |------|-------------|
 | `run_test` | Full pipeline — refresh, build, check errors, launch test |
-| `get_test_results` | Results from the most recent test run |
-| `get_failure_trace` | Full stack trace for a single test failure |
+| `get_test_results` | Results from the most recent test run (pass class+method for full stack trace) |
 | `get_coverage` | Per-line and per-method code coverage for a class |
 | `list_test_configs` | All JUnit launch configurations in the workspace |
 | `list_test_runs` | Active and recent JUnit launches |
@@ -64,17 +63,13 @@ Parameters marked with **\*** are required. All others are optional.
 
 | Tool | Description |
 |------|-------------|
-| `set_breakpoint` | Set a line breakpoint (with optional condition) |
-| `remove_breakpoint` | Remove a breakpoint by ID |
-| `list_breakpoints` | All Java line breakpoints in the workspace |
+| `breakpoint` | Manage breakpoints (action: set/remove/list) |
 | `get_debug_state` | Check if debugger is active/suspended |
 | `list_threads` | All threads in the debug session |
 | `get_stack_trace` | Stack trace for a suspended thread |
 | `list_variables` | List all visible variables in the current stack frame |
-| `inspect_variable` | Inspect a variable (supports dot-paths and indexing) |
 | `evaluate_expression` | Evaluate a Java expression in a suspended frame |
-| `step` | Step over, into, or return |
-| `resume` | Resume a suspended thread |
+| `step` | Step over, into, return, or resume |
 
 #### BPMN2 (disabled by default)
 
@@ -103,21 +98,20 @@ run_test                   → edit code, then refresh + build + run
 run_test (mode=coverage)   → same, but with code coverage enabled
 run_test (mode=debug)      → run with debugger (set breakpoints first)
 get_test_results           → re-check results or wait for completion
-get_failure_trace          → drill into a specific failure's full stack trace
+get_test_results (class+method) → drill into a specific failure's full stack trace
 get_coverage               → inspect per-line coverage for a source class
 ```
 
 **Debug session example:**
 
 ```
-set_breakpoint             → set breakpoint at a suspicious line
+breakpoint (action=set)    → set breakpoint at a suspicious line
 run_test (mode=debug)      → launch test with debugger attached
 get_debug_state            → check if breakpoint was hit
 list_variables             → see all variables in scope
-inspect_variable           → examine variable values at the breakpoint
 evaluate_expression        → evaluate a Java expression in context
 step (action=over)         → step to the next line
-resume                     → let the test finish
+step (action=resume)       → let the test finish
 ```
 
 **BPMN2 workflow example:**
@@ -158,13 +152,9 @@ Uses an existing launch configuration as a template — inheriting VM arguments,
 
 #### Test Results
 
-**`get_test_results`** `(wait)` → `{testRunName, status, totalTests, passed, failed, errors, ignored, failures[]}`
+**`get_test_results`** `(wait, class, method)` → `{status, totalTests, passed, failed, errors, ignored, failures[]}` or `{class, method, trace}`
 
-Returns results from the most recent test run. Each failure includes the exception message and a compact stack trace: top 3 application frames plus all test-class frames, with framework internals filtered and remaining frames collapsed as `... N more`. Pass `wait=true` to block until a running test finishes.
-
-**`get_failure_trace`** `(class*, method*)` → `{class, method, trace}`
-
-Full untruncated stack trace for a single test failure. Use after reviewing `get_test_results` when the trimmed trace isn't sufficient.
+Returns results from the most recent test run. Each failure includes the exception message and a compact stack trace: top 3 application frames plus all test-class frames, with framework internals filtered and remaining frames collapsed as `... N more`. Pass `wait=true` to block until a running test finishes. Pass `class` and `method` to get the full unabridged stack trace for a specific failure.
 
 **`get_coverage`** `(class*)` → `{class, summary{lineCoverage, branchCoverage, methodCoverage}, methods[{name, lineCoverage, branchCoverage, uncoveredLines[]}], lines[{line, status, branches}]}`
 
@@ -204,19 +194,11 @@ Find all references to a Java class, method, or field across all open workspace 
 
 #### Debugging
 
-**`set_breakpoint`** `(class*, line*, condition)` → `{id, class, line, condition, enabled}`
+**`breakpoint`** `(action*, class, line, condition, id)` → varies by action
 
-Set a line breakpoint in a Java class. Optionally set a conditional expression — the debugger only suspends when the condition evaluates to true.
+Manage breakpoints. `action='set'` (requires `class`, `line`; optional `condition`): set a line breakpoint, returns `{id, class, line, condition, enabled}`. `action='remove'` (requires `id`): remove a breakpoint by its ID, returns `{removed, id}`. `action='list'`: list all Java line breakpoints in the workspace, returns `{breakpoints[{id, class, line, condition, enabled, hitCount}]}`.
 
-**`remove_breakpoint`** `(id*)` → `{removed, id}`
-
-Remove a breakpoint by its ID.
-
-**`list_breakpoints`** `()` → `{breakpoints[{id, class, line, condition, enabled, hitCount}]}`
-
-List all Java line breakpoints in the workspace — including ones set manually in the Eclipse IDE.
-
-**`get_debug_state`** `()` → `{active, suspended, thread, threadId, location{class, method, line, sourceName}, reason}`
+**`get_debug_state`** `()` → `{active, suspended, thread, threadId, location{class, method, line, sourceName, source}, reason}`
 
 Check whether a debug session is active and if a thread is suspended (e.g. at a breakpoint or after a step).
 
@@ -226,27 +208,19 @@ List all threads in the debug session with their state (running, suspended, term
 
 **`get_stack_trace`** `(thread_id)` → `{thread, frames[{index, class, method, line, sourceName}]}`
 
-Get the stack trace for a suspended thread. Use the frame index with `inspect_variable` or `evaluate_expression` to work in a specific frame's context.
+Get the stack trace for a suspended thread. Use the frame index with `evaluate_expression` to work in a specific frame's context.
 
 **`list_variables`** `(thread_id, frame_index)` → `{frame, variableCount, variables[{name, type, value, fields[], length, elements[], truncated}]}`
 
-List all visible variables in the current stack frame with their types and shallow values. Shows local variables, method parameters, and `this` fields. For objects, shows field names; for arrays, shows length and first few elements. Use `inspect_variable` to drill deeper.
+List all visible variables in the current stack frame with their types and shallow values. Shows local variables, method parameters, and `this` fields. For objects, shows field names; for arrays, shows length and first few elements. Use `evaluate_expression` to inspect them.
 
-**`inspect_variable`** `(name*, thread_id, frame_index)` → `{name, type, value, fields[], elements[]}`
-
-Inspect a variable in the current stack frame. Supports dot-path navigation (`obj.field`) and array indexing (`list[0]`). Objects show field names for drill-down; arrays show length and elements.
-
-**`evaluate_expression`** `(expression*, thread_id, frame_index)` → `{expression, type, value, fields[]}`
+**`evaluate_expression`** `(expression*, thread_id, frame_index)` → `{type, value, fields[]}`
 
 Evaluate a Java expression in the context of a suspended stack frame. Can read values, call methods, or modify variables.
 
-**`step`** `(action*, thread_id)` → `{action, thread, location{class, method, line, sourceName}}`
+**`step`** `(action*, thread_id, timeout)` → `{action, thread, reason, location{class, method, line, sourceName, source}, terminated, testResults}`
 
-Step through code: `over` (next line), `into` (enter method call), or `return` (exit current method). Waits for the step to complete and returns the new location.
-
-**`resume`** `(thread_id)` → `{resumed, thread}`
-
-Resume a suspended thread.
+Control debugger execution: `over` (next line), `into` (enter method call), `return` (exit current method), or `resume` (run until next breakpoint or termination). Returns the new location with source context. On termination, includes test results if available.
 
 </details>
 
