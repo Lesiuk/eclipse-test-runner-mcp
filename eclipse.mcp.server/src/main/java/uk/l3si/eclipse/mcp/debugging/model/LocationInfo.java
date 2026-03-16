@@ -10,4 +10,5 @@ public class LocationInfo {
     private String method;
     private int line;
     private String sourceName;
+    private String source;
 }

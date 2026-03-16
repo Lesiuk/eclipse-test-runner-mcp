@@ -2,11 +2,16 @@ package uk.l3si.eclipse.mcp.debugging;
 
 import uk.l3si.eclipse.mcp.debugging.model.LocationInfo;
 
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.debug.core.DebugEvent;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.IDebugEventSetListener;
 import org.eclipse.debug.core.model.IDebugTarget;
 import org.eclipse.debug.core.model.IThread;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IType;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.debug.core.IJavaDebugTarget;
 import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
@@ -176,19 +181,61 @@ public class DebugContext implements IDebugEventSetListener {
         try {
             var frames = thread.getStackFrames();
             if (frames.length > 0 && frames[0] instanceof IJavaStackFrame frame) {
+                String className = frame.getDeclaringTypeName();
+                int lineNumber = frame.getLineNumber();
                 LocationInfo.LocationInfoBuilder loc = LocationInfo.builder()
-                        .className(frame.getDeclaringTypeName())
+                        .className(className)
                         .method(frame.getMethodName())
-                        .line(frame.getLineNumber());
+                        .line(lineNumber);
                 try {
                     String sourceName = frame.getSourceName();
                     if (sourceName != null) {
                         loc.sourceName(sourceName);
                     }
                 } catch (Exception ignored) {}
+                loc.source(lookupSourceContext(className, lineNumber));
                 return loc.build();
             }
         } catch (Exception ignored) {}
+        return null;
+    }
+
+    /**
+     * Look up source lines around the given line for a class.
+     * Returns formatted lines with line numbers, marking the current line with '>'.
+     * Returns null if source is unavailable (best-effort).
+     */
+    private String lookupSourceContext(String className, int line) {
+        if (className == null || line <= 0) return null;
+        try {
+            IProject[] projects = ResourcesPlugin.getWorkspace().getRoot().getProjects();
+            for (IProject project : projects) {
+                if (!project.isOpen() || !project.hasNature(JavaCore.NATURE_ID)) continue;
+                IJavaProject javaProject = JavaCore.create(project);
+                IType type = javaProject.findType(className);
+                if (type == null || !type.exists()) continue;
+                if (type.getTypeRoot() == null) continue;
+                String source = type.getTypeRoot().getSource();
+                if (source == null) continue;
+
+                String[] lines = source.split("\\R", -1);
+                int currentIdx = line - 1;  // convert 1-based line to 0-based index
+                int start = Math.max(0, currentIdx - 2);
+                int end = Math.min(lines.length - 1, currentIdx + 2);
+                StringBuilder sb = new StringBuilder();
+                for (int i = start; i <= end; i++) {
+                    if (sb.length() > 0) sb.append('\n');
+                    int lineNum = i + 1;
+                    if (lineNum == line) {
+                        sb.append(lineNum).append(": > ").append(lines[i]);
+                    } else {
+                        sb.append(lineNum).append(":   ").append(lines[i]);
+                    }
+                }
+                return sb.toString();
+            }
+        } catch (Exception ignored) {
+        }
         return null;
     }
 
