@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.54.0
+
+- **`evaluate_expression` error now includes exception message** — reads `detailMessage` field from the target VM exception (e.g. `NoSuchElementException: Cannot locate element` instead of just `NoSuchElementException thrown in target VM`)
+
 ## v0.53.0
 
 - **`terminate` removes launches from manager after termination** — prevents `run_test` from seeing stale "still running" entries when called immediately after terminate

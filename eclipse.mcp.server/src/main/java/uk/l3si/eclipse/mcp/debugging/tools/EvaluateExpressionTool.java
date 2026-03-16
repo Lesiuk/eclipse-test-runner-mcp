@@ -230,12 +230,39 @@ public class EvaluateExpressionTool implements McpTool {
                     Object objRef = t.getClass().getMethod("exception").invoke(t);
                     Object type = objRef.getClass().getMethod("type").invoke(objRef);
                     String name = (String) type.getClass().getMethod("name").invoke(type);
-                    return name + " thrown in target VM";
+                    String message = readDetailMessage(objRef);
+                    return message != null
+                            ? name + ": " + message
+                            : name + " thrown in target VM";
                 } catch (ReflectiveOperationException ignored) {
                     break;
                 }
             }
         }
         return ex.getMessage();
+    }
+
+    /**
+     * Read the {@code detailMessage} field from an exception ObjectReference
+     * in the target VM via reflection (no method invocation in the target VM).
+     */
+    private static String readDetailMessage(Object objRef) {
+        try {
+            Object refType = objRef.getClass().getMethod("referenceType").invoke(objRef);
+            Object field = refType.getClass().getMethod("fieldByName", String.class)
+                    .invoke(refType, "detailMessage");
+            if (field == null) return null;
+
+            // Find getValue(Field) — iterate to avoid needing the Field interface class
+            for (java.lang.reflect.Method m : objRef.getClass().getMethods()) {
+                if ("getValue".equals(m.getName()) && m.getParameterCount() == 1) {
+                    Object value = m.invoke(objRef, field);
+                    if (value == null) return null;
+                    return (String) value.getClass().getMethod("value").invoke(value);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 }
