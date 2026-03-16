@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 
 public class EvaluateExpressionTool implements McpTool {
 
-    private static final long EVAL_TIMEOUT_MS = 30_000;
+    private static final long EVAL_TIMEOUT_MS = 60_000;
     private static final int MAX_ARRAY_PREVIEW = 10;
 
     /** Only one evaluation can run at a time (Eclipse JDT limitation). */

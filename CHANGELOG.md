@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.52.0
+
+- **Increase `evaluate_expression` timeout to 60s** — both semaphore acquire and evaluation latch
+
 ## v0.51.0
 
 - **Increase debug launch timeout to 5 minutes** — 30s was too short for apps that take time to start before hitting a breakpoint
