@@ -104,13 +104,6 @@ public class VariableCollector {
                 builder.value(display != null ? display : obj.getValueString());
             } else {
                 builder.value(obj.getValueString());
-                List<String> fieldNames = new ArrayList<>();
-                for (IVariable v : obj.getVariables()) {
-                    fieldNames.add(v.getName());
-                }
-                if (!fieldNames.isEmpty()) {
-                    builder.fields(fieldNames);
-                }
             }
         } else {
             builder.value(value.getValueString());

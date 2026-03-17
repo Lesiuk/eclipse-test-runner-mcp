@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.71.0
+
+- **Remove `fields` from variable output** — `VariableCollector` no longer dumps all field names for custom objects, eliminating massive response bloat for classes with many constants
+
 ## v0.70.0
 
 - **Extract `VariableCollector` utility** — variable collection/formatting logic extracted from `ListVariablesTool` into a dedicated `VariableCollector` class in the `debugging` package, along with type-classification helpers (`isWellKnownType`, `isCollectionType`, `isMapType`) moved from `EvaluateExpressionTool`

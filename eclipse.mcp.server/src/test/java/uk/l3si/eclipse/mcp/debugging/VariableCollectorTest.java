@@ -368,7 +368,6 @@ class VariableCollectorTest {
             JsonObject json = toJson(collector.formatValue("boxed", obj));
             assertEquals("java.lang.Integer", json.get("type").getAsString());
             assertEquals("42", json.get("value").getAsString());
-            assertFalse(json.has("fields"));
         }
 
         @Test
@@ -404,23 +403,11 @@ class VariableCollectorTest {
         }
 
         @Test
-        void customObjectShowsValueStringAndFields() throws Exception {
+        void customObjectShowsValueStringWithoutFields() throws Exception {
             IJavaObject obj = mockObject("com.example.User", "User@abc123", "id", "name", "email");
             JsonObject json = toJson(collector.formatValue("user", obj));
             assertEquals("com.example.User", json.get("type").getAsString());
             assertEquals("User@abc123", json.get("value").getAsString());
-            JsonArray fields = json.get("fields").getAsJsonArray();
-            assertEquals(3, fields.size());
-            assertEquals("id", fields.get(0).getAsString());
-            assertEquals("name", fields.get(1).getAsString());
-            assertEquals("email", fields.get(2).getAsString());
-        }
-
-        @Test
-        void customObjectWithNoFieldsOmitsFieldsList() throws Exception {
-            IJavaObject obj = mockObject("com.example.Empty", "Empty@1");
-            JsonObject json = toJson(collector.formatValue("empty", obj));
-            assertEquals("Empty@1", json.get("value").getAsString());
             assertFalse(json.has("fields"));
         }
 
