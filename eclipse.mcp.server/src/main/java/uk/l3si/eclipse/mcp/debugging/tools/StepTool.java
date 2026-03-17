@@ -3,13 +3,13 @@ package uk.l3si.eclipse.mcp.debugging.tools;
 import uk.l3si.eclipse.mcp.core.tools.TestResultsHelper;
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.debugging.DebugContext.WaitResult;
+import uk.l3si.eclipse.mcp.debugging.VariableCollector;
 import uk.l3si.eclipse.mcp.debugging.model.StepResult;
 import uk.l3si.eclipse.mcp.model.TestRunResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
-import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
 
 import java.util.List;
@@ -93,13 +93,8 @@ public class StepTool implements McpTool {
         return switch (wait) {
             case SUSPENDED -> {
                 result.reason(debugContext.getSuspendReason())
-                      .location(debugContext.getCurrentLocation());
-                try {
-                    IJavaStackFrame frame = debugContext.resolveFrame(
-                            debugContext.resolveThread(null), null);
-                    result.variables(ListVariablesTool.collectVariables(frame, debugContext));
-                } catch (Exception ignored) {
-                }
+                      .location(debugContext.getCurrentLocation())
+                      .variables(VariableCollector.collectForCurrentFrame(debugContext));
                 yield result.build();
             }
             case TERMINATED -> result

@@ -1,13 +1,13 @@
 package uk.l3si.eclipse.mcp.debugging.tools;
 
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
+import uk.l3si.eclipse.mcp.debugging.VariableCollector;
 import uk.l3si.eclipse.mcp.debugging.model.DebugStateResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.jdt.debug.core.IJavaDebugTarget;
-import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
 
 public class GetDebugStateTool implements McpTool {
@@ -80,11 +80,7 @@ public class GetDebugStateTool implements McpTool {
             } catch (Exception e) {
                 resultBuilder.error("Could not read thread ID: " + e.getMessage());
             }
-            try {
-                IJavaStackFrame frame = debugContext.resolveFrame(thread, null);
-                resultBuilder.variables(ListVariablesTool.collectVariables(frame, debugContext));
-            } catch (Exception ignored) {
-            }
+            resultBuilder.variables(VariableCollector.collectForCurrentFrame(debugContext));
         } else {
             resultBuilder.suspended(false);
         }

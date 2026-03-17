@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.70.0
+
+- **Extract `VariableCollector` utility** — variable collection/formatting logic extracted from `ListVariablesTool` into a dedicated `VariableCollector` class in the `debugging` package, along with type-classification helpers (`isWellKnownType`, `isCollectionType`, `isMapType`) moved from `EvaluateExpressionTool`
+
 ## v0.69.0
 
 - **Auto-include variables when debugger stops** — `step`, `get_debug_state`, and `run_test` (debug mode) now return all visible variables alongside the stop location, eliminating the need for a separate `list_variables` call after every breakpoint hit or step

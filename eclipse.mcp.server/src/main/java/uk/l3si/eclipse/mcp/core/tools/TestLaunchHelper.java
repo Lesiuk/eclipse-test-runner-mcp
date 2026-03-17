@@ -2,9 +2,8 @@ package uk.l3si.eclipse.mcp.core.tools;
 
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.debugging.DebugContext.WaitResult;
-import uk.l3si.eclipse.mcp.debugging.tools.ListVariablesTool;
+import uk.l3si.eclipse.mcp.debugging.VariableCollector;
 import uk.l3si.eclipse.mcp.model.LaunchTestResult;
-import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import uk.l3si.eclipse.mcp.model.TestRunResult;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -169,17 +168,11 @@ public class TestLaunchHelper {
         if ("debug".equals(mode)) {
             WaitResult wait = debugContext.waitForSuspendOrTerminate(DEBUG_TIMEOUT_SECONDS);
             switch (wait) {
-                case SUSPENDED -> {
-                    builder.debugStopped(true)
-                           .debugReason(debugContext.getSuspendReason())
-                           .debugLocation(debugContext.getCurrentLocation());
-                    try {
-                        IJavaStackFrame frame = debugContext.resolveFrame(
-                                debugContext.resolveThread(null), null);
-                        builder.debugVariables(ListVariablesTool.collectVariables(frame, debugContext));
-                    } catch (Exception ignored) {
-                    }
-                }
+                case SUSPENDED -> builder
+                        .debugStopped(true)
+                        .debugReason(debugContext.getSuspendReason())
+                        .debugLocation(debugContext.getCurrentLocation())
+                        .debugVariables(VariableCollector.collectForCurrentFrame(debugContext));
                 case TERMINATED -> builder
                         .debugStopped(true)
                         .debugReason("terminated");

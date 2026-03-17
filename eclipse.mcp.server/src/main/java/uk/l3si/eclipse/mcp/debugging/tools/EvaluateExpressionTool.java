@@ -2,6 +2,7 @@ package uk.l3si.eclipse.mcp.debugging.tools;
 
 import com.sun.jdi.InvalidStackFrameException;
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
+import uk.l3si.eclipse.mcp.debugging.VariableCollector;
 import uk.l3si.eclipse.mcp.debugging.model.ExpressionResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.StackTraceFilter;
@@ -45,7 +46,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -217,17 +217,17 @@ public class EvaluateExpressionTool implements McpTool {
             return;
         }
 
-        if (isWellKnownType(typeName)) {
+        if (VariableCollector.isWellKnownType(typeName)) {
             resultBuilder.value(invokeToString(obj));
             return;
         }
 
-        if (isCollectionType(typeName)) {
+        if (VariableCollector.isCollectionType(typeName)) {
             formatCollection(resultBuilder, obj);
             return;
         }
 
-        if (isMapType(typeName)) {
+        if (VariableCollector.isMapType(typeName)) {
             formatMap(resultBuilder, obj);
             return;
         }
@@ -355,43 +355,6 @@ public class EvaluateExpressionTool implements McpTool {
 
     private static String truncate(String s, int maxLen) {
         return s.length() > maxLen ? s.substring(0, maxLen) + "..." : s;
-    }
-
-    static boolean isCollectionType(String typeName) {
-        if (typeName == null) return false;
-        if (typeName.startsWith("java.util.")) {
-            String simple = typeName.substring(10);
-            return simple.contains("List") || simple.contains("Set")
-                    || simple.contains("Queue") || simple.contains("Deque")
-                    || simple.contains("Stack") || simple.contains("Vector");
-        }
-        return false;
-    }
-
-    static boolean isMapType(String typeName) {
-        return typeName != null && typeName.startsWith("java.util.")
-                && typeName.substring(10).contains("Map");
-    }
-
-    /**
-     * Try to parse a string as JSON. If it's a valid JSON object or array,
-     * return the parsed {@link JsonElement} so Gson serialises it inline
-     * instead of double-encoding it as a string.
-     */
-    private static final Set<String> WELL_KNOWN_TYPES = Set.of(
-            "java.lang.String", "java.lang.Integer", "java.lang.Long",
-            "java.lang.Double", "java.lang.Float", "java.lang.Boolean",
-            "java.lang.Byte", "java.lang.Short", "java.lang.Character",
-            "java.lang.Number", "java.math.BigDecimal", "java.math.BigInteger",
-            "java.lang.StringBuilder", "java.lang.StringBuffer",
-            "java.util.Date", "java.time.LocalDate", "java.time.LocalDateTime",
-            "java.time.Instant", "java.time.ZonedDateTime",
-            "java.util.UUID", "java.net.URI", "java.net.URL",
-            "java.io.File", "java.nio.file.Path");
-
-    static boolean isWellKnownType(String typeName) {
-        return typeName != null && (WELL_KNOWN_TYPES.contains(typeName)
-                || typeName.startsWith("java.lang.") && typeName.indexOf('.', 10) == -1);
     }
 
     private static Object tryParseJsonValue(String raw) {

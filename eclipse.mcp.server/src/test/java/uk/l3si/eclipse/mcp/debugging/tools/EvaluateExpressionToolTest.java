@@ -868,40 +868,4 @@ class EvaluateExpressionToolTest {
         }
     }
 
-    @Test
-    void isWellKnownTypeTests() {
-        assertTrue(EvaluateExpressionTool.isWellKnownType("java.lang.String"));
-        assertTrue(EvaluateExpressionTool.isWellKnownType("java.lang.Integer"));
-        assertTrue(EvaluateExpressionTool.isWellKnownType("java.lang.Boolean"));
-        assertTrue(EvaluateExpressionTool.isWellKnownType("java.math.BigDecimal"));
-        assertTrue(EvaluateExpressionTool.isWellKnownType("java.time.LocalDate"));
-        assertTrue(EvaluateExpressionTool.isWellKnownType("java.util.UUID"));
-
-        assertFalse(EvaluateExpressionTool.isWellKnownType("com.example.MyClass"));
-        assertFalse(EvaluateExpressionTool.isWellKnownType("java.util.ArrayList"));
-        assertFalse(EvaluateExpressionTool.isWellKnownType("java.util.HashMap"));
-    }
-
-    @Test
-    void isCollectionTypeTests() {
-        assertTrue(EvaluateExpressionTool.isCollectionType("java.util.ArrayList"));
-        assertTrue(EvaluateExpressionTool.isCollectionType("java.util.LinkedList"));
-        assertTrue(EvaluateExpressionTool.isCollectionType("java.util.HashSet"));
-        assertTrue(EvaluateExpressionTool.isCollectionType("java.util.TreeSet"));
-        assertTrue(EvaluateExpressionTool.isCollectionType("java.util.ArrayDeque"));
-
-        assertFalse(EvaluateExpressionTool.isCollectionType("java.util.HashMap"));
-        assertFalse(EvaluateExpressionTool.isCollectionType("java.lang.String"));
-        assertFalse(EvaluateExpressionTool.isCollectionType("com.example.MyList"));
-    }
-
-    @Test
-    void isMapTypeTests() {
-        assertTrue(EvaluateExpressionTool.isMapType("java.util.HashMap"));
-        assertTrue(EvaluateExpressionTool.isMapType("java.util.TreeMap"));
-        assertTrue(EvaluateExpressionTool.isMapType("java.util.LinkedHashMap"));
-
-        assertFalse(EvaluateExpressionTool.isMapType("java.util.ArrayList"));
-        assertFalse(EvaluateExpressionTool.isMapType("java.lang.String"));
-    }
 }

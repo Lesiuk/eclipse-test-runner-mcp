@@ -1,27 +1,19 @@
 package uk.l3si.eclipse.mcp.debugging.tools;
 
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
+import uk.l3si.eclipse.mcp.debugging.VariableCollector;
 import uk.l3si.eclipse.mcp.debugging.model.ListVariablesResult;
 import uk.l3si.eclipse.mcp.debugging.model.VariableResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
-import com.sun.jdi.InvalidStackFrameException;
-import org.eclipse.debug.core.DebugException;
-import org.eclipse.debug.core.model.IVariable;
-import org.eclipse.jdt.debug.core.IJavaArray;
-import org.eclipse.jdt.debug.core.IJavaObject;
 import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
-import org.eclipse.jdt.debug.core.IJavaValue;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class ListVariablesTool implements McpTool {
-
-    private static final int MAX_ARRAY_PREVIEW = 5;
 
     private final DebugContext debugContext;
 
@@ -62,118 +54,16 @@ public class ListVariablesTool implements McpTool {
         }
         IJavaStackFrame frame = debugContext.resolveFrame(thread, frameIndex);
 
-        try {
-            List<VariableResult> variables = new ArrayList<>();
-            for (IVariable v : frame.getVariables()) {
-                try {
-                    if (v.getValue() instanceof IJavaValue javaValue) {
-                        variables.add(formatValue(v.getName(), javaValue));
-                    }
-                } catch (DebugException e) {
-                    variables.add(VariableResult.builder()
-                            .name(v.getName())
-                            .type("unknown")
-                            .value("<error: " + e.getMessage() + ">")
-                            .build());
-                }
-            }
-
-            return ListVariablesResult.builder()
-                    .frame(frame.getDeclaringTypeName() + "." + frame.getMethodName() + ":" + frame.getLineNumber())
-                    .variables(variables)
-                    .build();
-        } catch (InvalidStackFrameException e) {
+        List<VariableResult> variables = VariableCollector.collect(frame, debugContext);
+        if (variables == null) {
             throw new IllegalStateException(
                     "Stack frame is no longer valid — the thread may have resumed or the program terminated. "
                     + "Use 'get_debug_state' to check the current state before retrying.");
         }
-    }
 
-    private VariableResult formatValue(String name, IJavaValue value) throws DebugException {
-        VariableResult.VariableResultBuilder builder = VariableResult.builder()
-                .name(name)
-                .type(value.getReferenceTypeName());
-
-        if (value.isNull()) {
-            builder.value("null");
-        } else if (value instanceof IJavaArray array) {
-            int length = array.getLength();
-            builder.length(length);
-
-            int preview = Math.min(length, MAX_ARRAY_PREVIEW);
-            List<String> items = new ArrayList<>();
-            for (int i = 0; i < preview; i++) {
-                IJavaValue elem = array.getValue(i);
-                items.add(elem.isNull() ? "null" : elem.getValueString());
-            }
-            builder.value(items);
-            if (length > preview) {
-                builder.truncated(true);
-            }
-        } else if (value instanceof IJavaObject obj) {
-            String typeName = obj.getReferenceTypeName();
-            if (EvaluateExpressionTool.isWellKnownType(typeName)
-                    || EvaluateExpressionTool.isCollectionType(typeName)
-                    || EvaluateExpressionTool.isMapType(typeName)) {
-                // Show toString() for well-known, collection, and map types
-                String display = safeToString(obj);
-                builder.value(display != null ? display : obj.getValueString());
-            } else {
-                builder.value(obj.getValueString());
-                List<String> fieldNames = new ArrayList<>();
-                for (IVariable v : obj.getVariables()) {
-                    fieldNames.add(v.getName());
-                }
-                if (!fieldNames.isEmpty()) {
-                    builder.fields(fieldNames);
-                }
-            }
-        } else {
-            builder.value(value.getValueString());
-        }
-
-        return builder.build();
-    }
-
-    /**
-     * Collect variables from the given stack frame.
-     * Used by StepTool, GetDebugStateTool, and TestLaunchHelper to auto-include
-     * variables in stop locations.
-     */
-    public static List<VariableResult> collectVariables(IJavaStackFrame frame, DebugContext debugContext) {
-        try {
-            List<VariableResult> variables = new ArrayList<>();
-            ListVariablesTool tool = new ListVariablesTool(debugContext);
-            for (IVariable v : frame.getVariables()) {
-                try {
-                    if (v.getValue() instanceof IJavaValue javaValue) {
-                        variables.add(tool.formatValue(v.getName(), javaValue));
-                    }
-                } catch (DebugException e) {
-                    variables.add(VariableResult.builder()
-                            .name(v.getName())
-                            .type("unknown")
-                            .value("<error: " + e.getMessage() + ">")
-                            .build());
-                }
-            }
-            return variables;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private String safeToString(IJavaObject obj) {
-        try {
-            IJavaThread thread = debugContext.resolveThread(null);
-            IJavaValue result = obj.sendMessage("toString",
-                    "()Ljava/lang/String;", new IJavaValue[0], thread, false);
-            if (result != null) {
-                String s = result.getValueString();
-                return s.length() > 200 ? s.substring(0, 197) + "..." : s;
-            }
-        } catch (Exception ignored) {
-        }
-        return null;
+        return ListVariablesResult.builder()
+                .frame(frame.getDeclaringTypeName() + "." + frame.getMethodName() + ":" + frame.getLineNumber())
+                .variables(variables)
+                .build();
     }
 }
