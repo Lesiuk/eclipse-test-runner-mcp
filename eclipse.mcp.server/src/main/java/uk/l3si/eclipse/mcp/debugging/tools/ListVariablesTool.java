@@ -135,6 +135,34 @@ public class ListVariablesTool implements McpTool {
         return builder.build();
     }
 
+    /**
+     * Collect variables from the given stack frame.
+     * Used by StepTool, GetDebugStateTool, and TestLaunchHelper to auto-include
+     * variables in stop locations.
+     */
+    public static List<VariableResult> collectVariables(IJavaStackFrame frame, DebugContext debugContext) {
+        try {
+            List<VariableResult> variables = new ArrayList<>();
+            ListVariablesTool tool = new ListVariablesTool(debugContext);
+            for (IVariable v : frame.getVariables()) {
+                try {
+                    if (v.getValue() instanceof IJavaValue javaValue) {
+                        variables.add(tool.formatValue(v.getName(), javaValue));
+                    }
+                } catch (DebugException e) {
+                    variables.add(VariableResult.builder()
+                            .name(v.getName())
+                            .type("unknown")
+                            .value("<error: " + e.getMessage() + ">")
+                            .build());
+                }
+            }
+            return variables;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private String safeToString(IJavaObject obj) {
         try {
             IJavaThread thread = debugContext.resolveThread(null);

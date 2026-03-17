@@ -9,6 +9,7 @@ import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
+import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
 
 import java.util.List;
@@ -90,10 +91,17 @@ public class StepTool implements McpTool {
                 .thread(threadName);
 
         return switch (wait) {
-            case SUSPENDED -> result
-                    .reason(debugContext.getSuspendReason())
-                    .location(debugContext.getCurrentLocation())
-                    .build();
+            case SUSPENDED -> {
+                result.reason(debugContext.getSuspendReason())
+                      .location(debugContext.getCurrentLocation());
+                try {
+                    IJavaStackFrame frame = debugContext.resolveFrame(
+                            debugContext.resolveThread(null), null);
+                    result.variables(ListVariablesTool.collectVariables(frame, debugContext));
+                } catch (Exception ignored) {
+                }
+                yield result.build();
+            }
             case TERMINATED -> result
                     .terminated(true)
                     .reason("terminated")

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.69.0
+
+- **Auto-include variables when debugger stops** — `step`, `get_debug_state`, and `run_test` (debug mode) now return all visible variables alongside the stop location, eliminating the need for a separate `list_variables` call after every breakpoint hit or step
+
 ## v0.68.0
 
 - **`breakpoint action='clear'`** — remove all breakpoints in one call, returns the count of removed breakpoints

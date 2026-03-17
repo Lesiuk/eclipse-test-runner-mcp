@@ -7,6 +7,7 @@ import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.jdt.debug.core.IJavaDebugTarget;
+import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
 
 public class GetDebugStateTool implements McpTool {
@@ -78,6 +79,11 @@ public class GetDebugStateTool implements McpTool {
                 resultBuilder.threadId(threadId);
             } catch (Exception e) {
                 resultBuilder.error("Could not read thread ID: " + e.getMessage());
+            }
+            try {
+                IJavaStackFrame frame = debugContext.resolveFrame(thread, null);
+                resultBuilder.variables(ListVariablesTool.collectVariables(frame, debugContext));
+            } catch (Exception ignored) {
             }
         } else {
             resultBuilder.suspended(false);
