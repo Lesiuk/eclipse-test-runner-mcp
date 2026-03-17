@@ -63,7 +63,7 @@ Parameters marked with **\*** are required. All others are optional.
 
 | Tool | Description |
 |------|-------------|
-| `breakpoint` | Manage breakpoints (action: set/remove/list) |
+| `breakpoint` | Manage breakpoints (action: set/remove/clear/list) |
 | `get_debug_state` | Check if debugger is active/suspended |
 | `get_stack_trace` | Stack trace for a suspended thread |
 | `list_variables` | List all visible variables in the current stack frame |
@@ -195,7 +195,7 @@ Find all references to a Java class, method, or field across all open workspace 
 
 **`breakpoint`** `(action*, class, line, condition, id)` → varies by action
 
-Manage breakpoints. `action='set'` (requires `class`, `line`; optional `condition`): set a line breakpoint, returns `{id, class, line, condition, enabled}`. `action='remove'` (requires `id`): remove a breakpoint by its ID, returns `{removed, id}`. `action='list'`: list all Java line breakpoints in the workspace, returns `{breakpoints[{id, class, line, condition, enabled, hitCount}]}`.
+Manage breakpoints. `action='set'` (requires `class`, `line`; optional `condition`): set a line breakpoint, returns `{id, class, line, condition, enabled}`. `action='remove'` (requires `id`): remove a breakpoint by its ID, returns `{removed, id}`. `action='clear'`: remove all breakpoints, returns `{removed}` (count). `action='list'`: list all Java line breakpoints in the workspace, returns `{breakpoints[{id, class, line, condition, enabled, hitCount}]}`.
 
 **`get_debug_state`** `()` → `{active, suspended, thread, threadId, location{class, method, line, sourceName, source}, reason}`
 

@@ -280,6 +280,31 @@ class BreakpointToolTest {
         verify(breakpointManager).listBreakpoints();
     }
 
+    // --- action=clear ---
+
+    @Test
+    void clearRemovesAll() throws Exception {
+        when(breakpointManager.clearBreakpoints()).thenReturn(3);
+
+        JsonObject args = new JsonObject();
+        args.addProperty("action", "clear");
+
+        JsonObject result = executeAndSerialize(args);
+        assertEquals(3, result.get("removed").getAsInt());
+        verify(breakpointManager).clearBreakpoints();
+    }
+
+    @Test
+    void clearWithNoneReturnsZero() throws Exception {
+        when(breakpointManager.clearBreakpoints()).thenReturn(0);
+
+        JsonObject args = new JsonObject();
+        args.addProperty("action", "clear");
+
+        JsonObject result = executeAndSerialize(args);
+        assertEquals(0, result.get("removed").getAsInt());
+    }
+
     // --- invalid/missing action ---
 
     @Test

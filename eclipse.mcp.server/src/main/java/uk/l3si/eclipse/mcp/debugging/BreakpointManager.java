@@ -131,6 +131,23 @@ public class BreakpointManager {
                 .build();
     }
 
+    /**
+     * Remove all Java line breakpoints in the workspace.
+     */
+    public int clearBreakpoints() throws Exception {
+        IBreakpoint[] allBreakpoints = DebugPlugin.getDefault()
+                .getBreakpointManager().getBreakpoints(JDIDebugModel.getPluginIdentifier());
+
+        int removed = 0;
+        for (IBreakpoint bp : allBreakpoints) {
+            if (bp instanceof IJavaLineBreakpoint && bp.getMarker() != null) {
+                bp.delete();
+                removed++;
+            }
+        }
+        return removed;
+    }
+
     private IJavaLineBreakpoint findBreakpointAt(String className, int line) {
         IBreakpoint[] allBreakpoints = DebugPlugin.getDefault()
                 .getBreakpointManager().getBreakpoints(JDIDebugModel.getPluginIdentifier());

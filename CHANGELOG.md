@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.68.0
+
+- **`breakpoint action='clear'`** — remove all breakpoints in one call, returns the count of removed breakpoints
+
 ## v0.67.0
 
 - **Deduplicate error messages in `evaluate_expression`** — when the same error appears multiple times (e.g. unresolved variable referenced twice), it is now shown only once

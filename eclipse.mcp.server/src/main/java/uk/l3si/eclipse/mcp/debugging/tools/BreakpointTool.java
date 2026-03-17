@@ -7,6 +7,7 @@ import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
 import java.util.List;
+import java.util.Map;
 
 public class BreakpointTool implements McpTool {
 
@@ -26,6 +27,7 @@ public class BreakpointTool implements McpTool {
         return "Manage breakpoints. "
              + "action='set': set a line breakpoint (requires class, line; optional condition). "
              + "action='remove': remove by ID. "
+             + "action='clear': remove all breakpoints. "
              + "action='list': list all breakpoints with IDs, locations, and conditions.";
     }
 
@@ -33,8 +35,8 @@ public class BreakpointTool implements McpTool {
     public InputSchema getInputSchema() {
         return InputSchema.builder()
                 .property("action", PropertySchema.stringEnum(
-                        "Breakpoint action: 'set', 'remove', or 'list'.",
-                        List.of("set", "remove", "list")))
+                        "Breakpoint action: 'set', 'remove', 'clear', or 'list'.",
+                        List.of("set", "remove", "clear", "list")))
                 .property("class", PropertySchema.string("Fully qualified class name (e.g. 'com.example.MyService'). Required for 'set'."))
                 .property("line", PropertySchema.builder().type("integer").description("Line number (1-based). Required for 'set'.").build())
                 .property("condition", PropertySchema.string("Optional Java boolean expression — breakpoint only triggers when this evaluates to true. For 'set' only."))
@@ -45,14 +47,15 @@ public class BreakpointTool implements McpTool {
 
     @Override
     public Object execute(Args args) throws Exception {
-        String action = args.requireString("action", "Breakpoint action: set, remove, or list");
+        String action = args.requireString("action", "Breakpoint action: set, remove, clear, or list");
 
         return switch (action) {
             case "set" -> executeSet(args);
             case "remove" -> executeRemove(args);
+            case "clear" -> Map.of("removed", breakpointManager.clearBreakpoints());
             case "list" -> breakpointManager.listBreakpoints();
             default -> throw new IllegalArgumentException(
-                    "Invalid breakpoint action: '" + action + "'. Must be 'set', 'remove', or 'list'.");
+                    "Invalid breakpoint action: '" + action + "'. Must be 'set', 'remove', 'clear', or 'list'.");
         };
     }
 
