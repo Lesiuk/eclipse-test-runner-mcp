@@ -23,7 +23,7 @@ public class RunTestTool implements McpTool {
 
     // Serialize run_test calls — only one execution at a time
     private static final Semaphore RUN_LOCK = new Semaphore(1, true);
-    private static final int LOCK_TIMEOUT_MINUTES = 15;
+    private static final int LOCK_TIMEOUT_SECONDS = 30;
 
     private final Map<String, String> launchModes;
     private final DebugContext debugContext;
@@ -73,9 +73,11 @@ public class RunTestTool implements McpTool {
 
     @Override
     public Object execute(Args args) throws Exception {
-        if (!RUN_LOCK.tryAcquire(LOCK_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
+        if (!RUN_LOCK.tryAcquire(LOCK_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
             throw new IllegalStateException(
-                    "Timed out waiting for another run_test to complete. Use 'terminate' to stop the stuck test.");
+                    "Another run_test call is already in progress and did not complete within "
+                    + LOCK_TIMEOUT_SECONDS + " seconds. "
+                    + "Use 'terminate' to stop the running test, then retry.");
         }
         try {
             return doExecute(args);

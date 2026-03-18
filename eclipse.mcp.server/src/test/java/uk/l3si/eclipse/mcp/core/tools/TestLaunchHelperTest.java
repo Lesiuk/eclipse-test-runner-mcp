@@ -1,13 +1,105 @@
 package uk.l3si.eclipse.mcp.core.tools;
 
+import org.eclipse.debug.core.DebugPlugin;
+import org.eclipse.debug.core.ILaunch;
+import org.eclipse.debug.core.ILaunchConfiguration;
+import org.eclipse.debug.core.ILaunchConfigurationType;
+import org.eclipse.debug.core.ILaunchManager;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class TestLaunchHelperTest {
+
+    private ILaunch mockJUnitLaunch(String name, boolean terminated) throws Exception {
+        ILaunch launch = mock(ILaunch.class);
+        ILaunchConfiguration config = mock(ILaunchConfiguration.class);
+        ILaunchConfigurationType type = mock(ILaunchConfigurationType.class);
+        when(type.getIdentifier()).thenReturn("org.eclipse.jdt.junit.launchconfig");
+        when(config.getName()).thenReturn(name);
+        when(config.getType()).thenReturn(type);
+        when(launch.getLaunchConfiguration()).thenReturn(config);
+        when(launch.isTerminated()).thenReturn(terminated);
+        return launch;
+    }
+
+    @Test
+    void checkNoTestRunning_noLaunches_passes() throws Exception {
+        ILaunchManager manager = mock(ILaunchManager.class);
+        when(manager.getLaunches()).thenReturn(new ILaunch[]{});
+
+        DebugPlugin debugPlugin = mock(DebugPlugin.class);
+        when(debugPlugin.getLaunchManager()).thenReturn(manager);
+
+        try (MockedStatic<DebugPlugin> mocked = mockStatic(DebugPlugin.class)) {
+            mocked.when(DebugPlugin::getDefault).thenReturn(debugPlugin);
+            assertDoesNotThrow(() -> TestLaunchHelper.checkNoTestRunning());
+        }
+    }
+
+    @Test
+    void checkNoTestRunning_terminatedLaunchesRemoved() throws Exception {
+        ILaunch terminated1 = mockJUnitLaunch("TestA", true);
+        ILaunch terminated2 = mockJUnitLaunch("TestB", true);
+
+        ILaunchManager manager = mock(ILaunchManager.class);
+        when(manager.getLaunches()).thenReturn(new ILaunch[]{terminated1, terminated2});
+
+        DebugPlugin debugPlugin = mock(DebugPlugin.class);
+        when(debugPlugin.getLaunchManager()).thenReturn(manager);
+
+        try (MockedStatic<DebugPlugin> mocked = mockStatic(DebugPlugin.class)) {
+            mocked.when(DebugPlugin::getDefault).thenReturn(debugPlugin);
+
+            assertDoesNotThrow(() -> TestLaunchHelper.checkNoTestRunning());
+            verify(manager).removeLaunches(argThat(arr -> arr.length == 2));
+        }
+    }
+
+    @Test
+    void checkNoTestRunning_runningLaunchThrows() throws Exception {
+        ILaunch running = mockJUnitLaunch("MyTests", false);
+
+        ILaunchManager manager = mock(ILaunchManager.class);
+        when(manager.getLaunches()).thenReturn(new ILaunch[]{running});
+
+        DebugPlugin debugPlugin = mock(DebugPlugin.class);
+        when(debugPlugin.getLaunchManager()).thenReturn(manager);
+
+        try (MockedStatic<DebugPlugin> mocked = mockStatic(DebugPlugin.class)) {
+            mocked.when(DebugPlugin::getDefault).thenReturn(debugPlugin);
+
+            IllegalStateException ex = assertThrows(IllegalStateException.class,
+                    () -> TestLaunchHelper.checkNoTestRunning());
+            assertTrue(ex.getMessage().contains("MyTests"));
+        }
+    }
+
+    @Test
+    void checkNoTestRunning_removesTerminatedBeforeThrowingForRunning() throws Exception {
+        ILaunch terminated = mockJUnitLaunch("OldTest", true);
+        ILaunch running = mockJUnitLaunch("ActiveTest", false);
+
+        ILaunchManager manager = mock(ILaunchManager.class);
+        when(manager.getLaunches()).thenReturn(new ILaunch[]{terminated, running});
+
+        DebugPlugin debugPlugin = mock(DebugPlugin.class);
+        when(debugPlugin.getLaunchManager()).thenReturn(manager);
+
+        try (MockedStatic<DebugPlugin> mocked = mockStatic(DebugPlugin.class)) {
+            mocked.when(DebugPlugin::getDefault).thenReturn(debugPlugin);
+
+            IllegalStateException ex = assertThrows(IllegalStateException.class,
+                    () -> TestLaunchHelper.checkNoTestRunning());
+            assertTrue(ex.getMessage().contains("ActiveTest"));
+            // Terminated launches should still be cleaned up
+            verify(manager).removeLaunches(argThat(arr -> arr.length == 1));
+        }
+    }
 
     @Test
     void validMethodDoesNotThrow() throws Exception {

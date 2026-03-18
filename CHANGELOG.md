@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.73.0
+
+- **Fix `run_test` stale-launch deadlock** — `checkNoTestRunning()` now removes terminated JUnit launches from the launch manager before checking for running ones, preventing false "already running" errors caused by a race between JUnit session completion and `ILaunch.isTerminated()`
+- **Clean up launches after normal test completion** — `launchTest()` now waits for `isTerminated()` and removes the launch from the manager when done, matching the cleanup that `terminate` already performed
+- **Reduce `run_test` semaphore timeout from 15 minutes to 30 seconds** — prevents cascading pile-ups when MCP protocol times out and retries queue behind a long-held lock
+
 ## v0.72.0
 
 - **Serialize `run_test` calls with a fair semaphore** — only one `run_test` executes at a time; concurrent callers wait up to 15 minutes instead of racing past the launch-in-progress check
