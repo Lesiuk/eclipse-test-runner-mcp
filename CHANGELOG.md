@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.72.0
+
+- **Serialize `run_test` calls with a fair semaphore** — only one `run_test` executes at a time; concurrent callers wait up to 15 minutes instead of racing past the launch-in-progress check
+
 ## v0.71.0
 
 - **Remove `fields` from variable output** — `VariableCollector` no longer dumps all field names for custom objects, eliminating massive response bloat for classes with many constants
