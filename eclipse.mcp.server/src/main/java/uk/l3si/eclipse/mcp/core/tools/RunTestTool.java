@@ -16,8 +16,14 @@ import org.eclipse.core.resources.ResourcesPlugin;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 public class RunTestTool implements McpTool {
+
+    // Serialize run_test calls — only one execution at a time
+    private static final Semaphore RUN_LOCK = new Semaphore(1, true);
+    private static final int LOCK_TIMEOUT_MINUTES = 15;
 
     private final Map<String, String> launchModes;
     private final DebugContext debugContext;
@@ -67,6 +73,18 @@ public class RunTestTool implements McpTool {
 
     @Override
     public Object execute(Args args) throws Exception {
+        if (!RUN_LOCK.tryAcquire(LOCK_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
+            throw new IllegalStateException(
+                    "Timed out waiting for another run_test to complete. Use 'terminate' to stop the stuck test.");
+        }
+        try {
+            return doExecute(args);
+        } finally {
+            RUN_LOCK.release();
+        }
+    }
+
+    private Object doExecute(Args args) throws Exception {
         String configName = args.requireString("config", "launch configuration name");
         String className = args.requireString("class", "fully qualified test class name");
         String methodName = args.getString("method");
