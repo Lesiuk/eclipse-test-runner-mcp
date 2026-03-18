@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.75.0
+
+- **Group compilation errors to reduce LLM token usage** — `run_test` and `get_problems` now deduplicate errors by (project, message), returning grouped entries with count and up to 3 example locations instead of repeating the same error for every affected file. Includes a one-line summary (e.g. "1191 errors (150 unique) in project 'backend'") and caps output at the top 10 groups.
+
 ## v0.74.0
 
 - **Preserve console output across test runs** — `checkNoTestRunning()` and `cleanupLaunch()` no longer remove terminated launches from the launch manager, so Eclipse keeps the console output visible instead of clearing it on every `run_test` invocation

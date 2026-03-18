@@ -7,6 +7,6 @@ import lombok.Builder;
 public class ProblemsResult {
     private int errorCount;
     private int warningCount;
-    private List<ProblemInfo> errors;
-    private List<ProblemInfo> warnings;
+    private List<GroupedProblem> errors;
+    private List<GroupedProblem> warnings;
 }

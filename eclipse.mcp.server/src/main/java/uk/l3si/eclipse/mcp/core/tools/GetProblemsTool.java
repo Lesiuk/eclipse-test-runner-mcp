@@ -1,5 +1,6 @@
 package uk.l3si.eclipse.mcp.core.tools;
 
+import uk.l3si.eclipse.mcp.model.GroupedProblem;
 import uk.l3si.eclipse.mcp.model.ProblemInfo;
 import uk.l3si.eclipse.mcp.model.ProblemsResult;
 import uk.l3si.eclipse.mcp.tools.Args;
@@ -93,8 +94,8 @@ public class GetProblemsTool implements McpTool {
         return ProblemsResult.builder()
                 .errorCount(errorCount)
                 .warningCount(warningCount)
-                .errors(errors)
-                .warnings(warnings)
+                .errors(GroupedProblem.group(errors))
+                .warnings(GroupedProblem.group(warnings))
                 .build();
     }
 }

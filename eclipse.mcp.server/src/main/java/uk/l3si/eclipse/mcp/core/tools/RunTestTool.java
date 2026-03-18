@@ -1,6 +1,7 @@
 package uk.l3si.eclipse.mcp.core.tools;
 
 import uk.l3si.eclipse.mcp.debugging.DebugContext;
+import uk.l3si.eclipse.mcp.model.GroupedProblem;
 import uk.l3si.eclipse.mcp.model.LaunchTestResult;
 import uk.l3si.eclipse.mcp.model.ProblemInfo;
 import uk.l3si.eclipse.mcp.model.RunTestResult;
@@ -115,7 +116,8 @@ public class RunTestTool implements McpTool {
         if (!compilationErrors.isEmpty()) {
             return RunTestResult.builder()
                     .refreshedAndBuilt(builtProjects)
-                    .compilationErrors(compilationErrors)
+                    .compilationErrorSummary(GroupedProblem.summarize(compilationErrors))
+                    .compilationErrors(GroupedProblem.group(compilationErrors))
                     .build();
         }
 
