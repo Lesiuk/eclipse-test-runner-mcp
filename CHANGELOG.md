@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.74.0
+
+- **Preserve console output across test runs** — `checkNoTestRunning()` and `cleanupLaunch()` no longer remove terminated launches from the launch manager, so Eclipse keeps the console output visible instead of clearing it on every `run_test` invocation
+
 ## v0.73.0
 
 - **Fix `run_test` stale-launch deadlock** — `checkNoTestRunning()` now removes terminated JUnit launches from the launch manager before checking for running ones, preventing false "already running" errors caused by a race between JUnit session completion and `ILaunch.isTerminated()`

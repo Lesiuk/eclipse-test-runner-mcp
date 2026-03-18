@@ -42,7 +42,7 @@ class TestLaunchHelperTest {
     }
 
     @Test
-    void checkNoTestRunning_terminatedLaunchesRemoved() throws Exception {
+    void checkNoTestRunning_terminatedLaunchesIgnored() throws Exception {
         ILaunch terminated1 = mockJUnitLaunch("TestA", true);
         ILaunch terminated2 = mockJUnitLaunch("TestB", true);
 
@@ -56,7 +56,7 @@ class TestLaunchHelperTest {
             mocked.when(DebugPlugin::getDefault).thenReturn(debugPlugin);
 
             assertDoesNotThrow(() -> TestLaunchHelper.checkNoTestRunning());
-            verify(manager).removeLaunches(argThat(arr -> arr.length == 2));
+            verify(manager, never()).removeLaunches(any());
         }
     }
 
@@ -80,7 +80,7 @@ class TestLaunchHelperTest {
     }
 
     @Test
-    void checkNoTestRunning_removesTerminatedBeforeThrowingForRunning() throws Exception {
+    void checkNoTestRunning_skipsTerminatedAndThrowsForRunning() throws Exception {
         ILaunch terminated = mockJUnitLaunch("OldTest", true);
         ILaunch running = mockJUnitLaunch("ActiveTest", false);
 
@@ -96,8 +96,46 @@ class TestLaunchHelperTest {
             IllegalStateException ex = assertThrows(IllegalStateException.class,
                     () -> TestLaunchHelper.checkNoTestRunning());
             assertTrue(ex.getMessage().contains("ActiveTest"));
-            // Terminated launches should still be cleaned up
-            verify(manager).removeLaunches(argThat(arr -> arr.length == 1));
+            verify(manager, never()).removeLaunches(any());
+        }
+    }
+
+    @Test
+    void checkNoTestRunning_nonJUnitLaunchesIgnored() throws Exception {
+        ILaunch nonJUnit = mock(ILaunch.class);
+        ILaunchConfiguration config = mock(ILaunchConfiguration.class);
+        ILaunchConfigurationType type = mock(ILaunchConfigurationType.class);
+        when(type.getIdentifier()).thenReturn("org.eclipse.debug.core.groups");
+        when(config.getType()).thenReturn(type);
+        when(nonJUnit.getLaunchConfiguration()).thenReturn(config);
+        when(nonJUnit.isTerminated()).thenReturn(false);
+
+        ILaunchManager manager = mock(ILaunchManager.class);
+        when(manager.getLaunches()).thenReturn(new ILaunch[]{nonJUnit});
+
+        DebugPlugin debugPlugin = mock(DebugPlugin.class);
+        when(debugPlugin.getLaunchManager()).thenReturn(manager);
+
+        try (MockedStatic<DebugPlugin> mocked = mockStatic(DebugPlugin.class)) {
+            mocked.when(DebugPlugin::getDefault).thenReturn(debugPlugin);
+            assertDoesNotThrow(() -> TestLaunchHelper.checkNoTestRunning());
+        }
+    }
+
+    @Test
+    void checkNoTestRunning_nullConfigLaunchSkipped() throws Exception {
+        ILaunch noConfig = mock(ILaunch.class);
+        when(noConfig.getLaunchConfiguration()).thenReturn(null);
+
+        ILaunchManager manager = mock(ILaunchManager.class);
+        when(manager.getLaunches()).thenReturn(new ILaunch[]{noConfig});
+
+        DebugPlugin debugPlugin = mock(DebugPlugin.class);
+        when(debugPlugin.getLaunchManager()).thenReturn(manager);
+
+        try (MockedStatic<DebugPlugin> mocked = mockStatic(DebugPlugin.class)) {
+            mocked.when(DebugPlugin::getDefault).thenReturn(debugPlugin);
+            assertDoesNotThrow(() -> TestLaunchHelper.checkNoTestRunning());
         }
     }
 

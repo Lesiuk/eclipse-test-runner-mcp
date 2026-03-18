@@ -20,7 +20,6 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.PlatformUI;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @SuppressWarnings("restriction")
@@ -28,35 +27,20 @@ public class TestLaunchHelper {
 
     /**
      * Check that no JUnit test is currently running.
-     * Also cleans up terminated JUnit launches from the launch manager to prevent
-     * stale entries from causing false "already running" errors on subsequent calls.
      * Throws if a test is genuinely in progress, suggesting to use 'terminate' first.
      */
     static void checkNoTestRunning() throws Exception {
         ILaunchManager manager = DebugPlugin.getDefault().getLaunchManager();
-        List<ILaunch> terminated = new ArrayList<>();
-        String runningConfigName = null;
 
         for (ILaunch launch : manager.getLaunches()) {
             if (launch.getLaunchConfiguration() == null || !isJUnitConfig(launch.getLaunchConfiguration())) {
                 continue;
             }
-            if (launch.isTerminated()) {
-                terminated.add(launch);
-            } else if (runningConfigName == null) {
-                runningConfigName = launch.getLaunchConfiguration().getName();
+            if (!launch.isTerminated()) {
+                throw new IllegalStateException(
+                        "A test is already running: '" + launch.getLaunchConfiguration().getName() + "'. "
+                        + "Use 'terminate' to stop it before launching a new test.");
             }
-        }
-
-        // Remove stale terminated JUnit launches
-        if (!terminated.isEmpty()) {
-            manager.removeLaunches(terminated.toArray(new ILaunch[0]));
-        }
-
-        if (runningConfigName != null) {
-            throw new IllegalStateException(
-                    "A test is already running: '" + runningConfigName + "'. "
-                    + "Use 'terminate' to stop it before launching a new test.");
         }
     }
 
@@ -287,19 +271,16 @@ public class TestLaunchHelper {
     private static final long LAUNCH_CLEANUP_POLL_MS = 100;
 
     /**
-     * Wait for a launch to fully terminate, then remove it from the launch manager.
+     * Wait for a launch to fully terminate.
      * This closes the race window between JUnit session completion and ILaunch termination,
      * preventing checkNoTestRunning() from seeing a briefly-not-yet-terminated launch.
+     * The launch is intentionally kept in the launch manager to preserve console output.
      */
     private static void cleanupLaunch(ILaunch launch) {
         try {
             long deadline = System.currentTimeMillis() + LAUNCH_CLEANUP_TIMEOUT_MS;
             while (!launch.isTerminated() && System.currentTimeMillis() < deadline) {
                 Thread.sleep(LAUNCH_CLEANUP_POLL_MS);
-            }
-            if (launch.isTerminated()) {
-                DebugPlugin.getDefault().getLaunchManager()
-                        .removeLaunches(new ILaunch[]{launch});
             }
         } catch (Exception e) {
             // best effort cleanup
