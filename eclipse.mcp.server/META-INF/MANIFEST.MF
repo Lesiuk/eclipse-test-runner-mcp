@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Eclipse Test Runner MCP
 Bundle-SymbolicName: eclipse.mcp.server;singleton:=true
-Bundle-Version: 0.78.0.qualifier
+Bundle-Version: 0.79.0.qualifier
 Bundle-Activator: uk.l3si.eclipse.mcp.Activator
 Bundle-Vendor: Eclipse MCP
 Require-Bundle: org.eclipse.core.runtime,

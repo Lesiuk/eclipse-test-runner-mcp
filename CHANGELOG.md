@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.79.0
+
+- **Show helpful NullPointerException messages** — `evaluate_expression` now invokes `getMessage()` on exceptions in the target VM instead of reading the `detailMessage` field directly, capturing JDK 14+ helpful NPE messages (e.g. "Cannot invoke 'X.method()' because 'Y' is null")
+
 ## v0.78.0
 
 - **Add `clean_build` tool** — performs a full clean and rebuild of Eclipse projects from scratch. Use when Eclipse gets heavily out of sync (stale errors, missing classes, broken incremental build state). Accepts an optional `projects` list to target specific projects; omit to clean/rebuild all open projects.

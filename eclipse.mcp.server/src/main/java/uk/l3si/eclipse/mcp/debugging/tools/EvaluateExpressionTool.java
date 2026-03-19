@@ -383,7 +383,7 @@ public class EvaluateExpressionTool implements McpTool {
                 try {
                     ObjectReference objRef = invEx.exception();
                     String name = objRef.type().name();
-                    String message = readDetailMessage(objRef);
+                    String message = readDetailMessage(objRef, frame);
                     String result = message != null
                             ? name + ": " + message
                             : name + " thrown in target VM";
@@ -499,10 +499,36 @@ public class EvaluateExpressionTool implements McpTool {
     }
 
     /**
-     * Read the {@code detailMessage} field from an exception ObjectReference
-     * in the target VM (field read only, no method invocation in the target VM).
+     * Read the exception message by invoking {@code getMessage()} on the
+     * exception object in the target VM.  This is necessary because JDK 14+
+     * helpful NullPointerException messages are computed lazily by
+     * {@code getMessage()} and are NOT stored in the {@code detailMessage}
+     * field.  Falls back to reading the field directly if invocation fails
+     * (e.g. thread not suspended).
      */
-    private static String readDetailMessage(ObjectReference objRef) {
+    private static String readDetailMessage(ObjectReference objRef,
+            IJavaStackFrame frame) {
+        // Try invoking getMessage() first — captures lazy messages (helpful NPEs)
+        try {
+            IJavaThread javaThread = (IJavaThread) frame.getThread();
+            if (javaThread instanceof JDIThread jdiThread) {
+                ThreadReference threadRef = jdiThread.getUnderlyingThread();
+                if (objRef.referenceType() instanceof ClassType classType) {
+                    Method getMessage = classType.concreteMethodByName(
+                            "getMessage", "()Ljava/lang/String;");
+                    if (getMessage != null) {
+                        Value result = objRef.invokeMethod(
+                                threadRef, getMessage, Collections.emptyList(),
+                                ObjectReference.INVOKE_SINGLE_THREADED);
+                        if (result instanceof StringReference strRef) {
+                            return strRef.value();
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        // Fallback: read the detailMessage field directly
         try {
             Field field = objRef.referenceType().fieldByName("detailMessage");
             if (field == null) return null;
