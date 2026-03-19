@@ -93,7 +93,8 @@ final class ProjectBuilder {
                     return Status.OK_STATUS;
                 } catch (Exception e) {
                     jobError[0] = e;
-                    return new Status(IStatus.ERROR, "eclipse.mcp.server", "Refresh & build failed: " + e.getMessage(), e);
+                    // Return OK to avoid Eclipse error dialog - error is thrown to caller after job completes
+                    return Status.OK_STATUS;
                 }
             }
         };

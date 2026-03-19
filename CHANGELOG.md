@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.77.0
+
+- **Fix error dialogs still appearing** — `ProjectBuilder` job now returns `OK_STATUS` instead of error status, preventing Eclipse from showing popup dialogs even when builds fail (errors are still properly returned to MCP caller)
+
 ## v0.76.0
 
 - **Suppress error dialogs for MCP-initiated builds** — `ProjectBuilder` job now uses `setSystem(true)` instead of `setUser(true)`, preventing Eclipse from showing error popup windows (e.g. "Project not found") for failures that are already reported back to the MCP caller
