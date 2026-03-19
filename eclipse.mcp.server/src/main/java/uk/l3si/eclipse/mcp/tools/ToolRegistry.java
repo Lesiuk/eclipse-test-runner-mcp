@@ -45,6 +45,7 @@ public class ToolRegistry {
         addTool(new GetConsoleOutputTool());
         addTool(new GetCoverageTool());
         addTool(new FindReferencesTool());
+        addTool(new CleanBuildTool());
         BreakpointManager breakpointManager = new BreakpointManager();
 
         addTool(new BreakpointTool(breakpointManager), "Debugging");

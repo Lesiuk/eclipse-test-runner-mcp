@@ -58,6 +58,7 @@ Parameters marked with **\*** are required. All others are optional.
 | `get_console_output` | stdout/stderr from a launch |
 | `terminate` | Stop running launches |
 | `find_references` | Find all references to a class, method, or field |
+| `clean_build` | Clean and rebuild projects from scratch (use when Eclipse is heavily out of sync) |
 
 #### Debugging
 
@@ -190,6 +191,10 @@ Stops running launches. Optionally filtered by configuration name. Returns the n
 **`find_references`** `(class*, member)` → `{element, totalReferences, files[{class, references[{line, source}]}]}`
 
 Find all references to a Java class, method, or field across all open workspace projects. Uses Eclipse's semantic search engine — finds actual usages, not just name matches. If `member` is omitted, finds references to the class itself. Handles method overloads (searches all overloads together). Results grouped by file with line numbers and source line context.
+
+**`clean_build`** `(projects[])` → `{projects[]}`
+
+Clean and rebuild Eclipse projects from scratch. Refreshes from disk, performs a full clean (removes all build artifacts), then does a complete rebuild. Use when Eclipse gets heavily out of sync — stale compilation errors, phantom missing classes, or broken incremental build state. Pass `projects` to target specific projects, or omit to clean/rebuild all open projects.
 
 #### Debugging
 

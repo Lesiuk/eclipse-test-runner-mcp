@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.78.0
+
+- **Add `clean_build` tool** — performs a full clean and rebuild of Eclipse projects from scratch. Use when Eclipse gets heavily out of sync (stale errors, missing classes, broken incremental build state). Accepts an optional `projects` list to target specific projects; omit to clean/rebuild all open projects.
+
 ## v0.77.0
 
 - **Fix error dialogs still appearing** — `ProjectBuilder` job now returns `OK_STATUS` instead of error status, preventing Eclipse from showing popup dialogs even when builds fail (errors are still properly returned to MCP caller)

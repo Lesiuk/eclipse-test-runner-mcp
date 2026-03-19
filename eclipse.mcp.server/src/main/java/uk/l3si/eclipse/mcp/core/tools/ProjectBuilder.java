@@ -22,6 +22,98 @@ final class ProjectBuilder {
     private ProjectBuilder() {}
 
     /**
+     * Clean and fully rebuild the given projects.  Use when incremental
+     * build state is suspected to be stale or corrupt.
+     *
+     * @param projectNames specific projects to clean/rebuild, or {@code null} for all open projects
+     * @return names of projects that were cleaned and rebuilt
+     */
+    static List<String> cleanAndBuild(List<String> projectNames) throws Exception {
+        final Exception[] jobError = { null };
+        final List<String> builtProjects = new ArrayList<>();
+
+        Job job = new Job("MCP: Clean & Rebuild") {
+            @Override
+            protected IStatus run(IProgressMonitor monitor) {
+                try {
+                    IProject[] projects = resolveProjects(projectNames);
+                    SubMonitor sub = SubMonitor.convert(monitor, projects.length * 3);
+                    doCleanAndBuild(projects, builtProjects, sub);
+                    return Status.OK_STATUS;
+                } catch (Exception e) {
+                    jobError[0] = e;
+                    return Status.OK_STATUS;
+                }
+            }
+        };
+
+        job.setSystem(true);
+        job.schedule();
+        job.join();
+
+        if (jobError[0] != null) {
+            throw jobError[0];
+        }
+
+        return builtProjects;
+    }
+
+    /**
+     * Resolve project names to IProject handles.  If {@code projectNames} is
+     * null or empty, returns all projects in the workspace.
+     */
+    static IProject[] resolveProjects(List<String> projectNames) {
+        if (projectNames != null && !projectNames.isEmpty()) {
+            IProject[] projects = new IProject[projectNames.size()];
+            for (int i = 0; i < projectNames.size(); i++) {
+                String name = projectNames.get(i);
+                IProject project = ResourcesPlugin.getWorkspace().getRoot().getProject(name);
+                if (!project.exists()) {
+                    throw new IllegalArgumentException("Project not found: " + name);
+                }
+                projects[i] = project;
+            }
+            return projects;
+        }
+        return ResourcesPlugin.getWorkspace().getRoot().getProjects();
+    }
+
+    /**
+     * Performs refresh, clean, and full-build on the given projects.
+     * Extracted for testability — call from a Job for async execution.
+     */
+    static void doCleanAndBuild(IProject[] projects, List<String> builtProjects,
+                                IProgressMonitor monitor) throws Exception {
+        // Refresh all
+        for (IProject project : projects) {
+            if (project.isOpen()) {
+                project.refreshLocal(IResource.DEPTH_INFINITE, monitor);
+            }
+        }
+
+        // Clean all
+        for (IProject project : projects) {
+            if (project.isOpen()) {
+                project.build(IncrementalProjectBuilder.CLEAN_BUILD, monitor);
+            }
+        }
+
+        // Wait for any auto-build triggered by clean
+        Job.getJobManager().join(ResourcesPlugin.FAMILY_AUTO_BUILD, null);
+
+        // Full build all
+        for (IProject project : projects) {
+            if (project.isOpen()) {
+                project.build(IncrementalProjectBuilder.FULL_BUILD, monitor);
+                builtProjects.add(project.getName());
+            }
+        }
+
+        // Wait for auto-build to finish
+        Job.getJobManager().join(ResourcesPlugin.FAMILY_AUTO_BUILD, null);
+    }
+
+    /**
      * Refresh and incrementally build the given projects.
      *
      * @param projectNames specific projects to build, or {@code null} to build all open projects
