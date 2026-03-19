@@ -98,7 +98,7 @@ final class ProjectBuilder {
             }
         };
 
-        job.setUser(true);
+        job.setSystem(true);
         job.schedule();
         job.join();
 

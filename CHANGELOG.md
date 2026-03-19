@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.76.0
+
+- **Suppress error dialogs for MCP-initiated builds** — `ProjectBuilder` job now uses `setSystem(true)` instead of `setUser(true)`, preventing Eclipse from showing error popup windows (e.g. "Project not found") for failures that are already reported back to the MCP caller
+
 ## v0.75.0
 
 - **Group compilation errors to reduce LLM token usage** — `run_test` and `get_problems` now deduplicate errors by (project, message), returning grouped entries with count and up to 3 example locations instead of repeating the same error for every affected file. Includes a one-line summary (e.g. "1191 errors (150 unique) in project 'backend'") and caps output at the top 10 groups.
