@@ -26,10 +26,12 @@ final class ProjectBuilder {
      * Build an error message for a missing project, listing available open projects.
      */
     static String projectNotFoundMessage(String name) {
-        List<String> open = Arrays.stream(ResourcesPlugin.getWorkspace().getRoot().getProjects())
-                .filter(IProject::isOpen)
-                .map(IProject::getName)
-                .toList();
+        IProject[] projects = ResourcesPlugin.getWorkspace().getRoot().getProjects();
+        List<String> open = projects == null ? List.of()
+                : Arrays.stream(projects)
+                        .filter(IProject::isOpen)
+                        .map(IProject::getName)
+                        .toList();
         return "Project not found: " + name + ". Available projects: " + open;
     }
 

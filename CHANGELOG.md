@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.81.0
+
+- **Fix NPE in projectNotFoundMessage** — handle null from `getProjects()` when listing available projects in error messages, preventing NullPointerException when workspace has no projects array
+
 ## v0.80.0
 
 - **List available projects on "Project not found" errors** — when a tool receives an invalid project name, the error message now includes all open workspace projects so the LLM can self-correct without a separate `list_projects` call
