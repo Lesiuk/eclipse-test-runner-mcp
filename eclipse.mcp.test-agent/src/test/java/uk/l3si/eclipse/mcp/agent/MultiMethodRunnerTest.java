@@ -116,38 +116,38 @@ class MultiMethodRunnerTest {
 
         @Test
         void findsPublicMethod() {
-            Method m = MultiMethodRunner.findMethod(Child.class, "childMethod");
+            Method m = ReflectionUtils.findMethod(Child.class, "childMethod");
             assertEquals("childMethod", m.getName());
         }
 
         @Test
         void findsInheritedMethod() {
-            Method m = MultiMethodRunner.findMethod(Child.class, "parentMethod");
+            Method m = ReflectionUtils.findMethod(Child.class, "parentMethod");
             assertEquals("parentMethod", m.getName());
         }
 
         @Test
         void findsPrivateMethod() {
-            Method m = MultiMethodRunner.findMethod(Child.class, "privateMethod");
+            Method m = ReflectionUtils.findMethod(Child.class, "privateMethod");
             assertEquals("privateMethod", m.getName());
             assertTrue(m.canAccess(new Child()));
         }
 
         @Test
         void findsMethodWithParams() {
-            Method m = MultiMethodRunner.findMethod(String.class, "charAt", int.class);
+            Method m = ReflectionUtils.findMethod(String.class, "charAt", int.class);
             assertEquals("charAt", m.getName());
         }
 
         @Test
         void throwsForNonExistentMethod() {
             assertThrows(IllegalStateException.class,
-                    () -> MultiMethodRunner.findMethod(Child.class, "noSuchMethod"));
+                    () -> ReflectionUtils.findMethod(Child.class, "noSuchMethod"));
         }
 
         @Test
         void findsInterfaceMethod() {
-            Method m = MultiMethodRunner.findMethod(ImplementsInterface.class, "interfaceMethod");
+            Method m = ReflectionUtils.findMethod(ImplementsInterface.class, "interfaceMethod");
             assertEquals("interfaceMethod", m.getName());
         }
     }
@@ -167,14 +167,14 @@ class MultiMethodRunnerTest {
 
         @Test
         void findsDirectField() {
-            Field f = MultiMethodRunner.findField(Derived.class, "derivedField");
+            Field f = ReflectionUtils.findField(Derived.class, "derivedField");
             assertEquals("derivedField", f.getName());
         }
 
         @Test
         void findsInheritedPrivateField() throws Exception {
             Derived d = new Derived();
-            Field f = MultiMethodRunner.findField(Derived.class, "baseField");
+            Field f = ReflectionUtils.findField(Derived.class, "baseField");
             assertEquals("baseField", f.getName());
             assertEquals("base", f.get(d));
         }
@@ -182,7 +182,7 @@ class MultiMethodRunnerTest {
         @Test
         void throwsForNonExistentField() {
             assertThrows(IllegalStateException.class,
-                    () -> MultiMethodRunner.findField(Derived.class, "noSuchField"));
+                    () -> ReflectionUtils.findField(Derived.class, "noSuchField"));
         }
     }
 
@@ -257,7 +257,7 @@ class MultiMethodRunnerTest {
         }
 
         private Filter createFilter(String... methods) throws Exception {
-            return (Filter) MultiMethodRunner.createMultiMethodFilter(
+            return (Filter) MultiMethodFilterGenerator.create(
                     getClass().getClassLoader(), Filter.class, methods);
         }
 
@@ -281,7 +281,7 @@ class MultiMethodRunnerTest {
 
         @Test
         void filterKeepsOnlySelectedMethods() throws Exception {
-            Filter filter = (Filter) MultiMethodRunner.createMultiMethodFilter(
+            Filter filter = (Filter) MultiMethodFilterGenerator.create(
                     getClass().getClassLoader(), Filter.class,
                     new String[]{"alpha", "gamma"});
 
@@ -299,7 +299,7 @@ class MultiMethodRunnerTest {
 
         @Test
         void filterWithSingleMethod() throws Exception {
-            Filter filter = (Filter) MultiMethodRunner.createMultiMethodFilter(
+            Filter filter = (Filter) MultiMethodFilterGenerator.create(
                     getClass().getClassLoader(), Filter.class,
                     new String[]{"beta"});
 
@@ -314,7 +314,7 @@ class MultiMethodRunnerTest {
 
         @Test
         void filterWithAllMethods() throws Exception {
-            Filter filter = (Filter) MultiMethodRunner.createMultiMethodFilter(
+            Filter filter = (Filter) MultiMethodFilterGenerator.create(
                     getClass().getClassLoader(), Filter.class,
                     new String[]{"alpha", "beta", "gamma", "delta"});
 
@@ -328,7 +328,7 @@ class MultiMethodRunnerTest {
 
         @Test
         void filteredRunnerDescription_hasClassAsRoot() throws Exception {
-            Filter filter = (Filter) MultiMethodRunner.createMultiMethodFilter(
+            Filter filter = (Filter) MultiMethodFilterGenerator.create(
                     getClass().getClassLoader(), Filter.class,
                     new String[]{"alpha", "beta"});
 
@@ -424,7 +424,7 @@ class MultiMethodRunnerTest {
         @Test
         void findsMethodOnImplementation() throws Exception {
             // Use reflection to access the private findLoadTestsMethod
-            Method findMethod = MultiMethodRunner.class.getDeclaredMethod(
+            Method findMethod = ReflectionUtils.class.getDeclaredMethod(
                     "findLoadTestsMethod", Class.class, Class.class);
             findMethod.setAccessible(true);
 
@@ -437,7 +437,7 @@ class MultiMethodRunnerTest {
 
         @Test
         void findsMethodViaInterface() throws Exception {
-            Method findMethod = MultiMethodRunner.class.getDeclaredMethod(
+            Method findMethod = ReflectionUtils.class.getDeclaredMethod(
                     "findLoadTestsMethod", Class.class, Class.class);
             findMethod.setAccessible(true);
 
@@ -449,7 +449,7 @@ class MultiMethodRunnerTest {
 
         @Test
         void throwsWhenMethodNotFound() throws Exception {
-            Method findMethod = MultiMethodRunner.class.getDeclaredMethod(
+            Method findMethod = ReflectionUtils.class.getDeclaredMethod(
                     "findLoadTestsMethod", Class.class, Class.class);
             findMethod.setAccessible(true);
 

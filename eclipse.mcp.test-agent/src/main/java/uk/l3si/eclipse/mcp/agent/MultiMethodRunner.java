@@ -6,49 +6,42 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.Label;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
 
 /**
- * Reflection-based helper that executes multiple specific test methods within a
- * single RemoteTestRunner JVM launch. Invoked by bytecode injected into
+ * Orchestrates running multiple specific test methods within a single
+ * Eclipse JUnit test JVM launch. Called by bytecode injected into
  * {@code RemoteTestRunner.run()} by {@link RunMethodTransformer}.
  *
- * <p>All access to Eclipse JUnit runtime classes is via reflection so this
- * module has no compile-time dependency on Eclipse.</p>
+ * <p>All Eclipse JUnit runtime access is via reflection — this module
+ * has no compile-time dependency on Eclipse.</p>
  */
 public class MultiMethodRunner {
 
-    private static final String RUNNER_CLASS_NAME =
-            "org.eclipse.jdt.internal.junit.runner.RemoteTestRunner";
+    // -- Eclipse class names --------------------------------------------------
 
-    private static final String JUNIT5_LOADER =
-            "org.eclipse.jdt.internal.junit5.runner.JUnit5TestLoader";
-    private static final String JUNIT5_REF =
-            "org.eclipse.jdt.internal.junit5.runner.JUnit5TestReference";
+    private static final String RUNNER       = "org.eclipse.jdt.internal.junit.runner.RemoteTestRunner";
+    private static final String TEST_REF     = "org.eclipse.jdt.internal.junit.runner.ITestReference";
+    private static final String VISITOR      = "org.eclipse.jdt.internal.junit.runner.IVisitsTestTrees";
+    private static final String EXEC         = "org.eclipse.jdt.internal.junit.runner.TestExecution";
+    private static final String LISTENER     = "org.eclipse.jdt.internal.junit.runner.IListensToTestExecutions";
+    private static final String CLASSIFIER   = "org.eclipse.jdt.internal.junit.runner.IClassifiesThrowables";
 
-    private static final String JUNIT6_LOADER =
-            "org.eclipse.jdt.internal.junit6.runner.JUnit6TestLoader";
-    private static final String JUNIT6_REF =
-            "org.eclipse.jdt.internal.junit6.runner.JUnit6TestReference";
+    // -- Loader → reference class mappings ------------------------------------
 
-    private static final String JUNIT4_LOADER =
-            "org.eclipse.jdt.internal.junit4.runner.JUnit4TestLoader";
+    private static final String JUNIT5_LOADER = "org.eclipse.jdt.internal.junit5.runner.JUnit5TestLoader";
+    private static final String JUNIT5_REF    = "org.eclipse.jdt.internal.junit5.runner.JUnit5TestReference";
+    private static final String JUNIT6_LOADER = "org.eclipse.jdt.internal.junit6.runner.JUnit6TestLoader";
+    private static final String JUNIT6_REF    = "org.eclipse.jdt.internal.junit6.runner.JUnit6TestReference";
+    private static final String JUNIT4_LOADER = "org.eclipse.jdt.internal.junit4.runner.JUnit4TestLoader";
+
+    // -- Public entry point ---------------------------------------------------
 
     /**
-     * Parses a comma-separated list of method names.
+     * Parse comma-separated method names, trimming whitespace and filtering blanks.
      */
     static String[] parseMethods(String value) {
-        if (value == null || value.isBlank()) {
-            return new String[0];
-        }
+        if (value == null || value.isBlank()) return new String[0];
         return Arrays.stream(value.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
@@ -56,506 +49,199 @@ public class MultiMethodRunner {
     }
 
     /**
-     * Main entry point called by the injected bytecode. Orchestrates
-     * loading and running multiple test methods via reflection on the
-     * RemoteTestRunner instance.
+     * Main entry point called by the injected bytecode.
+     *
+     * @param runner the RemoteTestRunner instance (passed as Object to
+     *               avoid compile-time dependency)
      */
     public static void execute(Object runner) throws Exception {
         if (runner == null) {
             throw new IllegalArgumentException("Runner must not be null");
         }
-
-        String methodsProp = System.getProperty(RunMethodTransformer.PROPERTY_NAME);
-        String[] methods = parseMethods(methodsProp);
+        String[] methods = parseMethods(System.getProperty(RunMethodTransformer.PROPERTY_NAME));
         if (methods.length == 0) {
             throw new IllegalStateException(
-                    "System property '" + RunMethodTransformer.PROPERTY_NAME
-                            + "' is empty or not set");
+                    "System property '" + RunMethodTransformer.PROPERTY_NAME + "' is empty or not set");
         }
 
-        Class<?> runnerClass = Class.forName(RUNNER_CLASS_NAME);
+        Class<?> runnerClass = Class.forName(RUNNER);
 
-        // 1. connect()
-        Method connectMethod = findMethod(runnerClass, "connect");
-        connectMethod.invoke(runner);
+        // Phase 1: connect and gather context
+        ReflectionUtils.findMethod(runnerClass, "connect").invoke(runner);
 
-        // 2. getTestLoader() -> ITestLoader
-        Method getTestLoaderMethod = findMethod(runnerClass, "getTestLoader");
-        Object loader = getTestLoaderMethod.invoke(runner);
+        Object   loader         = ReflectionUtils.findMethod(runnerClass, "getTestLoader").invoke(runner);
+        String[] testClassNames = (String[]) ReflectionUtils.findField(runnerClass, "fTestClassNames").get(runner);
+        String[][] tags         = (String[][]) ReflectionUtils.findField(runnerClass, "fIncludeExcludeTags").get(runner);
+        Class<?>[] classes      = (Class<?>[]) ReflectionUtils.findMethod(runnerClass, "loadClasses", String[].class)
+                                        .invoke(runner, (Object) testClassNames);
 
-        // 3. Get fTestClassNames field -> String[]
-        Field testClassNamesField = findField(runnerClass, "fTestClassNames");
-        String[] testClassNames = (String[]) testClassNamesField.get(runner);
+        // Phase 2: build test references (loader-specific for proper JUnit view display)
+        List<Object> refs = buildTestRefs(loader, testClassNames[0], methods, tags, classes, runner);
 
-        // 4. Get fIncludeExcludeTags field -> String[][]
-        Field tagsField = findField(runnerClass, "fIncludeExcludeTags");
-        String[][] tags = (String[][]) tagsField.get(runner);
-
-        // 5. loadClasses(String[]) -> Class<?>[]
-        Method loadClassesMethod = findMethod(runnerClass, "loadClasses",
-                String[].class);
-        Class<?>[] classes = (Class<?>[]) loadClassesMethod.invoke(runner,
-                (Object) testClassNames);
-
-        // 6. Build test references — try to create a single reference for
-        //    all methods so the JUnit view groups them under one class node.
-        Class<?> refClass = Class.forName(
-                "org.eclipse.jdt.internal.junit.runner.ITestReference");
-
-        String loaderClassName = loader.getClass().getName();
-        String className = testClassNames[0];
-
-        List<Object> allRefs;
-        if (JUNIT5_LOADER.equals(loaderClassName)) {
-            allRefs = buildPlatformRefs(loader, className, methods, tags, runner, JUNIT5_REF);
-        } else if (JUNIT6_LOADER.equals(loaderClassName)) {
-            allRefs = buildPlatformRefs(loader, className, methods, tags, runner, JUNIT6_REF);
-        } else if (JUNIT4_LOADER.equals(loaderClassName)) {
-            allRefs = buildJUnit4Refs(loader, className, methods, classes);
-        } else {
-            allRefs = buildFallbackRefs(loader, classes, methods, tags,
-                    runner, runnerClass);
-        }
-
-        // 7. Combine into typed array
-        Object combined = Array.newInstance(refClass, allRefs.size());
-        for (int i = 0; i < allRefs.size(); i++) {
-            Array.set(combined, i, allRefs.get(i));
-        }
-
-        // 8. firstRunExecutionListener() -> listener
-        Method firstRunListenerMethod = findMethod(runnerClass,
-                "firstRunExecutionListener");
-        Object listener = firstRunListenerMethod.invoke(runner);
-
-        // 9. getClassifier() -> classifier
-        Method getClassifierMethod = findMethod(runnerClass, "getClassifier");
-        Object classifier = getClassifierMethod.invoke(runner);
-
-        // 10. Create TestExecution
-        Class<?> listenerType = Class.forName(
-                "org.eclipse.jdt.internal.junit.runner.IListensToTestExecutions");
-        Class<?> classifierType = Class.forName(
-                "org.eclipse.jdt.internal.junit.runner.IClassifiesThrowables");
-        Class<?> execClass = Class.forName(
-                "org.eclipse.jdt.internal.junit.runner.TestExecution");
-        Constructor<?> execCtor = execClass.getDeclaredConstructor(
-                listenerType, classifierType);
-        execCtor.setAccessible(true);
-        Object execution = execCtor.newInstance(listener, classifier);
-
-        // 11. Store execution in fExecution field
-        Field executionField = findField(runnerClass, "fExecution");
-        executionField.set(runner, execution);
-
-        // 12. Count tests
-        int testCount = 0;
-        Method countTestCases = findMethod(refClass, "countTestCases");
-        Object[] combinedArray = (Object[]) combined;
-        for (Object ref : combinedArray) {
-            testCount += (int) countTestCases.invoke(ref);
-        }
-
-        // 13. notifyTestRunStarted(count)
-        Method notifyStarted = findMethod(runnerClass,
-                "notifyTestRunStarted", int.class);
-        notifyStarted.invoke(runner, testCount);
-
-        // 14. Send trees: ref.sendTree(runner) — runner implements IVisitsTestTrees
-        Class<?> visitorType = Class.forName(
-                "org.eclipse.jdt.internal.junit.runner.IVisitsTestTrees");
-        Method sendTree = findMethod(refClass, "sendTree", visitorType);
-        for (Object ref : combinedArray) {
-            sendTree.invoke(ref, runner);
-        }
-
-        // 15. execution.run(combined)
-        long startTime = System.currentTimeMillis();
-        Method runMethod = findMethod(execClass, "run",
-                Array.newInstance(refClass, 0).getClass());
-        runMethod.invoke(execution, combined);
-        long elapsedMs = System.currentTimeMillis() - startTime;
-
-        // 16. notifyListenersOfTestEnd(execution, elapsedMs)
-        // The second parameter is actually a long
-        Method notifyEnd = findMethod(runnerClass,
-                "notifyListenersOfTestEnd",
-                execClass, long.class);
-        notifyEnd.invoke(runner, execution, elapsedMs);
-
-        // 17. Check fKeepAlive -> waitForReruns() if needed
-        Field keepAliveField = findField(runnerClass, "fKeepAlive");
-        boolean keepAlive = keepAliveField.getBoolean(runner);
-        if (keepAlive) {
-            Method waitForReruns = findMethod(runnerClass, "waitForReruns");
-            waitForReruns.invoke(runner);
-        }
-
-        // 18. shutDown()
-        Method shutDown = findMethod(runnerClass, "shutDown");
-        shutDown.invoke(runner);
+        // Phase 3: execute the test session
+        runTestSession(runner, runnerClass, refs);
     }
 
-    // ------------------------------------------------------------------
-    // JUnit 5: single LauncherDiscoveryRequest with multiple method selectors
-    // ------------------------------------------------------------------
+    // -- Test reference building (per loader) ---------------------------------
 
-    private static List<Object> buildPlatformRefs(Object loader,
-            String className, String[] methods, String[][] tags,
-            Object runner, String testRefClassName) throws Exception {
+    private static List<Object> buildTestRefs(Object loader, String className,
+            String[] methods, String[][] tags, Class<?>[] classes,
+            Object runner) throws Exception {
+        String loaderName = loader.getClass().getName();
 
+        if (JUNIT5_LOADER.equals(loaderName)) {
+            return buildPlatformRefs(loader, className, methods, tags, runner, JUNIT5_REF);
+        }
+        if (JUNIT6_LOADER.equals(loaderName)) {
+            return buildPlatformRefs(loader, className, methods, tags, runner, JUNIT6_REF);
+        }
+        if (JUNIT4_LOADER.equals(loaderName)) {
+            return buildJUnit4Refs(loader, methods, classes);
+        }
+        return buildFallbackRefs(loader, classes, methods, tags, runner);
+    }
+
+    /** JUnit 5/6: single LauncherDiscoveryRequest with multiple method selectors. */
+    private static List<Object> buildPlatformRefs(Object loader, String className,
+            String[] methods, String[][] tags, Object runner,
+            String testRefClassName) throws Exception {
         ClassLoader cl = loader.getClass().getClassLoader();
 
-        // DiscoverySelectors.selectMethod(String)
-        Class<?> selectorsClass = cl.loadClass(
-                "org.junit.platform.engine.discovery.DiscoverySelectors");
-        Method selectMethod = selectorsClass.getMethod("selectMethod",
-                String.class);
-        Class<?> selectorClass = cl.loadClass(
-                "org.junit.platform.engine.DiscoverySelector");
+        // Build selectors: DiscoverySelectors.selectMethod("class#method") for each
+        Class<?> selectorClass = cl.loadClass("org.junit.platform.engine.DiscoverySelector");
+        Method selectMethod = cl.loadClass("org.junit.platform.engine.discovery.DiscoverySelectors")
+                .getMethod("selectMethod", String.class);
 
-        // Build selectors array
-        Object selectorsArray = Array.newInstance(selectorClass, methods.length);
+        Object selectors = Array.newInstance(selectorClass, methods.length);
         for (int i = 0; i < methods.length; i++) {
-            Object selector = selectMethod.invoke(null,
-                    className + "#" + methods[i]);
-            Array.set(selectorsArray, i, selector);
+            Array.set(selectors, i, selectMethod.invoke(null, className + "#" + methods[i]));
         }
 
-        // LauncherDiscoveryRequestBuilder.request()
+        // Build request
         Class<?> builderClass = cl.loadClass(
                 "org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder");
-        Method requestFactory = builderClass.getMethod("request");
-        Object builder = requestFactory.invoke(null);
+        Object builder = builderClass.getMethod("request").invoke(null);
+        builderClass.getMethod("selectors", selectors.getClass()).invoke(builder, (Object) selectors);
+        applyTagFilters(loader, builder, builderClass, cl, tags);
+        Object request = builderClass.getMethod("build").invoke(builder);
 
-        // builder.selectors(DiscoverySelector[])
-        // Cast to (Object) to prevent varargs unwrapping — the array IS-A Object[]
-        // which invoke() would otherwise spread into individual arguments
-        Method selectorsMethod = builderClass.getMethod("selectors",
-                selectorsArray.getClass());
-        selectorsMethod.invoke(builder, (Object) selectorsArray);
-
-        // Apply tag filters if present
-        if (tags != null) {
-            try {
-                Method getTagFilters = loader.getClass().getDeclaredMethod(
-                        "getTagFilters", String[][].class);
-                getTagFilters.setAccessible(true);
-                Object[] tagFilters = (Object[]) getTagFilters.invoke(loader,
-                        (Object) tags);
-                if (tagFilters != null && tagFilters.length > 0) {
-                    Class<?> filterClass = cl.loadClass(
-                            "org.junit.platform.launcher.Filter");
-                    Object filtersArray = Array.newInstance(filterClass,
-                            tagFilters.length);
-                    for (int i = 0; i < tagFilters.length; i++) {
-                        Array.set(filtersArray, i, tagFilters[i]);
-                    }
-                    Method filtersMethod = builderClass.getMethod("filters",
-                            filtersArray.getClass());
-                    filtersMethod.invoke(builder, (Object) filtersArray);
-                }
-            } catch (NoSuchMethodException e) {
-                // getTagFilters not available, skip tag filtering
-            }
-        }
-
-        // builder.build()
-        Method buildMethod = builderClass.getMethod("build");
-        Object request = buildMethod.invoke(builder);
-
-        // Get fLauncher from the loader
-        Field launcherField = findField(loader.getClass(), "fLauncher");
-        Object launcher = launcherField.get(loader);
-
-        // Create test reference (JUnit5TestReference or JUnit6TestReference)
-        // Use the runner passed to execute(), NOT fRemoteTestRunner from the loader
-        // (which is null because we bypass loadTests())
-        Class<?> requestType = cl.loadClass(
-                "org.junit.platform.launcher.LauncherDiscoveryRequest");
-        Class<?> launcherType = cl.loadClass(
-                "org.junit.platform.launcher.Launcher");
-        Class<?> rtrType = Class.forName(RUNNER_CLASS_NAME);
-        Class<?> refClass = cl.loadClass(testRefClassName);
-
-        Constructor<?> refCtor = refClass.getDeclaredConstructor(
-                requestType, launcherType, rtrType);
+        // Create test reference using the loader's Launcher and our runner
+        Object launcher = ReflectionUtils.findField(loader.getClass(), "fLauncher").get(loader);
+        Constructor<?> refCtor = cl.loadClass(testRefClassName).getDeclaredConstructor(
+                cl.loadClass("org.junit.platform.launcher.LauncherDiscoveryRequest"),
+                cl.loadClass("org.junit.platform.launcher.Launcher"),
+                Class.forName(RUNNER));
         refCtor.setAccessible(true);
-        Object ref = refCtor.newInstance(request, launcher, runner);
 
-        List<Object> refs = new ArrayList<>();
-        refs.add(ref);
-        return refs;
+        return List.of(refCtor.newInstance(request, launcher, runner));
     }
 
-    // ------------------------------------------------------------------
-    // JUnit 4: single Request with ASM-generated multi-method Filter
-    // ------------------------------------------------------------------
+    private static void applyTagFilters(Object loader, Object builder,
+            Class<?> builderClass, ClassLoader cl, String[][] tags) {
+        if (tags == null) return;
+        try {
+            Method getTagFilters = loader.getClass().getDeclaredMethod("getTagFilters", String[][].class);
+            getTagFilters.setAccessible(true);
+            Object[] filters = (Object[]) getTagFilters.invoke(loader, (Object) tags);
+            if (filters != null && filters.length > 0) {
+                Class<?> filterType = cl.loadClass("org.junit.platform.launcher.Filter");
+                Object filterArray = Array.newInstance(filterType, filters.length);
+                for (int i = 0; i < filters.length; i++) Array.set(filterArray, i, filters[i]);
+                builderClass.getMethod("filters", filterArray.getClass()).invoke(builder, (Object) filterArray);
+            }
+        } catch (NoSuchMethodException ignored) {
+            // getTagFilters not available on this loader version
+        } catch (Exception e) {
+            System.err.println("[eclipse-mcp-agent] Warning: failed to apply tag filters: " + e.getMessage());
+        }
+    }
 
-    private static List<Object> buildJUnit4Refs(Object loader,
-            String className, String[] methods,
+    /** JUnit 4/SWTBot: Request filtered with an ASM-generated multi-method Filter. */
+    private static List<Object> buildJUnit4Refs(Object loader, String[] methods,
             Class<?>[] classes) throws Exception {
-
         ClassLoader cl = loader.getClass().getClassLoader();
         Class<?> testClass = classes[0];
 
-        // Request.classWithoutSuiteMethod(Class)
+        // Create filtered request
         Class<?> requestClass = cl.loadClass("org.junit.runner.Request");
-        Method classWithoutSuite = requestClass.getMethod(
-                "classWithoutSuiteMethod", Class.class);
-        Object request = classWithoutSuite.invoke(null, testClass);
+        Object request = requestClass.getMethod("classWithoutSuiteMethod", Class.class).invoke(null, testClass);
 
-        // Generate and instantiate the multi-method filter
-        Class<?> filterClass = cl.loadClass(
-                "org.junit.runner.manipulation.Filter");
-        Object filter = createMultiMethodFilter(cl, filterClass, methods);
+        Class<?> filterClass = cl.loadClass("org.junit.runner.manipulation.Filter");
+        Object filter = MultiMethodFilterGenerator.create(cl, filterClass, methods);
+        Object filtered = requestClass.getMethod("filterWith", filterClass).invoke(request, filter);
 
-        // request.filterWith(filter)
-        Method filterWith = requestClass.getMethod("filterWith", filterClass);
-        Object filteredRequest = filterWith.invoke(request, filter);
-
-        // filteredRequest.getRunner()
-        Method getRunner = requestClass.getMethod("getRunner");
-        Object filteredRunner = getRunner.invoke(filteredRequest);
-
-        // filteredRunner.getDescription()
+        // Get runner and description for the reference
+        Object filteredRunner = requestClass.getMethod("getRunner").invoke(filtered);
         Class<?> runnerType = cl.loadClass("org.junit.runner.Runner");
-        Method getDescription = runnerType.getMethod("getDescription");
-        Object rootDescription = getDescription.invoke(filteredRunner);
+        Object rootDesc = runnerType.getMethod("getDescription").invoke(filteredRunner);
 
         // Create JUnit4TestReference(Runner, Description)
-        Class<?> descClass = cl.loadClass("org.junit.runner.Description");
-        Class<?> refClass = cl.loadClass(
-                "org.eclipse.jdt.internal.junit4.runner.JUnit4TestReference");
-        Constructor<?> refCtor = refClass.getDeclaredConstructor(
-                runnerType, descClass);
+        Class<?> refClass = cl.loadClass("org.eclipse.jdt.internal.junit4.runner.JUnit4TestReference");
+        Constructor<?> refCtor = refClass.getDeclaredConstructor(runnerType,
+                cl.loadClass("org.junit.runner.Description"));
         refCtor.setAccessible(true);
-        Object ref = refCtor.newInstance(filteredRunner, rootDescription);
 
+        return List.of(refCtor.newInstance(filteredRunner, rootDesc));
+    }
+
+    /** Fallback for unknown loaders: one loadTests call per method (duplicates class in JUnit view). */
+    private static List<Object> buildFallbackRefs(Object loader, Class<?>[] classes,
+            String[] methods, String[][] tags, Object runner) throws Exception {
+        Method loadTests = ReflectionUtils.findLoadTestsMethod(loader.getClass(), Class.forName(RUNNER));
         List<Object> refs = new ArrayList<>();
-        refs.add(ref);
+        for (String method : methods) {
+            Object[] result = (Object[]) loadTests.invoke(loader, classes, method, null, null, tags, null, runner);
+            if (result != null) {
+                for (Object ref : result) refs.add(ref);
+            }
+        }
         return refs;
     }
 
-    /**
-     * Generates an ASM-based subclass of {@code org.junit.runner.manipulation.Filter}
-     * at runtime. The generated class filters test methods by name, keeping only
-     * those in the provided set. Suite nodes (where getMethodName() returns null)
-     * are always kept so the class container appears in the tree.
-     */
-    static Object createMultiMethodFilter(ClassLoader parentCl,
-            Class<?> filterSuperClass,
-            String[] methods) throws Exception {
+    // -- Test session execution ------------------------------------------------
 
-        String superInternal = Type.getInternalName(filterSuperClass);
-        String generatedName =
-                "uk/l3si/eclipse/mcp/agent/generated/MultiMethodFilter";
-        String setDesc = Type.getDescriptor(Set.class);
-        String descriptionInternal = "org/junit/runner/Description";
+    private static void runTestSession(Object runner, Class<?> runnerClass,
+            List<Object> refs) throws Exception {
+        Class<?> refClass   = Class.forName(TEST_REF);
+        Class<?> execClass  = Class.forName(EXEC);
+        Class<?> visitorType = Class.forName(VISITOR);
 
-        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES
-                | ClassWriter.COMPUTE_MAXS);
-        cw.visit(Opcodes.V17, Opcodes.ACC_PUBLIC, generatedName, null,
-                superInternal, null);
+        // Create ITestReference[] array
+        Object combined = Array.newInstance(refClass, refs.size());
+        for (int i = 0; i < refs.size(); i++) Array.set(combined, i, refs.get(i));
+        Object[] combinedArray = (Object[]) combined;
 
-        // Field: private final Set methodNames
-        cw.visitField(Opcodes.ACC_PRIVATE | Opcodes.ACC_FINAL,
-                "methodNames", setDesc, null, null).visitEnd();
+        // Create TestExecution
+        Object listener   = ReflectionUtils.findMethod(runnerClass, "firstRunExecutionListener").invoke(runner);
+        Object classifier = ReflectionUtils.findMethod(runnerClass, "getClassifier").invoke(runner);
+        Constructor<?> execCtor = execClass.getDeclaredConstructor(Class.forName(LISTENER), Class.forName(CLASSIFIER));
+        execCtor.setAccessible(true);
+        Object execution = execCtor.newInstance(listener, classifier);
+        ReflectionUtils.findField(runnerClass, "fExecution").set(runner, execution);
 
-        // Constructor(Set)
-        {
-            MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "<init>",
-                    "(" + setDesc + ")V", null, null);
-            mv.visitCode();
-            mv.visitVarInsn(Opcodes.ALOAD, 0);
-            mv.visitMethodInsn(Opcodes.INVOKESPECIAL, superInternal,
-                    "<init>", "()V", false);
-            mv.visitVarInsn(Opcodes.ALOAD, 0);
-            mv.visitVarInsn(Opcodes.ALOAD, 1);
-            mv.visitFieldInsn(Opcodes.PUTFIELD, generatedName,
-                    "methodNames", setDesc);
-            mv.visitInsn(Opcodes.RETURN);
-            mv.visitMaxs(0, 0);
-            mv.visitEnd();
+        // Count tests
+        Method countTestCases = ReflectionUtils.findMethod(refClass, "countTestCases");
+        int testCount = 0;
+        for (Object ref : combinedArray) testCount += (int) countTestCases.invoke(ref);
+
+        // Notify start, send trees, run, notify end
+        ReflectionUtils.findMethod(runnerClass, "notifyTestRunStarted", int.class).invoke(runner, testCount);
+
+        Method sendTree = ReflectionUtils.findMethod(refClass, "sendTree", visitorType);
+        for (Object ref : combinedArray) sendTree.invoke(ref, runner);
+
+        long start = System.currentTimeMillis();
+        ReflectionUtils.findMethod(execClass, "run", Array.newInstance(refClass, 0).getClass())
+                .invoke(execution, combined);
+        long elapsed = System.currentTimeMillis() - start;
+
+        ReflectionUtils.findMethod(runnerClass, "notifyListenersOfTestEnd", execClass, long.class)
+                .invoke(runner, execution, elapsed);
+
+        // Keepalive / shutdown
+        if (ReflectionUtils.findField(runnerClass, "fKeepAlive").getBoolean(runner)) {
+            ReflectionUtils.findMethod(runnerClass, "waitForReruns").invoke(runner);
         }
-
-        // shouldRun(Description): return desc.getMethodName() == null
-        //                                || methodNames.contains(desc.getMethodName())
-        {
-            MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "shouldRun",
-                    "(L" + descriptionInternal + ";)Z", null, null);
-            mv.visitCode();
-
-            // String name = description.getMethodName()
-            mv.visitVarInsn(Opcodes.ALOAD, 1);
-            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, descriptionInternal,
-                    "getMethodName", "()Ljava/lang/String;", false);
-            mv.visitVarInsn(Opcodes.ASTORE, 2);
-
-            // if (name == null) return true
-            mv.visitVarInsn(Opcodes.ALOAD, 2);
-            Label notNull = new Label();
-            mv.visitJumpInsn(Opcodes.IFNONNULL, notNull);
-            mv.visitInsn(Opcodes.ICONST_1);
-            mv.visitInsn(Opcodes.IRETURN);
-
-            // return methodNames.contains(name)
-            mv.visitLabel(notNull);
-            mv.visitVarInsn(Opcodes.ALOAD, 0);
-            mv.visitFieldInsn(Opcodes.GETFIELD, generatedName,
-                    "methodNames", setDesc);
-            mv.visitVarInsn(Opcodes.ALOAD, 2);
-            mv.visitMethodInsn(Opcodes.INVOKEINTERFACE,
-                    Type.getInternalName(Set.class), "contains",
-                    "(Ljava/lang/Object;)Z", true);
-            mv.visitInsn(Opcodes.IRETURN);
-
-            mv.visitMaxs(0, 0);
-            mv.visitEnd();
-        }
-
-        // describe(): return "MultiMethodFilter"
-        {
-            MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "describe",
-                    "()Ljava/lang/String;", null, null);
-            mv.visitCode();
-            mv.visitLdcInsn("MultiMethodFilter");
-            mv.visitInsn(Opcodes.ARETURN);
-            mv.visitMaxs(0, 0);
-            mv.visitEnd();
-        }
-
-        cw.visitEnd();
-        byte[] bytecode = cw.toByteArray();
-
-        // Define the class using a custom classloader parented by the
-        // loader's classloader so it can see both Filter and Set.
-        Class<?> filterImplClass = new ByteArrayClassLoader(parentCl)
-                .defineClass(generatedName.replace('/', '.'), bytecode);
-
-        Set<String> methodSet = new HashSet<>(Arrays.asList(methods));
-        Constructor<?> ctor = filterImplClass.getConstructor(Set.class);
-        return ctor.newInstance(methodSet);
-    }
-
-    /**
-     * Simple classloader that defines a single class from a byte array.
-     */
-    private static class ByteArrayClassLoader extends ClassLoader {
-        ByteArrayClassLoader(ClassLoader parent) {
-            super(parent);
-        }
-
-        Class<?> defineClass(String name, byte[] bytes) {
-            return defineClass(name, bytes, 0, bytes.length);
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // Fallback: per-method loadTests (produces duplicated class nodes)
-    // ------------------------------------------------------------------
-
-    private static List<Object> buildFallbackRefs(Object loader,
-            Class<?>[] classes, String[] methods, String[][] tags,
-            Object runner, Class<?> runnerClass) throws Exception {
-
-        Class<?> loaderClass = loader.getClass();
-        Class<?> remoteTestRunnerType = Class.forName(RUNNER_CLASS_NAME);
-        Method loadTestsMethod = findLoadTestsMethod(loaderClass,
-                remoteTestRunnerType);
-
-        List<Object> allRefs = new ArrayList<>();
-        for (String method : methods) {
-            Object[] refs = (Object[]) loadTestsMethod.invoke(loader,
-                    classes, method, null, null, tags, null, runner);
-            if (refs != null) {
-                for (Object ref : refs) {
-                    allRefs.add(ref);
-                }
-            }
-        }
-        return allRefs;
-    }
-
-    /**
-     * Finds the {@code loadTests} method on the ITestLoader implementation,
-     * matching the expected signature with the RemoteTestRunner parameter type.
-     */
-    private static Method findLoadTestsMethod(Class<?> loaderClass,
-                                              Class<?> runnerType) {
-        for (Method m : loaderClass.getMethods()) {
-            if (!"loadTests".equals(m.getName())) {
-                continue;
-            }
-            Class<?>[] params = m.getParameterTypes();
-            if (params.length == 7 && params[6].isAssignableFrom(runnerType)) {
-                m.setAccessible(true);
-                return m;
-            }
-        }
-        // Also check interfaces
-        for (Class<?> iface : loaderClass.getInterfaces()) {
-            for (Method m : iface.getMethods()) {
-                if (!"loadTests".equals(m.getName())) {
-                    continue;
-                }
-                Class<?>[] params = m.getParameterTypes();
-                if (params.length == 7) {
-                    m.setAccessible(true);
-                    return m;
-                }
-            }
-        }
-        throw new IllegalStateException(
-                "Cannot find loadTests method on " + loaderClass.getName());
-    }
-
-    /**
-     * Finds a method by name and parameter types, walking up the class
-     * hierarchy. Sets the method accessible before returning.
-     */
-    static Method findMethod(Class<?> clazz, String name,
-                             Class<?>... paramTypes) {
-        Class<?> current = clazz;
-        while (current != null) {
-            try {
-                Method m = current.getDeclaredMethod(name, paramTypes);
-                m.setAccessible(true);
-                return m;
-            } catch (NoSuchMethodException e) {
-                current = current.getSuperclass();
-            }
-        }
-        // Also check interfaces (for ITestReference etc.)
-        for (Class<?> iface : clazz.getInterfaces()) {
-            try {
-                Method m = iface.getDeclaredMethod(name, paramTypes);
-                m.setAccessible(true);
-                return m;
-            } catch (NoSuchMethodException e) {
-                // continue
-            }
-        }
-        throw new IllegalStateException(
-                "Cannot find method " + name + " on " + clazz.getName());
-    }
-
-    /**
-     * Finds a field by name, walking up the class hierarchy. Sets the field
-     * accessible before returning.
-     */
-    static Field findField(Class<?> clazz, String name) {
-        Class<?> current = clazz;
-        while (current != null) {
-            try {
-                Field f = current.getDeclaredField(name);
-                f.setAccessible(true);
-                return f;
-            } catch (NoSuchFieldException e) {
-                current = current.getSuperclass();
-            }
-        }
-        throw new IllegalStateException(
-                "Cannot find field " + name + " on " + clazz.getName());
+        ReflectionUtils.findMethod(runnerClass, "shutDown").invoke(runner);
     }
 }

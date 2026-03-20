@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.90.0
+
+- **Refactor test agent for maintainability** — split 562-line `MultiMethodRunner` into three focused classes: `ReflectionUtils` (hierarchy-aware method/field lookup), `MultiMethodFilterGenerator` (ASM-generated JUnit 4 Filter), and `MultiMethodRunner` (orchestration only). All 49 tests pass unchanged.
+
 ## 0.89.0
 
 - **Fix multi-method producing 0 test results** — two bugs in the JUnit Platform path: (1) `Method.invoke()` varargs unwrapping caused `DiscoverySelector[]` to be spread into individual arguments instead of passed as one array, (2) `fRemoteTestRunner` was null because `loadTests()` was bypassed — now uses the runner instance directly
