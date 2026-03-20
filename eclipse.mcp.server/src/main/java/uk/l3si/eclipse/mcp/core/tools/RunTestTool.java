@@ -75,6 +75,7 @@ public class RunTestTool implements McpTool {
 
     @Override
     public Object execute(Args args, ProgressReporter progress) throws Exception {
+        progress.report("Waiting for previous test...");
         if (!RUN_LOCK.tryAcquire(LOCK_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
             throw new IllegalStateException(
                     "Another run_test call is already in progress and did not complete within "
@@ -113,6 +114,7 @@ public class RunTestTool implements McpTool {
         List<String> builtProjects = ProjectBuilder.refreshAndBuild(refreshProjects, progress);
 
         // Check for compilation errors across all refreshed projects
+        progress.report("Checking errors...");
         List<ProblemInfo> compilationErrors = checkCompilationErrors(builtProjects);
         if (!compilationErrors.isEmpty()) {
             return RunTestResult.builder()
@@ -123,7 +125,8 @@ public class RunTestTool implements McpTool {
         }
 
         // Launch test
-        LaunchTestResult launchResult = TestLaunchHelper.launchTest(configName, className, methodName, projectName, mode, debugContext);
+        progress.report("Launching " + className.substring(className.lastIndexOf('.') + 1) + "...");
+        LaunchTestResult launchResult = TestLaunchHelper.launchTest(configName, className, methodName, projectName, mode, debugContext, progress);
         return RunTestResult.builder()
                 .refreshedAndBuilt(builtProjects)
                 .launchResult(launchResult)
