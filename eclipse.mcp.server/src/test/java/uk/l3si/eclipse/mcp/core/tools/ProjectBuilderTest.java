@@ -121,7 +121,7 @@ public class ProjectBuilderTest {
             IJobManager jobManager = mock(IJobManager.class);
             jobMock.when(Job::getJobManager).thenReturn(jobManager);
 
-            ProjectBuilder.doCleanAndBuild(new IProject[]{project}, builtProjects, monitor);
+            ProjectBuilder.doCleanAndBuild(new IProject[]{project}, builtProjects, monitor, message -> {});
 
             // Verify order: refresh → clean → full build
             InOrder inOrder = inOrder(project);
@@ -145,7 +145,7 @@ public class ProjectBuilderTest {
             IJobManager jobManager = mock(IJobManager.class);
             jobMock.when(Job::getJobManager).thenReturn(jobManager);
 
-            ProjectBuilder.doCleanAndBuild(new IProject[]{projA, projB}, builtProjects, monitor);
+            ProjectBuilder.doCleanAndBuild(new IProject[]{projA, projB}, builtProjects, monitor, message -> {});
 
             verify(projA).refreshLocal(eq(IResource.DEPTH_INFINITE), any());
             verify(projB).refreshLocal(eq(IResource.DEPTH_INFINITE), any());
@@ -170,7 +170,7 @@ public class ProjectBuilderTest {
             IJobManager jobManager = mock(IJobManager.class);
             jobMock.when(Job::getJobManager).thenReturn(jobManager);
 
-            ProjectBuilder.doCleanAndBuild(new IProject[]{open, closed}, builtProjects, monitor);
+            ProjectBuilder.doCleanAndBuild(new IProject[]{open, closed}, builtProjects, monitor, message -> {});
 
             verify(open).refreshLocal(eq(IResource.DEPTH_INFINITE), any());
             verify(closed, never()).refreshLocal(anyInt(), any());
@@ -193,7 +193,7 @@ public class ProjectBuilderTest {
             IJobManager jobManager = mock(IJobManager.class);
             jobMock.when(Job::getJobManager).thenReturn(jobManager);
 
-            ProjectBuilder.doCleanAndBuild(new IProject[]{project}, builtProjects, monitor);
+            ProjectBuilder.doCleanAndBuild(new IProject[]{project}, builtProjects, monitor, message -> {});
 
             // Should join auto-build family twice: once after clean, once after full build
             verify(jobManager, times(2)).join(eq(ResourcesPlugin.FAMILY_AUTO_BUILD), any());
@@ -210,7 +210,7 @@ public class ProjectBuilderTest {
             IJobManager jobManager = mock(IJobManager.class);
             jobMock.when(Job::getJobManager).thenReturn(jobManager);
 
-            ProjectBuilder.doCleanAndBuild(new IProject[]{}, builtProjects, monitor);
+            ProjectBuilder.doCleanAndBuild(new IProject[]{}, builtProjects, monitor, message -> {});
 
             assertTrue(builtProjects.isEmpty());
         }
@@ -227,7 +227,7 @@ public class ProjectBuilderTest {
             IJobManager jobManager = mock(IJobManager.class);
             jobMock.when(Job::getJobManager).thenReturn(jobManager);
 
-            ProjectBuilder.doCleanAndBuild(new IProject[]{project}, builtProjects, monitor);
+            ProjectBuilder.doCleanAndBuild(new IProject[]{project}, builtProjects, monitor, message -> {});
 
             // Must NOT use incremental build
             verify(project, never()).build(eq(IncrementalProjectBuilder.INCREMENTAL_BUILD), any());
@@ -248,13 +248,36 @@ public class ProjectBuilderTest {
             IJobManager jobManager = mock(IJobManager.class);
             jobMock.when(Job::getJobManager).thenReturn(jobManager);
 
-            ProjectBuilder.doCleanAndBuild(new IProject[]{project}, builtProjects, monitor);
+            ProjectBuilder.doCleanAndBuild(new IProject[]{project}, builtProjects, monitor, message -> {});
 
             // Verify refresh happens before any build call
             InOrder inOrder = inOrder(project);
             inOrder.verify(project).refreshLocal(eq(IResource.DEPTH_INFINITE), any());
             inOrder.verify(project).build(anyInt(), any()); // clean
             inOrder.verify(project).build(anyInt(), any()); // full
+        }
+    }
+
+    @Test
+    void doCleanAndBuildReportsProgress() throws Exception {
+        IProject projA = mockProject("A", true, true);
+        IProject projB = mockProject("B", true, true);
+        List<String> builtProjects = new ArrayList<>();
+        IProgressMonitor monitor = new NullProgressMonitor();
+        var messages = new ArrayList<String>();
+
+        try (MockedStatic<Job> jobMock = mockStatic(Job.class);
+             MockedStatic<ResourcesPlugin> rsMock = mockStatic(ResourcesPlugin.class)) {
+            IJobManager jobManager = mock(IJobManager.class);
+            jobMock.when(Job::getJobManager).thenReturn(jobManager);
+
+            ProjectBuilder.doCleanAndBuild(new IProject[]{projA, projB}, builtProjects, monitor, messages::add);
+
+            assertTrue(messages.stream().anyMatch(m -> m.contains("Refreshing") && m.contains("A")));
+            assertTrue(messages.stream().anyMatch(m -> m.contains("Cleaning") && m.contains("A")));
+            assertTrue(messages.stream().anyMatch(m -> m.contains("Building") && m.contains("A")));
+            assertTrue(messages.stream().anyMatch(m -> m.contains("Refreshing") && m.contains("B")));
+            assertTrue(messages.stream().anyMatch(m -> m.contains("Building") && m.contains("B")));
         }
     }
 }

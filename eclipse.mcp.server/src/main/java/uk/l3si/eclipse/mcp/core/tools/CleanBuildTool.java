@@ -31,7 +31,7 @@ public class CleanBuildTool implements McpTool {
     @Override
     public Object execute(Args args, ProgressReporter progress) throws Exception {
         List<String> projectNames = args.getStringList("projects");
-        List<String> builtProjects = ProjectBuilder.cleanAndBuild(projectNames);
+        List<String> builtProjects = ProjectBuilder.cleanAndBuild(projectNames, progress);
         return CleanBuildResult.builder().projects(builtProjects).build();
     }
 }

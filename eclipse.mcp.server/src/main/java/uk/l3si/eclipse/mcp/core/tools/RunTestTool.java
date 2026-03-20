@@ -82,13 +82,13 @@ public class RunTestTool implements McpTool {
                     + "Use 'terminate' to stop the running test, then retry.");
         }
         try {
-            return doExecute(args);
+            return doExecute(args, progress);
         } finally {
             RUN_LOCK.release();
         }
     }
 
-    private Object doExecute(Args args) throws Exception {
+    private Object doExecute(Args args, ProgressReporter progress) throws Exception {
         String configName = args.requireString("config", "launch configuration name");
         String className = args.requireString("class", "fully qualified test class name");
         String methodName = args.getString("method");
@@ -110,7 +110,7 @@ public class RunTestTool implements McpTool {
         List<String> refreshProjects = resolveRefreshProjects(dependencies, projectName);
 
         // Refresh and build
-        List<String> builtProjects = ProjectBuilder.refreshAndBuild(refreshProjects);
+        List<String> builtProjects = ProjectBuilder.refreshAndBuild(refreshProjects, progress);
 
         // Check for compilation errors across all refreshed projects
         List<ProblemInfo> compilationErrors = checkCompilationErrors(builtProjects);
