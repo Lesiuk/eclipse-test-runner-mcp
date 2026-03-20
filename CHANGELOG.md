@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.80.0
+
+- **List available projects on "Project not found" errors** — when a tool receives an invalid project name, the error message now includes all open workspace projects so the LLM can self-correct without a separate `list_projects` call
+
 ## v0.79.0
 
 - **Show helpful NullPointerException messages** — `evaluate_expression` now invokes `getMessage()` on exceptions in the target VM instead of reading the `detailMessage` field directly, capturing JDK 14+ helpful NPE messages (e.g. "Cannot invoke 'X.method()' because 'Y' is null")

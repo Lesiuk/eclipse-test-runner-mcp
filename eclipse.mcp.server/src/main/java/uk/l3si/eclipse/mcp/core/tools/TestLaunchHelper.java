@@ -218,7 +218,7 @@ public class TestLaunchHelper {
     private static void validateTestClassExists(String projectName, String className) throws Exception {
         IProject project = ResourcesPlugin.getWorkspace().getRoot().getProject(projectName);
         if (!project.exists()) {
-            throw new IllegalArgumentException("Project not found: " + projectName);
+            throw new IllegalArgumentException(ProjectBuilder.projectNotFoundMessage(projectName));
         }
         if (!project.isOpen()) {
             throw new IllegalArgumentException("Project is closed: " + projectName);

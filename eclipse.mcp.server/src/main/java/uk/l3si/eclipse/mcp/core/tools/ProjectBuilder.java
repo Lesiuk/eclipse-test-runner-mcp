@@ -11,6 +11,7 @@ import org.eclipse.core.runtime.SubMonitor;
 import org.eclipse.core.runtime.jobs.Job;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -20,6 +21,17 @@ import java.util.List;
 final class ProjectBuilder {
 
     private ProjectBuilder() {}
+
+    /**
+     * Build an error message for a missing project, listing available open projects.
+     */
+    static String projectNotFoundMessage(String name) {
+        List<String> open = Arrays.stream(ResourcesPlugin.getWorkspace().getRoot().getProjects())
+                .filter(IProject::isOpen)
+                .map(IProject::getName)
+                .toList();
+        return "Project not found: " + name + ". Available projects: " + open;
+    }
 
     /**
      * Clean and fully rebuild the given projects.  Use when incremental
@@ -69,7 +81,7 @@ final class ProjectBuilder {
                 String name = projectNames.get(i);
                 IProject project = ResourcesPlugin.getWorkspace().getRoot().getProject(name);
                 if (!project.exists()) {
-                    throw new IllegalArgumentException("Project not found: " + name);
+                    throw new IllegalArgumentException(projectNotFoundMessage(name));
                 }
                 projects[i] = project;
             }
@@ -140,7 +152,7 @@ final class ProjectBuilder {
                             String name = projectNames.get(i);
                             IProject project = ResourcesPlugin.getWorkspace().getRoot().getProject(name);
                             if (!project.exists()) {
-                                throw new IllegalArgumentException("Project not found: " + name);
+                                throw new IllegalArgumentException(projectNotFoundMessage(name));
                             }
 
                             refreshMonitor.subTask("Refreshing " + name + "...");

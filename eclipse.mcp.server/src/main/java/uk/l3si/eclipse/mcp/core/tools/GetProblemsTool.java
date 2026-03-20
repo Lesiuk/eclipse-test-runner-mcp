@@ -46,7 +46,7 @@ public class GetProblemsTool implements McpTool {
         if (projectName != null) {
             IProject project = ResourcesPlugin.getWorkspace().getRoot().getProject(projectName);
             if (!project.exists()) {
-                throw new IllegalArgumentException("Project not found: " + projectName);
+                throw new IllegalArgumentException(ProjectBuilder.projectNotFoundMessage(projectName));
             }
             scope = project;
         } else {
