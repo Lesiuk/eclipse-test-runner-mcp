@@ -14,6 +14,7 @@ public class LaunchTestResult {
     @SerializedName("class")
     private String className;
     private String method;
+    private List<String> methods;
     private TestRunResult testResults;
     private String testResultsError;
     private Boolean debugStopped;
