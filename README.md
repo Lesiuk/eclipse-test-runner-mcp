@@ -8,6 +8,7 @@
 Eclipse IDE plugin that lets AI coding assistants ([Claude Code](https://docs.anthropic.com/en/docs/claude-code), [GitHub Copilot](https://github.com/features/copilot)) run JUnit tests, inspect results, check compilation errors, and read console output through the [Model Context Protocol](https://modelcontextprotocol.io/).
 
 - **Run JUnit tests** — full build pipeline with refresh, build, and error checking
+- **Progress streaming** — long-running tools stream progress via SSE, with per-test pass/fail reported in real-time
 - **Code coverage** — per-line and per-method coverage via EclEmma/JaCoCo
 - **Interactive debugging** — breakpoints, stepping, variable inspection, expression evaluation
 - **Code intelligence** — find references to classes, methods, and fields across the workspace
@@ -25,7 +26,7 @@ All tools (core, debugging, BPMN2) are included in a single JAR. Debugging tools
 
 ## Connecting an AI Assistant
 
-The server speaks MCP over HTTP at `http://127.0.0.1:5188/mcp`.
+The server speaks MCP over HTTP at `http://127.0.0.1:5188/mcp`. It supports Streamable HTTP — when the client sends `Accept: text/event-stream` with a `progressToken`, long-running tools (`run_test`, `clean_build`) stream progress notifications via SSE, preventing client timeouts.
 
 **Claude Code:**
 ```
