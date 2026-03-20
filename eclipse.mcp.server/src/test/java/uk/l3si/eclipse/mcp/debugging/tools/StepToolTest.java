@@ -86,7 +86,7 @@ class StepToolTest {
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
 
-        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.SUSPENDED);
         when(debugContext.getSuspendReason()).thenReturn("breakpoint");
         when(debugContext.getCurrentLocation()).thenReturn(
                 LocationInfo.builder()
@@ -118,7 +118,7 @@ class StepToolTest {
         when(thread.isSuspended()).thenReturn(true);
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.SUSPENDED);
         when(debugContext.getSuspendReason()).thenReturn("suspended");
 
         JsonObject args = new JsonObject();
@@ -134,7 +134,7 @@ class StepToolTest {
         when(thread.isSuspended()).thenReturn(true);
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.SUSPENDED);
         when(debugContext.getSuspendReason()).thenReturn("suspended");
 
         JsonObject args = new JsonObject();
@@ -150,7 +150,7 @@ class StepToolTest {
         when(thread.isSuspended()).thenReturn(true);
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TERMINATED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.TERMINATED);
 
         JsonObject args = new JsonObject();
         args.addProperty("action", "over");
@@ -166,7 +166,7 @@ class StepToolTest {
         when(thread.isSuspended()).thenReturn(true);
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TERMINATED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.TERMINATED);
 
         TestRunResult testRunResult = TestRunResult.builder()
                 .status("COMPLETED")
@@ -203,7 +203,7 @@ class StepToolTest {
         when(thread.isSuspended()).thenReturn(true);
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TERMINATED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.TERMINATED);
 
         TestRunResult testRunResult = TestRunResult.builder()
                 .status("COMPLETED")
@@ -253,7 +253,7 @@ class StepToolTest {
         when(thread.isSuspended()).thenReturn(true);
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TERMINATED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.TERMINATED);
 
         try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
             mocked.when(() -> TestResultsHelper.collect(eq(false), any(ProgressReporter.class))).thenReturn(null);
@@ -273,7 +273,7 @@ class StepToolTest {
         when(thread.isSuspended()).thenReturn(true);
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TERMINATED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.TERMINATED);
 
         try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
             mocked.when(() -> TestResultsHelper.collect(eq(false), any(ProgressReporter.class)))
@@ -294,7 +294,7 @@ class StepToolTest {
         when(thread.isSuspended()).thenReturn(true);
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.SUSPENDED);
         when(debugContext.getSuspendReason()).thenReturn("breakpoint");
 
         try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
@@ -312,7 +312,7 @@ class StepToolTest {
         when(thread.isSuspended()).thenReturn(true);
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TIMEOUT);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.TIMEOUT);
 
         JsonObject args = new JsonObject();
         args.addProperty("action", "over");
@@ -327,7 +327,7 @@ class StepToolTest {
         when(thread.isSuspended()).thenReturn(true);
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TIMEOUT);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.TIMEOUT);
 
         try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
             JsonObject args = new JsonObject();
@@ -345,7 +345,7 @@ class StepToolTest {
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
 
-        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.SUSPENDED);
         when(debugContext.getSuspendReason()).thenReturn("breakpoint");
         when(debugContext.getCurrentLocation()).thenReturn(
                 LocationInfo.builder()
@@ -369,7 +369,7 @@ class StepToolTest {
         when(thread.isSuspended()).thenReturn(true);
         when(thread.getName()).thenReturn("worker");
         when(debugContext.resolveThread(55L)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.SUSPENDED);
         when(debugContext.getSuspendReason()).thenReturn("suspended");
 
         JsonObject args = new JsonObject();
@@ -390,7 +390,7 @@ class StepToolTest {
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
 
-        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.SUSPENDED);
         when(debugContext.getSuspendReason()).thenReturn("breakpoint");
         when(debugContext.getCurrentLocation()).thenReturn(
                 LocationInfo.builder()
@@ -417,7 +417,7 @@ class StepToolTest {
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
 
-        when(debugContext.waitForSuspendOrTerminate(1)).thenReturn(WaitResult.TIMEOUT);
+        when(debugContext.waitForSuspendOrTerminate(eq(1), any())).thenReturn(WaitResult.TIMEOUT);
 
         JsonObject args = new JsonObject();
         args.addProperty("action", "resume");
@@ -435,7 +435,7 @@ class StepToolTest {
         when(thread.isSuspended()).thenReturn(true);
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TERMINATED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.TERMINATED);
 
         TestRunResult testRunResult = TestRunResult.builder()
                 .status("COMPLETED")
@@ -480,7 +480,7 @@ class StepToolTest {
         when(thread.getName()).thenReturn("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
 
-        when(debugContext.waitForSuspendOrTerminate(10)).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.waitForSuspendOrTerminate(eq(10), any())).thenReturn(WaitResult.SUSPENDED);
         when(debugContext.getSuspendReason()).thenReturn("breakpoint");
 
         JsonObject args = new JsonObject();
@@ -489,6 +489,6 @@ class StepToolTest {
 
         executeAndSerialize(args);
 
-        verify(debugContext).waitForSuspendOrTerminate(10);
+        verify(debugContext).waitForSuspendOrTerminate(eq(10), any());
     }
 }

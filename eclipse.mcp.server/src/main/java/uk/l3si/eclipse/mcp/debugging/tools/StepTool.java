@@ -85,7 +85,7 @@ public class StepTool implements McpTool {
             case "resume" -> thread.resume();
         }
 
-        WaitResult wait = debugContext.waitForSuspendOrTerminate(timeoutSeconds);
+        WaitResult wait = debugContext.waitForSuspendOrTerminate(timeoutSeconds, progress);
 
         StepResult.StepResultBuilder result = StepResult.builder()
                 .action(action)
