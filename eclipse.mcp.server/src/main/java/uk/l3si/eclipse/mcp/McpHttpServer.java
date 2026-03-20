@@ -54,6 +54,16 @@ public class McpHttpServer {
                 requestBody = new String(input.readAllBytes(), StandardCharsets.UTF_8);
             }
 
+            if (shouldStreamSse(requestBody, exchange)) {
+                exchange.getResponseHeaders().set("Content-Type", "text/event-stream");
+                exchange.getResponseHeaders().set("Cache-Control", "no-cache");
+                exchange.sendResponseHeaders(200, 0);
+                try (var output = exchange.getResponseBody()) {
+                    protocolHandler.handleMessage(requestBody, output);
+                }
+                return;
+            }
+
             String responseJson = protocolHandler.handleMessage(requestBody);
 
             if (responseJson == null) {
@@ -69,6 +79,26 @@ public class McpHttpServer {
             }
         } finally {
             exchange.close();
+        }
+    }
+
+    private boolean shouldStreamSse(String requestBody, HttpExchange exchange) {
+        try {
+            String accept = exchange.getRequestHeaders().getFirst("Accept");
+            if (accept == null || !accept.contains("text/event-stream")) {
+                return false;
+            }
+            var msg = com.google.gson.JsonParser.parseString(requestBody).getAsJsonObject();
+            if (!"tools/call".equals(msg.has("method") ? msg.get("method").getAsString() : null)) {
+                return false;
+            }
+            var params = msg.has("params") ? msg.getAsJsonObject("params") : null;
+            if (params == null || !params.has("_meta")) {
+                return false;
+            }
+            return params.getAsJsonObject("_meta").has("progressToken");
+        } catch (Exception e) {
+            return false;
         }
     }
 }
