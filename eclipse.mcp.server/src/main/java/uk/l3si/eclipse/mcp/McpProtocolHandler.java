@@ -50,6 +50,7 @@ public class McpProtocolHandler {
     }
 
     public void handleMessage(String rawJson, OutputStream out) throws IOException {
+        int[] counter = {0};
         try {
             JsonObject msg = JsonParser.parseString(rawJson).getAsJsonObject();
             if (!msg.has("id")) return;
@@ -59,13 +60,13 @@ public class McpProtocolHandler {
             JsonObject params = msg.has("params") ? msg.getAsJsonObject("params") : new JsonObject();
 
             if (!"tools/call".equals(method)) {
+                counter[0]++;
                 Object result = dispatch(method, params);
-                writeSseEvent(out, 1, successResponse(requestId, result));
+                writeSseEvent(out, counter[0], successResponse(requestId, result));
                 return;
             }
 
             String progressToken = extractProgressToken(params);
-            int[] counter = {0};
 
             ProgressReporter reporter = (message) -> {
                 try {
@@ -84,8 +85,9 @@ public class McpProtocolHandler {
             try {
                 JsonObject msg = JsonParser.parseString(rawJson).getAsJsonObject();
                 if (msg.has("id")) {
+                    counter[0]++;
                     int code = (ex instanceof NoSuchMethodException) ? -32601 : -32603;
-                    writeSseEvent(out, 1, errorResponse(msg.get("id"), code, ex.getMessage()));
+                    writeSseEvent(out, counter[0], errorResponse(msg.get("id"), code, ex.getMessage()));
                 }
             } catch (Exception ignored) {}
         }

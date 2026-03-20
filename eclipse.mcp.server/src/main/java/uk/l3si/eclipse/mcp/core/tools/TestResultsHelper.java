@@ -28,6 +28,7 @@ public class TestResultsHelper {
 
     private static final long POST_TERMINATION_GRACE_MS = 5 * 1000;
     private static final long POLL_INTERVAL_MS = 100;
+    private static final long KEEPALIVE_INTERVAL_MS = 10_000;
 
     public static TestRunResult waitAndCollect(ILaunch launch, ProgressReporter progress) throws InterruptedException {
         JUnitModel model = JUnitCorePlugin.getModel();
@@ -86,8 +87,16 @@ public class TestResultsHelper {
 
         Set<String> reported = new HashSet<>();
         long terminatedAt = -1;
+        long lastProgressTime = System.currentTimeMillis();
         while (isStillRunning(session)) {
+            int beforeSize = reported.size();
             reportNewTestResults(session, reported, progress);
+            if (reported.size() > beforeSize) {
+                lastProgressTime = System.currentTimeMillis();
+            } else if (System.currentTimeMillis() - lastProgressTime >= KEEPALIVE_INTERVAL_MS) {
+                progress.report("Waiting for test to complete...");
+                lastProgressTime = System.currentTimeMillis();
+            }
             if (!launch.isTerminated()) {
                 // keep waiting
             } else {
