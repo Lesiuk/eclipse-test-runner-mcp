@@ -44,7 +44,7 @@ class ToolRegistryTest {
         registry.setDisabledTools(Set.of("test_tool"));
 
         assertThrows(IllegalArgumentException.class,
-                () -> registry.callTool("test_tool", new JsonObject()));
+                () -> registry.callTool("test_tool", new JsonObject(), message -> {}));
     }
 
     @Test
@@ -60,7 +60,7 @@ class ToolRegistryTest {
         boolean found = schemas.stream().anyMatch(s -> "test_tool".equals(s.get("name")));
         assertTrue(found, "re-enabled tool should appear in listToolSchemas");
 
-        Object result = registry.callTool("test_tool", new JsonObject());
+        Object result = registry.callTool("test_tool", new JsonObject(), message -> {});
         assertEquals("ok", result);
     }
 
@@ -95,5 +95,25 @@ class ToolRegistryTest {
 
         registry.setDisabledTools(Set.of());
         assertTrue(registry.isToolEnabled("my_tool"));
+    }
+
+    @Test
+    void callToolPassesProgressReporterThrough() throws Exception {
+        var messages = new java.util.ArrayList<String>();
+        McpTool tool = new McpTool() {
+            @Override public String getName() { return "progress_tool"; }
+            @Override public String getDescription() { return "test"; }
+            @Override public InputSchema getInputSchema() { return InputSchema.builder().build(); }
+            @Override public Object execute(Args args, ProgressReporter progress) {
+                progress.report("hello");
+                return "with-progress";
+            }
+        };
+        ToolRegistry registry = new ToolRegistry();
+        registry.addTool(tool);
+
+        Object result = registry.callTool("progress_tool", new JsonObject(), messages::add);
+        assertEquals("with-progress", result);
+        assertEquals(List.of("hello"), messages);
     }
 }

@@ -11,9 +11,12 @@ import org.eclipse.debug.core.ILaunch;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
+
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 public class GetTestResultsToolTest {
@@ -110,7 +113,7 @@ public class GetTestResultsToolTest {
                     .failures(Collections.emptyList())
                     .build();
 
-            trh.when(() -> TestResultsHelper.collect(false)).thenReturn(mockResult);
+            trh.when(() -> TestResultsHelper.collect(eq(false), any(ProgressReporter.class))).thenReturn(mockResult);
 
             GetTestResultsTool tool = new GetTestResultsTool();
             JsonObject result = executeAndSerialize(tool, new JsonObject());
@@ -127,7 +130,7 @@ public class GetTestResultsToolTest {
         try (MockedStatic<DebugPlugin> dp = mockDebugPlugin();
              MockedStatic<TestResultsHelper> trh = mockStatic(TestResultsHelper.class)) {
 
-            trh.when(() -> TestResultsHelper.collect(false)).thenReturn(null);
+            trh.when(() -> TestResultsHelper.collect(eq(false), any(ProgressReporter.class))).thenReturn(null);
 
             GetTestResultsTool tool = new GetTestResultsTool();
 
@@ -152,7 +155,7 @@ public class GetTestResultsToolTest {
                     .failures(Collections.emptyList())
                     .build();
 
-            trh.when(() -> TestResultsHelper.collect(false)).thenReturn(mockResult);
+            trh.when(() -> TestResultsHelper.collect(eq(false), any(ProgressReporter.class))).thenReturn(mockResult);
 
             GetTestResultsTool tool = new GetTestResultsTool();
             JsonObject args = new JsonObject();

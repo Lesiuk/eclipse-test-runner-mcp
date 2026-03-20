@@ -111,7 +111,7 @@ public class StepTool implements McpTool {
 
     private TestRunResult collectTestResults() {
         try {
-            return TestResultsHelper.collect(false);
+            return TestResultsHelper.collect(false, message -> {});
         } catch (Exception e) {
             return null;
         }
