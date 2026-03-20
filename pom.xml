@@ -11,6 +11,7 @@
     <packaging>pom</packaging>
 
     <modules>
+        <module>eclipse.mcp.test-agent</module>
         <module>eclipse.mcp.server</module>
     </modules>
 
