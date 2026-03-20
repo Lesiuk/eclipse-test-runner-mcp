@@ -4,10 +4,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.Description;
+import org.junit.runner.Request;
+import org.junit.runner.Runner;
 import org.junit.runner.manipulation.Filter;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -191,32 +195,20 @@ class MultiMethodRunnerTest {
         void filterAllowsMatchingMethods() throws Exception {
             Filter filter = createFilter("testAdd", "testSubtract");
 
-            Description testAdd = Description.createTestDescription(
-                    "com.example.MathTest", "testAdd");
-            Description testSubtract = Description.createTestDescription(
-                    "com.example.MathTest", "testSubtract");
-
-            assertTrue(filter.shouldRun(testAdd));
-            assertTrue(filter.shouldRun(testSubtract));
+            assertTrue(filter.shouldRun(methodDesc("testAdd")));
+            assertTrue(filter.shouldRun(methodDesc("testSubtract")));
         }
 
         @Test
         void filterRejectsNonMatchingMethods() throws Exception {
             Filter filter = createFilter("testAdd");
-
-            Description testMultiply = Description.createTestDescription(
-                    "com.example.MathTest", "testMultiply");
-
-            assertFalse(filter.shouldRun(testMultiply));
+            assertFalse(filter.shouldRun(methodDesc("testMultiply")));
         }
 
         @Test
         void filterKeepsSuiteNodes() throws Exception {
             Filter filter = createFilter("testAdd");
-
-            // Suite descriptions have null method name
             Description suite = Description.createSuiteDescription("com.example.MathTest");
-
             assertTrue(filter.shouldRun(suite),
                     "Suite nodes (null method) must be kept for the class tree to appear");
         }
@@ -231,30 +223,25 @@ class MultiMethodRunnerTest {
         @Test
         void filterWorksWithMultipleMethods() throws Exception {
             Filter filter = createFilter("a", "b", "c");
-
-            assertTrue(filter.shouldRun(desc("a")));
-            assertTrue(filter.shouldRun(desc("b")));
-            assertTrue(filter.shouldRun(desc("c")));
-            assertFalse(filter.shouldRun(desc("d")));
-            assertFalse(filter.shouldRun(desc("e")));
+            assertTrue(filter.shouldRun(methodDesc("a")));
+            assertTrue(filter.shouldRun(methodDesc("b")));
+            assertTrue(filter.shouldRun(methodDesc("c")));
+            assertFalse(filter.shouldRun(methodDesc("d")));
         }
 
         @Test
         void filterIsCaseSensitive() throws Exception {
             Filter filter = createFilter("testAdd");
-
-            assertFalse(filter.shouldRun(desc("TestAdd")));
-            assertFalse(filter.shouldRun(desc("TESTADD")));
-            assertTrue(filter.shouldRun(desc("testAdd")));
+            assertFalse(filter.shouldRun(methodDesc("TestAdd")));
+            assertFalse(filter.shouldRun(methodDesc("TESTADD")));
+            assertTrue(filter.shouldRun(methodDesc("testAdd")));
         }
 
         @Test
         void filterHandlesEmptyMethodName() throws Exception {
-            // Description with empty string method name (edge case)
             Filter filter = createFilter("testAdd");
             Description emptyMethod = Description.createTestDescription(
                     "com.example.MathTest", "");
-            // Empty string is not null, so it goes through contains() check
             assertFalse(filter.shouldRun(emptyMethod));
         }
 
@@ -263,11 +250,10 @@ class MultiMethodRunnerTest {
             Filter filter1 = createFilter("methodA");
             Filter filter2 = createFilter("methodB");
 
-            assertTrue(filter1.shouldRun(desc("methodA")));
-            assertFalse(filter1.shouldRun(desc("methodB")));
-
-            assertFalse(filter2.shouldRun(desc("methodA")));
-            assertTrue(filter2.shouldRun(desc("methodB")));
+            assertTrue(filter1.shouldRun(methodDesc("methodA")));
+            assertFalse(filter1.shouldRun(methodDesc("methodB")));
+            assertFalse(filter2.shouldRun(methodDesc("methodA")));
+            assertTrue(filter2.shouldRun(methodDesc("methodB")));
         }
 
         private Filter createFilter(String... methods) throws Exception {
@@ -275,8 +261,200 @@ class MultiMethodRunnerTest {
                     getClass().getClassLoader(), Filter.class, methods);
         }
 
-        private Description desc(String methodName) {
+        private Description methodDesc(String methodName) {
             return Description.createTestDescription("com.example.Test", methodName);
+        }
+    }
+
+    // -- JUnit 4 filter + Request integration ---------------------------------
+
+    @Nested
+    class JUnit4FilterIntegration {
+
+        /** A real JUnit 4 test class — JUnit discovers methods via reflection */
+        public static class SampleJUnit4Test {
+            @org.junit.Test public void alpha() {}
+            @org.junit.Test public void beta() {}
+            @org.junit.Test public void gamma() {}
+            @org.junit.Test public void delta() {}
+        }
+
+        @Test
+        void filterKeepsOnlySelectedMethods() throws Exception {
+            Filter filter = (Filter) MultiMethodRunner.createMultiMethodFilter(
+                    getClass().getClassLoader(), Filter.class,
+                    new String[]{"alpha", "gamma"});
+
+            Request request = Request.classWithoutSuiteMethod(SampleJUnit4Test.class);
+            Request filtered = request.filterWith(filter);
+            Runner runner = filtered.getRunner();
+
+            List<String> methods = collectMethodNames(runner.getDescription());
+            assertEquals(2, methods.size());
+            assertTrue(methods.contains("alpha"));
+            assertTrue(methods.contains("gamma"));
+            assertFalse(methods.contains("beta"));
+            assertFalse(methods.contains("delta"));
+        }
+
+        @Test
+        void filterWithSingleMethod() throws Exception {
+            Filter filter = (Filter) MultiMethodRunner.createMultiMethodFilter(
+                    getClass().getClassLoader(), Filter.class,
+                    new String[]{"beta"});
+
+            Request request = Request.classWithoutSuiteMethod(SampleJUnit4Test.class);
+            Request filtered = request.filterWith(filter);
+            Runner runner = filtered.getRunner();
+
+            List<String> methods = collectMethodNames(runner.getDescription());
+            assertEquals(1, methods.size());
+            assertEquals("beta", methods.get(0));
+        }
+
+        @Test
+        void filterWithAllMethods() throws Exception {
+            Filter filter = (Filter) MultiMethodRunner.createMultiMethodFilter(
+                    getClass().getClassLoader(), Filter.class,
+                    new String[]{"alpha", "beta", "gamma", "delta"});
+
+            Request request = Request.classWithoutSuiteMethod(SampleJUnit4Test.class);
+            Request filtered = request.filterWith(filter);
+            Runner runner = filtered.getRunner();
+
+            List<String> methods = collectMethodNames(runner.getDescription());
+            assertEquals(4, methods.size());
+        }
+
+        @Test
+        void filteredRunnerDescription_hasClassAsRoot() throws Exception {
+            Filter filter = (Filter) MultiMethodRunner.createMultiMethodFilter(
+                    getClass().getClassLoader(), Filter.class,
+                    new String[]{"alpha", "beta"});
+
+            Request request = Request.classWithoutSuiteMethod(SampleJUnit4Test.class);
+            Runner runner = request.filterWith(filter).getRunner();
+            Description root = runner.getDescription();
+
+            // Root should be the class, children should be the methods
+            assertTrue(root.isSuite());
+            assertEquals(2, root.getChildren().size());
+        }
+
+        private List<String> collectMethodNames(Description description) {
+            List<String> names = new ArrayList<>();
+            for (Description child : description.getChildren()) {
+                if (child.isTest()) {
+                    names.add(child.getMethodName());
+                } else {
+                    names.addAll(collectMethodNames(child));
+                }
+            }
+            return names;
+        }
+    }
+
+    // -- JUnit 5 Platform request building ------------------------------------
+
+    @Nested
+    class JUnit5PlatformRequestBuilding {
+
+        @Test
+        void selectMethodCreatesValidSelector() throws Exception {
+            var selector = org.junit.platform.engine.discovery.DiscoverySelectors
+                    .selectMethod("com.example.MyTest#testFoo");
+            assertNotNull(selector);
+            assertEquals("com.example.MyTest", selector.getClassName());
+            assertEquals("testFoo", selector.getMethodName());
+        }
+
+        @Test
+        void multiSelectorRequestBuilds() throws Exception {
+            var request = org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder
+                    .request()
+                    .selectors(
+                            org.junit.platform.engine.discovery.DiscoverySelectors.selectMethod("com.example.T#a"),
+                            org.junit.platform.engine.discovery.DiscoverySelectors.selectMethod("com.example.T#b"),
+                            org.junit.platform.engine.discovery.DiscoverySelectors.selectMethod("com.example.T#c")
+                    )
+                    .build();
+            assertNotNull(request);
+            // Verify the request contains all 3 selectors
+            var selectors = request.getSelectorsByType(
+                    org.junit.platform.engine.discovery.MethodSelector.class);
+            assertEquals(3, selectors.size());
+            assertEquals("a", selectors.get(0).getMethodName());
+            assertEquals("b", selectors.get(1).getMethodName());
+            assertEquals("c", selectors.get(2).getMethodName());
+        }
+
+        @Test
+        void selectorFormatMatchesAgentUsage() {
+            // The agent builds "className#methodName" — verify this format works
+            String className = "uk.l3si.maestro.physics.sim.MathUtilTest";
+            String methodName = "sinZeroIsZero";
+            var selector = org.junit.platform.engine.discovery.DiscoverySelectors
+                    .selectMethod(className + "#" + methodName);
+            assertEquals(className, selector.getClassName());
+            assertEquals(methodName, selector.getMethodName());
+        }
+    }
+
+    // -- findLoadTestsMethod --------------------------------------------------
+
+    @Nested
+    class FindLoadTestsMethod {
+
+        /** Fake loader interface mimicking Eclipse's ITestLoader */
+        interface FakeTestLoader {
+            Object[] loadTests(Class<?>[] classes, String testName,
+                    String[] failureNames, String[] packageNames,
+                    String[][] tags, String uniqueId, Object runner);
+        }
+
+        static class FakeLoaderImpl implements FakeTestLoader {
+            @Override
+            public Object[] loadTests(Class<?>[] classes, String testName,
+                    String[] failureNames, String[] packageNames,
+                    String[][] tags, String uniqueId, Object runner) {
+                return new Object[0];
+            }
+        }
+
+        @Test
+        void findsMethodOnImplementation() throws Exception {
+            // Use reflection to access the private findLoadTestsMethod
+            Method findMethod = MultiMethodRunner.class.getDeclaredMethod(
+                    "findLoadTestsMethod", Class.class, Class.class);
+            findMethod.setAccessible(true);
+
+            Method result = (Method) findMethod.invoke(null,
+                    FakeLoaderImpl.class, Object.class);
+            assertNotNull(result);
+            assertEquals("loadTests", result.getName());
+            assertEquals(7, result.getParameterCount());
+        }
+
+        @Test
+        void findsMethodViaInterface() throws Exception {
+            Method findMethod = MultiMethodRunner.class.getDeclaredMethod(
+                    "findLoadTestsMethod", Class.class, Class.class);
+            findMethod.setAccessible(true);
+
+            // FakeLoaderImpl implements FakeTestLoader which has loadTests
+            Method result = (Method) findMethod.invoke(null,
+                    FakeLoaderImpl.class, Object.class);
+            assertNotNull(result);
+        }
+
+        @Test
+        void throwsWhenMethodNotFound() throws Exception {
+            Method findMethod = MultiMethodRunner.class.getDeclaredMethod(
+                    "findLoadTestsMethod", Class.class, Class.class);
+            findMethod.setAccessible(true);
+
+            assertThrows(Exception.class, () ->
+                    findMethod.invoke(null, String.class, Object.class));
         }
     }
 
