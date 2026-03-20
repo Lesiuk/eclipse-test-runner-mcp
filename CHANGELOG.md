@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.88.0
+
+- **JUnit 6 multi-method support** — multi-method `run_test` now handles JUnit 6 loader natively (same JUnit Platform approach as JUnit 5). SWTBot already covered via JUnit 4 path.
+
 ## 0.87.0
 
 - **Fix multi-method JUnit view display** — multi-method `run_test` now shows methods under a single class node in Eclipse's JUnit view instead of duplicating the class per method. Uses loader-specific APIs: JUnit 5 multi-selector `LauncherDiscoveryRequest`, JUnit 4 ASM-generated `Filter` subclass.
