@@ -31,6 +31,13 @@ public class MultiMethodRunner {
 
     private static final String JUNIT5_LOADER =
             "org.eclipse.jdt.internal.junit5.runner.JUnit5TestLoader";
+    private static final String JUNIT5_REF =
+            "org.eclipse.jdt.internal.junit5.runner.JUnit5TestReference";
+
+    private static final String JUNIT6_LOADER =
+            "org.eclipse.jdt.internal.junit6.runner.JUnit6TestLoader";
+    private static final String JUNIT6_REF =
+            "org.eclipse.jdt.internal.junit6.runner.JUnit6TestReference";
 
     private static final String JUNIT4_LOADER =
             "org.eclipse.jdt.internal.junit4.runner.JUnit4TestLoader";
@@ -100,7 +107,9 @@ public class MultiMethodRunner {
 
         List<Object> allRefs;
         if (JUNIT5_LOADER.equals(loaderClassName)) {
-            allRefs = buildJUnit5Refs(loader, className, methods, tags, runner);
+            allRefs = buildPlatformRefs(loader, className, methods, tags, runner, JUNIT5_REF);
+        } else if (JUNIT6_LOADER.equals(loaderClassName)) {
+            allRefs = buildPlatformRefs(loader, className, methods, tags, runner, JUNIT6_REF);
         } else if (JUNIT4_LOADER.equals(loaderClassName)) {
             allRefs = buildJUnit4Refs(loader, className, methods, classes);
         } else {
@@ -191,9 +200,9 @@ public class MultiMethodRunner {
     // JUnit 5: single LauncherDiscoveryRequest with multiple method selectors
     // ------------------------------------------------------------------
 
-    private static List<Object> buildJUnit5Refs(Object loader,
+    private static List<Object> buildPlatformRefs(Object loader,
             String className, String[] methods, String[][] tags,
-            Object runner) throws Exception {
+            Object runner, String testRefClassName) throws Exception {
 
         ClassLoader cl = loader.getClass().getClassLoader();
 
@@ -262,14 +271,13 @@ public class MultiMethodRunner {
                 "fRemoteTestRunner");
         Object remoteRunner = remoteRunnerField.get(loader);
 
-        // Create JUnit5TestReference(LauncherDiscoveryRequest, Launcher, RemoteTestRunner)
+        // Create test reference (JUnit5TestReference or JUnit6TestReference)
         Class<?> requestType = cl.loadClass(
                 "org.junit.platform.launcher.LauncherDiscoveryRequest");
         Class<?> launcherType = cl.loadClass(
                 "org.junit.platform.launcher.Launcher");
         Class<?> rtrType = Class.forName(RUNNER_CLASS_NAME);
-        Class<?> refClass = cl.loadClass(
-                "org.eclipse.jdt.internal.junit5.runner.JUnit5TestReference");
+        Class<?> refClass = cl.loadClass(testRefClassName);
 
         Constructor<?> refCtor = refClass.getDeclaredConstructor(
                 requestType, launcherType, rtrType);
