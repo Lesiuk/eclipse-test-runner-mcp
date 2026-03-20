@@ -2,6 +2,7 @@ package uk.l3si.eclipse.mcp.core.tools;
 
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -143,6 +144,28 @@ public class CleanBuildToolTest {
             assertEquals("alpha", builtProjects.get(0).getAsString());
             assertEquals("beta", builtProjects.get(1).getAsString());
             assertEquals("gamma", builtProjects.get(2).getAsString());
+        }
+    }
+
+    @Test
+    void executeReportsProgressViaReporter() throws Exception {
+        var messages = new java.util.ArrayList<String>();
+        try (MockedStatic<ProjectBuilder> mocked = mockStatic(ProjectBuilder.class)) {
+            mocked.when(() -> ProjectBuilder.cleanAndBuild(any(), any()))
+                    .thenAnswer(invocation -> {
+                        ProgressReporter progress = invocation.getArgument(1);
+                        progress.report("Refreshing projA...");
+                        progress.report("Building projA...");
+                        return List.of("projA");
+                    });
+
+            CleanBuildTool tool = new CleanBuildTool();
+            JsonObject args = new JsonObject();
+            tool.execute(new Args(args), messages::add);
+
+            assertEquals(2, messages.size());
+            assertTrue(messages.get(0).contains("Refreshing"));
+            assertTrue(messages.get(1).contains("Building"));
         }
     }
 }
