@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.82.0
+
+- **Streamable HTTP with progress notifications** — long-running tools (`run_test`, `clean_build`, `get_test_results`) now stream progress events via SSE, preventing MCP client timeouts. Individual test pass/fail results are streamed in real-time during test execution.
+- Bump MCP protocol version to `2025-03-26`
+
 ## v0.81.0
 
 - **Fix NPE in projectNotFoundMessage** — handle null from `getProjects()` when listing available projects in error messages, preventing NullPointerException when workspace has no projects array
