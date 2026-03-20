@@ -10,6 +10,8 @@ import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.SubMonitor;
 import org.eclipse.core.runtime.jobs.Job;
 
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -42,7 +44,7 @@ final class ProjectBuilder {
      * @param projectNames specific projects to clean/rebuild, or {@code null} for all open projects
      * @return names of projects that were cleaned and rebuilt
      */
-    static List<String> cleanAndBuild(List<String> projectNames) throws Exception {
+    static List<String> cleanAndBuild(List<String> projectNames, ProgressReporter progress) throws Exception {
         final Exception[] jobError = { null };
         final List<String> builtProjects = new ArrayList<>();
 
@@ -52,7 +54,7 @@ final class ProjectBuilder {
                 try {
                     IProject[] projects = resolveProjects(projectNames);
                     SubMonitor sub = SubMonitor.convert(monitor, projects.length * 3);
-                    doCleanAndBuild(projects, builtProjects, sub);
+                    doCleanAndBuild(projects, builtProjects, sub, progress);
                     return Status.OK_STATUS;
                 } catch (Exception e) {
                     jobError[0] = e;
@@ -97,10 +99,11 @@ final class ProjectBuilder {
      * Extracted for testability — call from a Job for async execution.
      */
     static void doCleanAndBuild(IProject[] projects, List<String> builtProjects,
-                                IProgressMonitor monitor) throws Exception {
+                                IProgressMonitor monitor, ProgressReporter progress) throws Exception {
         // Refresh all
         for (IProject project : projects) {
             if (project.isOpen()) {
+                progress.report("Refreshing " + project.getName() + "...");
                 project.refreshLocal(IResource.DEPTH_INFINITE, monitor);
             }
         }
@@ -108,6 +111,7 @@ final class ProjectBuilder {
         // Clean all
         for (IProject project : projects) {
             if (project.isOpen()) {
+                progress.report("Cleaning " + project.getName() + "...");
                 project.build(IncrementalProjectBuilder.CLEAN_BUILD, monitor);
             }
         }
@@ -118,6 +122,7 @@ final class ProjectBuilder {
         // Full build all
         for (IProject project : projects) {
             if (project.isOpen()) {
+                progress.report("Building " + project.getName() + "...");
                 project.build(IncrementalProjectBuilder.FULL_BUILD, monitor);
                 builtProjects.add(project.getName());
             }
@@ -133,7 +138,7 @@ final class ProjectBuilder {
      * @param projectNames specific projects to build, or {@code null} to build all open projects
      * @return names of projects that were actually built
      */
-    static List<String> refreshAndBuild(List<String> projectNames) throws Exception {
+    static List<String> refreshAndBuild(List<String> projectNames, ProgressReporter progress) throws Exception {
         final Exception[] jobError = { null };
         final List<String> builtProjects = new ArrayList<>();
 
@@ -157,6 +162,7 @@ final class ProjectBuilder {
                                 throw new IllegalArgumentException(projectNotFoundMessage(name));
                             }
 
+                            progress.report("Refreshing " + name + "...");
                             refreshMonitor.subTask("Refreshing " + name + "...");
                             project.refreshLocal(IResource.DEPTH_INFINITE, refreshMonitor.split(1));
 
@@ -165,6 +171,7 @@ final class ProjectBuilder {
                             Job.getJobManager().join(ResourcesPlugin.FAMILY_AUTO_BUILD, null);
 
                             // Build
+                            progress.report("Building " + name + "...");
                             buildMonitor.subTask("Building " + name + "...");
                             project.build(IncrementalProjectBuilder.INCREMENTAL_BUILD, buildMonitor.split(1));
 
@@ -177,6 +184,7 @@ final class ProjectBuilder {
                         refreshMonitor.setWorkRemaining(allProjects.length);
                         for (IProject project : allProjects) {
                             if (project.isOpen()) {
+                                progress.report("Refreshing " + project.getName() + "...");
                                 refreshMonitor.subTask("Refreshing " + project.getName() + "...");
                                 project.refreshLocal(IResource.DEPTH_INFINITE, refreshMonitor.split(1));
                             }
@@ -189,6 +197,7 @@ final class ProjectBuilder {
                         buildMonitor.setWorkRemaining(allProjects.length);
                         for (IProject project : allProjects) {
                             if (project.isOpen()) {
+                                progress.report("Building " + project.getName() + "...");
                                 buildMonitor.subTask("Building " + project.getName() + "...");
                                 project.build(IncrementalProjectBuilder.INCREMENTAL_BUILD, buildMonitor.split(1));
                                 builtProjects.add(project.getName());
