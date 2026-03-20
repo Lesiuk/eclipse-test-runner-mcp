@@ -92,6 +92,30 @@ public class TestLaunchHelper {
     private static final String ATTR_MAIN_TYPE = "org.eclipse.jdt.launching.MAIN_TYPE";
     private static final String ATTR_TEST_NAME = "org.eclipse.jdt.junit.TESTNAME";
     private static final String ATTR_CONTAINER = "org.eclipse.jdt.junit.CONTAINER";
+    private static final String ATTR_VM_ARGUMENTS = "org.eclipse.jdt.launching.VM_ARGUMENTS";
+
+    /**
+     * Returns true if the methods list represents a multi-method launch (more than one method).
+     */
+    static boolean isMultiMethod(List<String> methods) {
+        return methods != null && methods.size() > 1;
+    }
+
+    /**
+     * Build VM arguments string for multi-method mode.
+     * Adds the javaagent and eclipse.mcp.test.methods system property,
+     * preserving any existing VM arguments.
+     */
+    static String buildMultiMethodVmArgs(String agentJarPath, List<String> methods, String existing) {
+        String agentArg = "-javaagent:" + agentJarPath;
+        String methodsArg = "-Declipse.mcp.test.methods=" + String.join(",", methods);
+        StringBuilder sb = new StringBuilder();
+        if (existing != null && !existing.isBlank()) {
+            sb.append(existing).append(' ');
+        }
+        sb.append(agentArg).append(' ').append(methodsArg);
+        return sb.toString();
+    }
 
     /**
      * Launch a test configuration with class/method overrides.
