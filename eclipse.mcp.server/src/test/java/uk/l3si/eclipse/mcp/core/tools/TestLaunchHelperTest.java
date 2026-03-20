@@ -168,14 +168,13 @@ class TestLaunchHelperTest {
     }
 
     @Test
-    void noMethodsInClassShowsEmptyList() throws Exception {
+    void noMethodsInClassSkipsValidation() throws Exception {
         IType type = mock(IType.class);
         when(type.getMethods()).thenReturn(new IMethod[]{});
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+        // When getMethods() returns empty (e.g. binary type without source), validation is skipped
+        assertDoesNotThrow(() ->
                 TestLaunchHelper.validateMethodOnType(type, "com.test.EmptyTest", "testSomething"));
-        assertTrue(ex.getMessage().contains("testSomething"));
-        assertTrue(ex.getMessage().contains("not found"));
     }
 
     @Test

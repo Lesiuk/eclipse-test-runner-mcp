@@ -3,6 +3,7 @@
 ## 0.85.0
 
 - **Hint to re-run only failed tests** — `run_test` description now guides LLMs to use `method`/`methods` to re-run only failures, saving significant time for slow test suites (Selenium, SWTBot)
+- **Fix method validation with empty method list** — skip validation when `IType.getMethods()` returns empty (e.g. binary types without source), letting Eclipse's test runner handle it instead of failing with an empty "Available methods:" message
 
 ## 0.84.0
 

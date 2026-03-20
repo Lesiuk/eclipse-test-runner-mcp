@@ -294,7 +294,11 @@ public class TestLaunchHelper {
      * Check that the given method name exists on the type. Package-visible for testing.
      */
     static void validateMethodOnType(IType type, String className, String methodName) throws Exception {
-        for (IMethod method : type.getMethods()) {
+        IMethod[] methods = type.getMethods();
+        if (methods.length == 0) {
+            return; // can't validate — methods not resolved (e.g. binary type without source)
+        }
+        for (IMethod method : methods) {
             if (method.getElementName().equals(methodName)) {
                 return;
             }
