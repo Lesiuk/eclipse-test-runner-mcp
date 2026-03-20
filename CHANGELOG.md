@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.89.0
+
+- **Fix multi-method producing 0 test results** — two bugs in the JUnit Platform path: (1) `Method.invoke()` varargs unwrapping caused `DiscoverySelector[]` to be spread into individual arguments instead of passed as one array, (2) `fRemoteTestRunner` was null because `loadTests()` was bypassed — now uses the runner instance directly
+
 ## 0.88.0
 
 - **JUnit 6 multi-method support** — multi-method `run_test` now handles JUnit 6 loader natively (same JUnit Platform approach as JUnit 5). SWTBot already covered via JUnit 4 path.

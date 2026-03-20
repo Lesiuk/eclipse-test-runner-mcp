@@ -229,9 +229,11 @@ public class MultiMethodRunner {
         Object builder = requestFactory.invoke(null);
 
         // builder.selectors(DiscoverySelector[])
+        // Cast to (Object) to prevent varargs unwrapping — the array IS-A Object[]
+        // which invoke() would otherwise spread into individual arguments
         Method selectorsMethod = builderClass.getMethod("selectors",
                 selectorsArray.getClass());
-        selectorsMethod.invoke(builder, selectorsArray);
+        selectorsMethod.invoke(builder, (Object) selectorsArray);
 
         // Apply tag filters if present
         if (tags != null) {
@@ -251,7 +253,7 @@ public class MultiMethodRunner {
                     }
                     Method filtersMethod = builderClass.getMethod("filters",
                             filtersArray.getClass());
-                    filtersMethod.invoke(builder, filtersArray);
+                    filtersMethod.invoke(builder, (Object) filtersArray);
                 }
             } catch (NoSuchMethodException e) {
                 // getTagFilters not available, skip tag filtering
@@ -266,12 +268,9 @@ public class MultiMethodRunner {
         Field launcherField = findField(loader.getClass(), "fLauncher");
         Object launcher = launcherField.get(loader);
 
-        // Get fRemoteTestRunner from the loader
-        Field remoteRunnerField = findField(loader.getClass(),
-                "fRemoteTestRunner");
-        Object remoteRunner = remoteRunnerField.get(loader);
-
         // Create test reference (JUnit5TestReference or JUnit6TestReference)
+        // Use the runner passed to execute(), NOT fRemoteTestRunner from the loader
+        // (which is null because we bypass loadTests())
         Class<?> requestType = cl.loadClass(
                 "org.junit.platform.launcher.LauncherDiscoveryRequest");
         Class<?> launcherType = cl.loadClass(
@@ -282,7 +281,7 @@ public class MultiMethodRunner {
         Constructor<?> refCtor = refClass.getDeclaredConstructor(
                 requestType, launcherType, rtrType);
         refCtor.setAccessible(true);
-        Object ref = refCtor.newInstance(request, launcher, remoteRunner);
+        Object ref = refCtor.newInstance(request, launcher, runner);
 
         List<Object> refs = new ArrayList<>();
         refs.add(ref);
