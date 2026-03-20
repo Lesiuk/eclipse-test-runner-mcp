@@ -16,6 +16,7 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.ResourcesPlugin;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
@@ -61,6 +62,10 @@ public class RunTestTool implements McpTool {
                 .property("config", PropertySchema.string("Name of an existing JUnit launch configuration to use as template"))
                 .property("class", PropertySchema.string("Fully qualified test class name (e.g. 'com.example.FooTest')"))
                 .property("method", PropertySchema.string("Optional: specific test method name to run. If omitted, runs all tests in the class."))
+                .property("methods", PropertySchema.array(
+                        "Optional: specific test method names to run. Can be combined with 'method'. If omitted, runs all tests in the class.",
+                        PropertySchema.builder().type("string").build()
+                ))
                 .property("project", PropertySchema.string("Project containing the test class. Sets the project on the launch config and is used for compilation error checking."))
                 .property("dependencies", PropertySchema.array(
                         "Dependency projects that were modified externally and need refreshing/rebuilding before running tests. "
@@ -131,6 +136,27 @@ public class RunTestTool implements McpTool {
                 .refreshedAndBuilt(builtProjects)
                 .launchResult(launchResult)
                 .build();
+    }
+
+    /**
+     * Merge 'method' (single) and 'methods' (array) into a deduplicated list.
+     * Returns null if neither is provided (meaning: run all tests in the class).
+     */
+    static List<String> resolveMethods(Args args) {
+        String method = args.getString("method");
+        List<String> methods = args.getStringList("methods");
+
+        LinkedHashSet<String> merged = new LinkedHashSet<>();
+        if (method != null) {
+            merged.add(method);
+        }
+        if (methods != null) {
+            merged.addAll(methods);
+        }
+        if (merged.isEmpty()) {
+            return null;
+        }
+        return new ArrayList<>(merged);
     }
 
     private String buildModeDescription() {
