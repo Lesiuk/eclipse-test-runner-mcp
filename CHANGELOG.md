@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.85.0
+
+- **Hint to re-run only failed tests** — `run_test` description now guides LLMs to use `method`/`methods` to re-run only failures, saving significant time for slow test suites (Selenium, SWTBot)
+
 ## 0.84.0
 
 - **Multiple test methods in one call** — `run_test` now accepts a `methods` array to run multiple test methods in a single JVM launch, sharing the build step and JVM initialization for efficiency. Works with JUnit 3/4/5/6 and SWTBot. Uses a bundled Java agent that intercepts Eclipse's RemoteTestRunner to execute only the specified methods. Requires Eclipse 2019-06 or newer.
