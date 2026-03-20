@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.84.0
+
+- **Multiple test methods in one call** — `run_test` now accepts a `methods` array to run multiple test methods in a single JVM launch, sharing the build step and JVM initialization for efficiency. Works with JUnit 3/4/5/6 and SWTBot. Uses a bundled Java agent that intercepts Eclipse's RemoteTestRunner to execute only the specified methods.
+
 ## 0.83.0
 
 - **Debug mode returns test results on termination** — `run_test` in debug mode now collects and returns pass/fail results when the test finishes without hitting a breakpoint
