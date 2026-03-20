@@ -97,7 +97,7 @@ public class RunTestTool implements McpTool {
     private Object doExecute(Args args, ProgressReporter progress) throws Exception {
         String configName = args.requireString("config", "launch configuration name");
         String className = args.requireString("class", "fully qualified test class name");
-        String methodName = args.getString("method");
+        List<String> methods = resolveMethods(args);
         String projectName = args.getString("project");
         List<String> dependencies = args.getStringList("dependencies");
         String mode = args.getString("mode", "run");
@@ -131,7 +131,7 @@ public class RunTestTool implements McpTool {
 
         // Launch test
         progress.report("Launching " + className.substring(className.lastIndexOf('.') + 1) + "...");
-        LaunchTestResult launchResult = TestLaunchHelper.launchTest(configName, className, methodName, projectName, mode, debugContext, progress);
+        LaunchTestResult launchResult = TestLaunchHelper.launchTest(configName, className, methods, projectName, mode, debugContext, progress);
         return RunTestResult.builder()
                 .refreshedAndBuilt(builtProjects)
                 .launchResult(launchResult)

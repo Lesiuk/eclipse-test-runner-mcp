@@ -127,7 +127,7 @@ public class TestLaunchHelper {
      */
     private static final int DEBUG_TIMEOUT_SECONDS = 300;
 
-    public static LaunchTestResult launchTest(String configName, String className, String methodName, String projectName, String mode, DebugContext debugContext, ProgressReporter progress) throws Exception {
+    public static LaunchTestResult launchTest(String configName, String className, List<String> methods, String projectName, String mode, DebugContext debugContext, ProgressReporter progress) throws Exception {
         ILaunchConfiguration config = findTestConfig(configName);
 
         // Resolve project: user-provided or from existing config
@@ -136,11 +136,13 @@ public class TestLaunchHelper {
             resolvedProject = config.getAttribute(ATTR_PROJECT_NAME, (String) null);
         }
 
-        // Validate test class and method exist in the project
+        // Validate test class and methods exist in the project
         if (resolvedProject != null) {
             validateTestClassExists(resolvedProject, className);
-            if (methodName != null) {
-                validateTestMethodExists(resolvedProject, className, methodName);
+            if (methods != null) {
+                for (String m : methods) {
+                    validateTestMethodExists(resolvedProject, className, m);
+                }
             }
         }
 
@@ -150,9 +152,17 @@ public class TestLaunchHelper {
         if (resolvedProject != null) {
             wc.setAttribute(ATTR_PROJECT_NAME, resolvedProject);
         }
-        if (methodName != null) {
-            wc.setAttribute(ATTR_TEST_NAME, methodName);
+        if (methods != null && methods.size() == 1) {
+            // Single method — use standard JUnit test name
+            wc.setAttribute(ATTR_TEST_NAME, methods.get(0));
+        } else if (isMultiMethod(methods)) {
+            // Multi-method — run whole class, inject agent via VM args
+            wc.setAttribute(ATTR_TEST_NAME, "");
+            String agentPath = AgentJarLocator.getAgentJarPath();
+            String existingVmArgs = config.getAttribute(ATTR_VM_ARGUMENTS, (String) null);
+            wc.setAttribute(ATTR_VM_ARGUMENTS, buildMultiMethodVmArgs(agentPath, methods, existingVmArgs));
         } else {
+            // No methods — run all tests in the class
             wc.setAttribute(ATTR_TEST_NAME, "");
         }
         // Clear container — running a specific class, not a package/project
@@ -191,7 +201,8 @@ public class TestLaunchHelper {
                 .config(configName)
                 .project(resolvedProject)
                 .className(className)
-                .method(methodName);
+                .method(methods != null && methods.size() == 1 ? methods.get(0) : null)
+                .methods(methods);
 
         // In debug mode, wait for breakpoint hit or termination
         if ("debug".equals(mode)) {
