@@ -1,8 +1,11 @@
 # Changelog
 
-## 0.86.0
+## 0.87.0
 
 - **Fix multi-method JUnit view display** — multi-method `run_test` now shows methods under a single class node in Eclipse's JUnit view instead of duplicating the class per method. Uses loader-specific APIs: JUnit 5 multi-selector `LauncherDiscoveryRequest`, JUnit 4 ASM-generated `Filter` subclass.
+
+## 0.86.0
+
 - **Fix method validation with empty method list** — skip validation when `IType.getMethods()` returns empty (e.g. binary types without source), letting Eclipse's test runner handle it instead of failing with an empty "Available methods:" message
 
 ## 0.85.0
