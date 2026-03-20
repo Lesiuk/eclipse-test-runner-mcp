@@ -37,7 +37,7 @@ public class McpProtocolHandlerTest {
         JsonObject resp = JsonParser.parseString(response).getAsJsonObject();
         assertTrue(resp.has("result"));
         JsonObject result = resp.getAsJsonObject("result");
-        assertEquals("2024-11-05", result.get("protocolVersion").getAsString());
+        assertEquals("2025-03-26", result.get("protocolVersion").getAsString());
         assertTrue(result.has("capabilities"));
         assertTrue(result.has("serverInfo"));
         assertEquals("eclipse-test-runner-mcp", result.getAsJsonObject("serverInfo").get("name").getAsString());
@@ -117,5 +117,50 @@ public class McpProtocolHandlerTest {
         String response = handler.handleMessage(json);
         JsonObject resp = JsonParser.parseString(response).getAsJsonObject();
         assertEquals("2.0", resp.get("jsonrpc").getAsString());
+    }
+
+    @Test
+    void toolCallWithProgressTokenWritesSSE() throws Exception {
+        String json = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\","
+                + "\"params\":{\"name\":\"list_projects\",\"_meta\":{\"progressToken\":\"tok1\"}}}";
+
+        var out = new java.io.ByteArrayOutputStream();
+        handler.handleMessage(json, out);
+        String sse = out.toString(java.nio.charset.StandardCharsets.UTF_8);
+
+        assertTrue(sse.contains("event: message"), "should have SSE event type");
+        assertTrue(sse.contains("\"id\":1"), "should contain the response id");
+        assertTrue(sse.contains("data: "), "should be SSE formatted");
+    }
+
+    @Test
+    void toolCallWithProgressTokenAndErrorWritesSSEError() throws Exception {
+        String json = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\","
+                + "\"params\":{\"name\":\"nonexistent\",\"_meta\":{\"progressToken\":\"tok2\"}}}";
+
+        var out = new java.io.ByteArrayOutputStream();
+        handler.handleMessage(json, out);
+        String sse = out.toString(java.nio.charset.StandardCharsets.UTF_8);
+
+        assertTrue(sse.contains("event: message"));
+        assertTrue(sse.contains("isError"));
+    }
+
+    @Test
+    void toolCallWithoutProgressTokenReturnsJson() {
+        String json = "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\","
+                + "\"params\":{\"name\":\"list_projects\"}}";
+        String response = handler.handleMessage(json);
+        assertNotNull(response);
+    }
+
+    @Test
+    void nonToolsCallViaSseWritesResponseAsEvent() throws Exception {
+        String json = "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"ping\"}";
+        var out = new java.io.ByteArrayOutputStream();
+        handler.handleMessage(json, out);
+        String sse = out.toString(java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(sse.contains("event: message"));
+        assertTrue(sse.contains("\"id\":4"));
     }
 }
