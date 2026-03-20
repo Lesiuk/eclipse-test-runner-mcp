@@ -10,3 +10,4 @@ eclipse-sdk/
 .idea/
 .DS_Store
 docs/
+dependency-reduced-pom.xml
