@@ -171,16 +171,25 @@ public class TestLaunchHelper {
 
         // In debug mode, wait for breakpoint hit or termination
         if ("debug".equals(mode)) {
-            WaitResult wait = debugContext.waitForSuspendOrTerminate(DEBUG_TIMEOUT_SECONDS);
+            WaitResult wait = debugContext.waitForSuspendOrTerminate(DEBUG_TIMEOUT_SECONDS, progress);
             switch (wait) {
                 case SUSPENDED -> builder
                         .debugStopped(true)
                         .debugReason(debugContext.getSuspendReason())
                         .debugLocation(debugContext.getCurrentLocation())
                         .debugVariables(VariableCollector.collectForCurrentFrame(debugContext));
-                case TERMINATED -> builder
-                        .debugStopped(true)
-                        .debugReason("terminated");
+                case TERMINATED -> {
+                    builder.debugStopped(true)
+                           .debugReason("terminated");
+                    try {
+                        TestRunResult testResults = TestResultsHelper.waitAndCollect(launchResult[0], progress);
+                        if (testResults != null) {
+                            builder.testResults(testResults);
+                        }
+                    } catch (Exception e) {
+                        builder.testResultsError("Failed to collect test results: " + e.getMessage());
+                    }
+                }
                 case TIMEOUT -> builder
                         .debugStopped(false)
                         .debugReason("timeout");

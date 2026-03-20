@@ -1,6 +1,7 @@
 package uk.l3si.eclipse.mcp.debugging;
 
 import uk.l3si.eclipse.mcp.debugging.model.LocationInfo;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -151,22 +152,32 @@ public class DebugContext implements IDebugEventSetListener {
     public enum WaitResult { SUSPENDED, TERMINATED, TIMEOUT }
 
     private static final int POLL_INTERVAL_MS = 500;
+    private static final long KEEPALIVE_INTERVAL_MS = 60_000;
 
     /**
      * Poll until a thread suspends, the target terminates, or the timeout expires.
      */
     public WaitResult waitForSuspendOrTerminate(int timeoutSeconds) throws InterruptedException {
+        return waitForSuspendOrTerminate(timeoutSeconds, message -> {});
+    }
+
+    public WaitResult waitForSuspendOrTerminate(int timeoutSeconds, ProgressReporter progress) throws InterruptedException {
         if (isSuspended()) return WaitResult.SUSPENDED;
 
         IJavaDebugTarget target = getCurrentTarget();
         if (target == null || target.isTerminated()) return WaitResult.TERMINATED;
 
         long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
+        long lastProgressTime = System.currentTimeMillis();
         while (System.currentTimeMillis() < deadline) {
             Thread.sleep(POLL_INTERVAL_MS);
             if (isSuspended()) return WaitResult.SUSPENDED;
             target = getCurrentTarget();
             if (target == null || target.isTerminated()) return WaitResult.TERMINATED;
+            if (System.currentTimeMillis() - lastProgressTime >= KEEPALIVE_INTERVAL_MS) {
+                progress.report("Waiting for breakpoint...");
+                lastProgressTime = System.currentTimeMillis();
+            }
         }
         return WaitResult.TIMEOUT;
     }
