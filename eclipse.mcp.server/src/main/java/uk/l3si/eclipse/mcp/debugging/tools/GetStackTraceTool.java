@@ -5,6 +5,7 @@ import uk.l3si.eclipse.mcp.debugging.model.FrameInfo;
 import uk.l3si.eclipse.mcp.debugging.model.StackTraceResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import com.sun.jdi.InvalidStackFrameException;
@@ -44,7 +45,7 @@ public class GetStackTraceTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         Long threadId = args.getLong("thread_id");
         IJavaThread thread = debugContext.resolveThread(threadId);
         if (!thread.isSuspended()) {

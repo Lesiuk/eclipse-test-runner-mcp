@@ -41,7 +41,7 @@ class FlowToolTest {
     }
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     /**
@@ -56,7 +56,7 @@ class FlowToolTest {
         taskArgs.addProperty("name", "Second Task");
         taskArgs.addProperty("taskName", "com.example.IService_second");
         taskArgs.addProperty("id", "Task_2");
-        addServiceTaskTool.execute(new Args(taskArgs));
+        addServiceTaskTool.execute(new Args(taskArgs), message -> {});
 
         // Add EndEvent_2
         NodeTool nodeTool = new NodeTool();
@@ -66,7 +66,7 @@ class FlowToolTest {
         endArgs.addProperty("type", "end_event");
         endArgs.addProperty("name", "Second End");
         endArgs.addProperty("id", "EndEvent_2");
-        nodeTool.execute(new Args(endArgs));
+        nodeTool.execute(new Args(endArgs), message -> {});
     }
 
     // ---- Add flow tests ----
@@ -83,7 +83,7 @@ class FlowToolTest {
         args.addProperty("action", "invalid");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Invalid action"), ex.getMessage());
         assertTrue(ex.getMessage().contains("invalid"), ex.getMessage());
     }
@@ -226,7 +226,7 @@ class FlowToolTest {
         args.addProperty("target", "Task_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("self-loop"), ex.getMessage());
         assertTrue(ex.getMessage().contains("Task_1"), ex.getMessage());
     }
@@ -243,7 +243,7 @@ class FlowToolTest {
         args.addProperty("target", "Task_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Duplicate flow"), ex.getMessage());
         assertTrue(ex.getMessage().contains("SequenceFlow_1"), ex.getMessage());
     }
@@ -259,7 +259,7 @@ class FlowToolTest {
         args.addProperty("target", "Task_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("endEvent"), ex.getMessage());
         assertTrue(ex.getMessage().contains("EndEvent_1"), ex.getMessage());
     }
@@ -275,7 +275,7 @@ class FlowToolTest {
         args.addProperty("target", "StartEvent_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("startEvent"), ex.getMessage());
         assertTrue(ex.getMessage().contains("StartEvent_1"), ex.getMessage());
     }
@@ -291,7 +291,7 @@ class FlowToolTest {
         args.addProperty("target", "Task_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Node not found"), ex.getMessage());
         assertTrue(ex.getMessage().contains("NonExistent_1"), ex.getMessage());
     }
@@ -307,7 +307,7 @@ class FlowToolTest {
         args.addProperty("target", "NonExistent_2");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Node not found"), ex.getMessage());
         assertTrue(ex.getMessage().contains("NonExistent_2"), ex.getMessage());
     }
@@ -325,7 +325,7 @@ class FlowToolTest {
         args.addProperty("priority", "-1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("positive"), ex.getMessage());
     }
 
@@ -342,7 +342,7 @@ class FlowToolTest {
         args.addProperty("priority", "0");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("positive"), ex.getMessage());
     }
 
@@ -359,7 +359,7 @@ class FlowToolTest {
         args.addProperty("evaluatesToTypeRef", "ItemDefinition_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("without a 'condition'"), ex.getMessage());
     }
 
@@ -377,7 +377,7 @@ class FlowToolTest {
         args.addProperty("evaluatesToTypeRef", "NonExistent_ItemDef");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("ItemDefinition not found"), ex.getMessage());
     }
 
@@ -532,7 +532,7 @@ class FlowToolTest {
         args.addProperty("id", "SequenceFlow_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("No properties to update"), ex.getMessage());
     }
 
@@ -547,7 +547,7 @@ class FlowToolTest {
         args.addProperty("name", "test");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Sequence flow not found"), ex.getMessage());
         assertTrue(ex.getMessage().contains("SequenceFlow_999"), ex.getMessage());
     }
@@ -563,7 +563,7 @@ class FlowToolTest {
         args.addProperty("priority", "-1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("positive"), ex.getMessage());
     }
 
@@ -578,7 +578,7 @@ class FlowToolTest {
         args.addProperty("evaluatesToTypeRef", "NonExistent_ItemDef");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("ItemDefinition not found"), ex.getMessage());
     }
 
@@ -649,14 +649,14 @@ class FlowToolTest {
         taskArgs.addProperty("name", "Extra Task");
         taskArgs.addProperty("taskName", "com.example.IService_extra");
         taskArgs.addProperty("id", "Task_2");
-        addServiceTaskTool.execute(new Args(taskArgs));
+        addServiceTaskTool.execute(new Args(taskArgs), message -> {});
 
         JsonObject addFlowArgs = new JsonObject();
         addFlowArgs.addProperty("file", file.toString());
         addFlowArgs.addProperty("action", "add");
         addFlowArgs.addProperty("source", "StartEvent_1");
         addFlowArgs.addProperty("target", "Task_2");
-        tool.execute(new Args(addFlowArgs));
+        tool.execute(new Args(addFlowArgs), message -> {});
 
         // Now remove SequenceFlow_1 (StartEvent_1 -> Task_1)
         // StartEvent_1 still has the new flow (outgoing), so no warning for it
@@ -686,7 +686,7 @@ class FlowToolTest {
         args.addProperty("id", "SequenceFlow_999");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Sequence flow not found"), ex.getMessage());
         assertTrue(ex.getMessage().contains("SequenceFlow_999"), ex.getMessage());
     }
@@ -701,7 +701,7 @@ class FlowToolTest {
         taskArgs.addProperty("name", "Extra Task");
         taskArgs.addProperty("taskName", "com.example.IService_extra");
         taskArgs.addProperty("id", "Task_2");
-        addServiceTaskTool.execute(new Args(taskArgs));
+        addServiceTaskTool.execute(new Args(taskArgs), message -> {});
 
         JsonObject flowArgs = new JsonObject();
         flowArgs.addProperty("file", file.toString());
@@ -709,7 +709,7 @@ class FlowToolTest {
         flowArgs.addProperty("source", "Task_1");
         flowArgs.addProperty("target", "Task_2");
         flowArgs.addProperty("condition", "return x > 0;");
-        tool.execute(new Args(flowArgs));
+        tool.execute(new Args(flowArgs), message -> {});
     }
 
     private static boolean hasFlowRef(Element node, String refType, String flowId) {

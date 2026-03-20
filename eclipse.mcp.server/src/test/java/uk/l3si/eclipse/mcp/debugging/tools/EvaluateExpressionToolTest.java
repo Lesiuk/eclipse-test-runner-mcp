@@ -54,7 +54,7 @@ class EvaluateExpressionToolTest {
         JsonObject args = new JsonObject();
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("expression"));
     }
 
@@ -64,7 +64,7 @@ class EvaluateExpressionToolTest {
         args.addProperty("expression", "   ");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("blank"));
     }
 
@@ -114,7 +114,7 @@ class EvaluateExpressionToolTest {
             JsonObject args = new JsonObject();
             args.addProperty("expression", "x + 1");
 
-            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
             assertEquals("int", result.get("type").getAsString());
             assertEquals("42", result.get("value").getAsString());
         }
@@ -159,7 +159,7 @@ class EvaluateExpressionToolTest {
             args.addProperty("expression", "invalid!!!");
 
             RuntimeException ex = assertThrows(RuntimeException.class,
-                    () -> tool.execute(new Args(args)));
+                    () -> tool.execute(new Args(args), message -> {}));
             assertTrue(ex.getMessage().contains("Syntax error"));
         }
     }
@@ -204,7 +204,7 @@ class EvaluateExpressionToolTest {
             args.addProperty("expression", "x + x");
 
             RuntimeException ex = assertThrows(RuntimeException.class,
-                    () -> tool.execute(new Args(args)));
+                    () -> tool.execute(new Args(args), message -> {}));
             assertEquals("x cannot be resolved", ex.getMessage());
         }
     }
@@ -221,7 +221,7 @@ class EvaluateExpressionToolTest {
         args.addProperty("expression", "x");
 
         IllegalStateException ex = assertThrows(IllegalStateException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("No active debug target"));
     }
 
@@ -247,7 +247,7 @@ class EvaluateExpressionToolTest {
             args.addProperty("expression", "x");
 
             IllegalStateException ex = assertThrows(IllegalStateException.class,
-                    () -> tool.execute(new Args(args)));
+                    () -> tool.execute(new Args(args), message -> {}));
             assertTrue(ex.getMessage().contains("Java project"));
         }
     }
@@ -293,7 +293,7 @@ class EvaluateExpressionToolTest {
             args.addProperty("expression", "obj.method()");
 
             RuntimeException ex = assertThrows(RuntimeException.class,
-                    () -> tool.execute(new Args(args)));
+                    () -> tool.execute(new Args(args), message -> {}));
             assertTrue(ex.getMessage().contains("NPE"));
             assertTrue(ex.getMessage().contains("null ref"));
         }
@@ -342,7 +342,7 @@ class EvaluateExpressionToolTest {
             JsonObject args = new JsonObject();
             args.addProperty("expression", "1");
 
-            tool.execute(new Args(args));
+            tool.execute(new Args(args), message -> {});
             verify(engine).dispose();
         }
     }
@@ -385,7 +385,7 @@ class EvaluateExpressionToolTest {
             JsonObject args = new JsonObject();
             args.addProperty("expression", "bad");
 
-            assertThrows(RuntimeException.class, () -> tool.execute(new Args(args)));
+            assertThrows(RuntimeException.class, () -> tool.execute(new Args(args), message -> {}));
             verify(engine).dispose();
         }
     }
@@ -433,7 +433,7 @@ class EvaluateExpressionToolTest {
             JsonObject args = new JsonObject();
             args.addProperty("expression", "obj.toJson()");
 
-            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
             assertEquals("java.lang.String", result.get("type").getAsString());
             // value should be a parsed JSON object, not a double-encoded string
             assertTrue(result.get("value").isJsonObject());
@@ -486,7 +486,7 @@ class EvaluateExpressionToolTest {
             JsonObject args = new JsonObject();
             args.addProperty("expression", "name");
 
-            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
             assertEquals("java.lang.String", result.get("type").getAsString());
             // plain text should remain a string
             assertTrue(result.get("value").isJsonPrimitive());
@@ -536,7 +536,7 @@ class EvaluateExpressionToolTest {
             JsonObject args = new JsonObject();
             args.addProperty("expression", "nullRef");
 
-            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
             assertEquals("null", result.get("value").getAsString());
         }
     }
@@ -593,7 +593,7 @@ class EvaluateExpressionToolTest {
             JsonObject args = new JsonObject();
             args.addProperty("expression", "myInteger");
 
-            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
             assertEquals("java.lang.Integer", result.get("type").getAsString());
             assertEquals("42", result.get("value").getAsString());
             assertFalse(result.has("fields"));
@@ -673,7 +673,7 @@ class EvaluateExpressionToolTest {
             JsonObject args = new JsonObject();
             args.addProperty("expression", "myList");
 
-            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
             assertEquals("java.util.ArrayList", result.get("type").getAsString());
             assertEquals(3, result.get("length").getAsInt());
             assertTrue(result.get("value").isJsonArray());
@@ -793,7 +793,7 @@ class EvaluateExpressionToolTest {
             JsonObject args = new JsonObject();
             args.addProperty("expression", "myMap");
 
-            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
             assertEquals("java.util.HashMap", result.get("type").getAsString());
             assertEquals(2, result.get("length").getAsInt());
             assertTrue(result.get("value").isJsonObject());
@@ -857,7 +857,7 @@ class EvaluateExpressionToolTest {
             JsonObject args = new JsonObject();
             args.addProperty("expression", "myOrder");
 
-            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
             assertEquals("com.example.Order", result.get("type").getAsString());
             assertEquals("Order{id=42, total=99.99}", result.get("value").getAsString());
             assertTrue(result.has("fields"));

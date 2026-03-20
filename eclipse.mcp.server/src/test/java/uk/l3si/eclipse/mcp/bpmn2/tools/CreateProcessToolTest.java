@@ -28,7 +28,7 @@ class CreateProcessToolTest {
     }
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -56,7 +56,7 @@ class CreateProcessToolTest {
         JsonObject getArgs = new JsonObject();
         getArgs.addProperty("file", file.toString());
         JsonObject processInfo = GSON.toJsonTree(
-                getProcessTool.execute(new Args(getArgs))).getAsJsonObject();
+                getProcessTool.execute(new Args(getArgs), message -> {})).getAsJsonObject();
 
         assertEquals("com.example.new_flow", processInfo.get("processId").getAsString());
         assertEquals("new_flow", processInfo.get("processName").getAsString());
@@ -82,7 +82,7 @@ class CreateProcessToolTest {
         args.addProperty("packageName", "com.example");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("File already exists"), ex.getMessage());
     }
 
@@ -96,7 +96,7 @@ class CreateProcessToolTest {
         args.addProperty("packageName", "com.example");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Invalid processId"), ex.getMessage());
     }
 
@@ -108,7 +108,7 @@ class CreateProcessToolTest {
         args.addProperty("packageName", "com.example");
 
         assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
     }
 
     @Test
@@ -120,7 +120,7 @@ class CreateProcessToolTest {
         args.addProperty("packageName", "com.example");
 
         assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
     }
 
     @Test
@@ -132,7 +132,7 @@ class CreateProcessToolTest {
         args.addProperty("packageName", "com.example");
 
         assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
     }
 
     @Test
@@ -145,7 +145,7 @@ class CreateProcessToolTest {
         args.addProperty("packageName", "com.example");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains(".bpmn2"), ex.getMessage());
     }
 
@@ -158,6 +158,6 @@ class CreateProcessToolTest {
         args.addProperty("processName", "flow");
 
         assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
     }
 }

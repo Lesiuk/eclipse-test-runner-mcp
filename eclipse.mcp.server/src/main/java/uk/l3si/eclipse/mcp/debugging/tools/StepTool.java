@@ -8,6 +8,7 @@ import uk.l3si.eclipse.mcp.debugging.model.StepResult;
 import uk.l3si.eclipse.mcp.model.TestRunResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.jdt.debug.core.IJavaThread;
@@ -57,7 +58,7 @@ public class StepTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         String action = args.requireString("action", "Step action: over, into, return, or resume");
 
         if (!action.equals("over") && !action.equals("into")

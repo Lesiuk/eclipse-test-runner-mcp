@@ -7,6 +7,7 @@ import uk.l3si.eclipse.mcp.model.ProblemInfo;
 import uk.l3si.eclipse.mcp.model.RunTestResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.core.resources.IMarker;
@@ -73,7 +74,7 @@ public class RunTestTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         if (!RUN_LOCK.tryAcquire(LOCK_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
             throw new IllegalStateException(
                     "Another run_test call is already in progress and did not complete within "

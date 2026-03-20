@@ -40,7 +40,7 @@ class AddServiceTaskToolTest {
     }
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -124,7 +124,7 @@ class AddServiceTaskToolTest {
         args.addProperty("id", "Task_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("ID already taken"), ex.getMessage());
     }
 
@@ -136,7 +136,7 @@ class AddServiceTaskToolTest {
         args.addProperty("name", "Missing TaskName");
 
         assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
     }
 
     private static Element findChildElement(Element parent, String ns, String localName) {

@@ -40,7 +40,7 @@ class AddSubflowCallToolTest {
     }
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -83,7 +83,7 @@ class AddSubflowCallToolTest {
         args.addProperty("name", "Missing CalledElement");
 
         assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
     }
 
     @Test
@@ -96,7 +96,7 @@ class AddSubflowCallToolTest {
         args.addProperty("id", "Task_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("ID already taken"), ex.getMessage());
     }
 

@@ -21,7 +21,7 @@ public class ListLaunchesToolTest {
     private static final Gson GSON = new Gson();
 
     private JsonObject executeAndSerialize(ListLaunchesTool tool, JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     private ILaunch mockJUnitLaunch(String name, String mode, boolean terminated) throws Exception {

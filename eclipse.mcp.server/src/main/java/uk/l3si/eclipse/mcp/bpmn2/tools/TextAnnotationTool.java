@@ -8,6 +8,7 @@ import uk.l3si.eclipse.mcp.bpmn2.model.AddTextAnnotationResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
 import java.util.ArrayList;
@@ -41,7 +42,7 @@ public class TextAnnotationTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         String action = args.requireString("action", "add or remove");
         if (!"add".equals(action) && !"remove".equals(action)) {
             throw new IllegalArgumentException("Invalid action: '" + action + "'. Must be 'add' or 'remove'.");

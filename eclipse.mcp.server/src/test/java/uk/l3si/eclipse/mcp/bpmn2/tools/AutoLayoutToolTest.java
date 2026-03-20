@@ -38,7 +38,7 @@ class AutoLayoutToolTest {
     }
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -71,7 +71,7 @@ class AutoLayoutToolTest {
         args.addProperty("file", file.toString());
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("no nodes"), ex.getMessage());
     }
 
@@ -81,6 +81,6 @@ class AutoLayoutToolTest {
         args.addProperty("file", tempDir.resolve("nonexistent.bpmn2").toString());
 
         assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
     }
 }

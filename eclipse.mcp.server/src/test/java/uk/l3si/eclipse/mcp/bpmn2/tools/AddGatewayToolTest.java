@@ -39,7 +39,7 @@ class AddGatewayToolTest {
     }
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -89,7 +89,7 @@ class AddGatewayToolTest {
         args.addProperty("name", "Missing Direction");
 
         assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
     }
 
     @Test
@@ -101,7 +101,7 @@ class AddGatewayToolTest {
         args.addProperty("direction", "invalid");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Invalid direction"), ex.getMessage());
     }
 }

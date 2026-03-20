@@ -44,7 +44,7 @@ class NodeToolTest {
     }
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     private String addScriptTask(Path file, String name, String script) throws Exception {
@@ -53,7 +53,7 @@ class NodeToolTest {
         addArgs.addProperty("file", file.toString());
         addArgs.addProperty("name", name);
         addArgs.addProperty("script", script);
-        Object addResult = addTool.execute(new Args(addArgs));
+        Object addResult = addTool.execute(new Args(addArgs), message -> {});
         return GSON.toJsonTree(addResult).getAsJsonObject().get("id").getAsString();
     }
 
@@ -63,7 +63,7 @@ class NodeToolTest {
         addArgs.addProperty("file", file.toString());
         addArgs.addProperty("name", name);
         addArgs.addProperty("calledElement", calledElement);
-        Object addResult = addTool.execute(new Args(addArgs));
+        Object addResult = addTool.execute(new Args(addArgs), message -> {});
         return GSON.toJsonTree(addResult).getAsJsonObject().get("id").getAsString();
     }
 
@@ -73,7 +73,7 @@ class NodeToolTest {
         addArgs.addProperty("file", file.toString());
         addArgs.addProperty("name", name);
         addArgs.addProperty("direction", direction);
-        Object addResult = addTool.execute(new Args(addArgs));
+        Object addResult = addTool.execute(new Args(addArgs), message -> {});
         return GSON.toJsonTree(addResult).getAsJsonObject().get("id").getAsString();
     }
 
@@ -92,7 +92,7 @@ class NodeToolTest {
         args.addProperty("id", "Task_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Invalid action"), ex.getMessage());
         assertTrue(ex.getMessage().contains("invalid"), ex.getMessage());
     }
@@ -146,7 +146,7 @@ class NodeToolTest {
         args.addProperty("name", "Second Start");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("plain startEvent"), ex.getMessage());
     }
 
@@ -161,7 +161,7 @@ class NodeToolTest {
         args.addProperty("signalRef", "Signal_999");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Signal not found"), ex.getMessage());
     }
 
@@ -215,7 +215,7 @@ class NodeToolTest {
         args.addProperty("id", "Task_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("ID already taken"), ex.getMessage());
     }
 
@@ -287,7 +287,7 @@ class NodeToolTest {
         args.addProperty("name", "Test");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Invalid type"), ex.getMessage());
         assertTrue(ex.getMessage().contains("bogus"), ex.getMessage());
     }
@@ -467,7 +467,7 @@ class NodeToolTest {
         args.addProperty("script", "int x = 1;");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Cannot set 'script' on a task"),
                 ex.getMessage());
         assertTrue(ex.getMessage().contains("scriptTask"), ex.getMessage());
@@ -487,7 +487,7 @@ class NodeToolTest {
         args.addProperty("calledElement", "com.example.flow");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Cannot set 'calledElement' on a scriptTask"),
                 ex.getMessage());
         assertTrue(ex.getMessage().contains("callActivity"), ex.getMessage());
@@ -507,7 +507,7 @@ class NodeToolTest {
         args.addProperty("icon", "icon.gif");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Cannot set 'icon' on a scriptTask"),
                 ex.getMessage());
     }
@@ -523,7 +523,7 @@ class NodeToolTest {
         args.addProperty("id", "Task_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("No properties to update"), ex.getMessage());
     }
 
@@ -539,7 +539,7 @@ class NodeToolTest {
         args.addProperty("name", "Anything");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Node not found"), ex.getMessage());
     }
 
@@ -619,7 +619,7 @@ class NodeToolTest {
         args.addProperty("id", "StartEvent_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Cannot remove the only startEvent"),
                 ex.getMessage());
     }
@@ -635,7 +635,7 @@ class NodeToolTest {
         args.addProperty("id", "Task_999");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Node not found"), ex.getMessage());
     }
 

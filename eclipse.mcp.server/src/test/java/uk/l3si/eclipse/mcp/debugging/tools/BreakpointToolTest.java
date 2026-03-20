@@ -32,7 +32,7 @@ class BreakpointToolTest {
     }
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     // --- name ---
@@ -94,7 +94,7 @@ class BreakpointToolTest {
         args.addProperty("line", "42");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("class"));
     }
 
@@ -106,7 +106,7 @@ class BreakpointToolTest {
         args.addProperty("line", "42");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("class"));
         assertTrue(ex.getMessage().contains("blank"));
     }
@@ -118,7 +118,7 @@ class BreakpointToolTest {
         args.addProperty("class", "com.example.MyService");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("line"));
     }
 
@@ -130,7 +130,7 @@ class BreakpointToolTest {
         args.addProperty("line", "0");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("positive"));
     }
 
@@ -146,7 +146,7 @@ class BreakpointToolTest {
         args.addProperty("line", "99");
         args.addProperty("condition", "i == 0");
 
-        tool.execute(new Args(args));
+        tool.execute(new Args(args), message -> {});
         verify(breakpointManager).setBreakpoint("com.example.Foo", 99, "i == 0");
     }
 
@@ -163,7 +163,7 @@ class BreakpointToolTest {
         args.addProperty("line", "42");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("already exists"));
         assertTrue(ex.getMessage().contains("MyService:42"));
     }
@@ -193,7 +193,7 @@ class BreakpointToolTest {
         args.addProperty("action", "remove");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("id"));
     }
 
@@ -206,7 +206,7 @@ class BreakpointToolTest {
         args.addProperty("action", "remove");
         args.addProperty("id", "7");
 
-        tool.execute(new Args(args));
+        tool.execute(new Args(args), message -> {});
         verify(breakpointManager).removeBreakpoint(7L);
     }
 
@@ -276,7 +276,7 @@ class BreakpointToolTest {
         JsonObject args = new JsonObject();
         args.addProperty("action", "list");
 
-        tool.execute(new Args(args));
+        tool.execute(new Args(args), message -> {});
         verify(breakpointManager).listBreakpoints();
     }
 
@@ -313,7 +313,7 @@ class BreakpointToolTest {
         args.addProperty("action", "toggle");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Invalid breakpoint action"));
         assertTrue(ex.getMessage().contains("toggle"));
     }
@@ -323,7 +323,7 @@ class BreakpointToolTest {
         JsonObject args = new JsonObject();
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("action"));
     }
 }

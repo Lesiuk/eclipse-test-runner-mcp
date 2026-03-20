@@ -18,7 +18,7 @@ class ToolRegistryTest {
             @Override public InputSchema getInputSchema() {
                 return InputSchema.builder().build();
             }
-            @Override public Object execute(Args args) { return "ok"; }
+            @Override public Object execute(Args args, ProgressReporter progress) { return "ok"; }
         };
     }
 

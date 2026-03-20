@@ -6,6 +6,7 @@ import org.eclipse.debug.core.ILaunchManager;
 import uk.l3si.eclipse.mcp.model.TestRunResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
@@ -36,7 +37,7 @@ public class GetTestResultsTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         checkNoActiveDebugLaunch();
 
         String className = args.getString("class");

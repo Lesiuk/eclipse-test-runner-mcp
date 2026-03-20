@@ -4,6 +4,7 @@ import uk.l3si.eclipse.mcp.model.ListTestRunsResult;
 import uk.l3si.eclipse.mcp.model.TestRunInfo;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunch;
@@ -30,7 +31,7 @@ public class ListLaunchesTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         ILaunch[] allLaunches = DebugPlugin.getDefault().getLaunchManager().getLaunches();
 
         List<TestRunInfo> testRuns = Arrays.stream(allLaunches)

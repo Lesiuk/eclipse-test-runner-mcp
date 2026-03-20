@@ -39,7 +39,7 @@ class SignalToolTest {
     }
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -105,7 +105,7 @@ class SignalToolTest {
         args.addProperty("name", "com.example:beforeInput");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("com.example:beforeInput"), ex.getMessage());
         assertTrue(ex.getMessage().contains("already exists"), ex.getMessage());
     }
@@ -122,7 +122,7 @@ class SignalToolTest {
         args.addProperty("id", "Signal_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Signal_1"), ex.getMessage());
         assertTrue(ex.getMessage().contains("already in use"), ex.getMessage());
     }
@@ -139,7 +139,7 @@ class SignalToolTest {
         args.addProperty("id", "Task_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Task_1"), ex.getMessage());
         assertTrue(ex.getMessage().contains("already in use"), ex.getMessage());
     }
@@ -178,7 +178,7 @@ class SignalToolTest {
         addArgs.addProperty("action", "add");
         addArgs.addProperty("name", "com.example:testSignal");
         addArgs.addProperty("id", "Signal_Test");
-        tool.execute(new Args(addArgs));
+        tool.execute(new Args(addArgs), message -> {});
 
         JsonObject removeArgs = new JsonObject();
         removeArgs.addProperty("file", file.toString());
@@ -211,7 +211,7 @@ class SignalToolTest {
         args.addProperty("id", "NonExistent_Signal");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Signal not found"), ex.getMessage());
         assertTrue(ex.getMessage().contains("NonExistent_Signal"), ex.getMessage());
     }
@@ -226,7 +226,7 @@ class SignalToolTest {
         addSignalArgs.addProperty("action", "add");
         addSignalArgs.addProperty("name", "com.example:referencedSignal");
         addSignalArgs.addProperty("id", "Signal_Ref");
-        tool.execute(new Args(addSignalArgs));
+        tool.execute(new Args(addSignalArgs), message -> {});
 
         // Add a signal start event referencing this signal
         NodeTool nodeTool = new NodeTool();
@@ -237,7 +237,7 @@ class SignalToolTest {
         addStartArgs.addProperty("name", "SignalStart");
         addStartArgs.addProperty("id", "StartEvent_Signal");
         addStartArgs.addProperty("signalRef", "Signal_Ref");
-        nodeTool.execute(new Args(addStartArgs));
+        nodeTool.execute(new Args(addStartArgs), message -> {});
 
         // Now try to remove the signal — should fail
         JsonObject removeArgs = new JsonObject();
@@ -246,7 +246,7 @@ class SignalToolTest {
         removeArgs.addProperty("id", "Signal_Ref");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(removeArgs)));
+                () -> tool.execute(new Args(removeArgs), message -> {}));
         assertTrue(ex.getMessage().contains("Cannot remove signal"), ex.getMessage());
         assertTrue(ex.getMessage().contains("Signal_Ref"), ex.getMessage());
         assertTrue(ex.getMessage().contains("StartEvent_Signal"), ex.getMessage());
@@ -262,7 +262,7 @@ class SignalToolTest {
         args.addProperty("name", "com.example:test");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Invalid action"), ex.getMessage());
     }
 

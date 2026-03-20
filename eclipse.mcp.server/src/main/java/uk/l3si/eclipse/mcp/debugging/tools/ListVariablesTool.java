@@ -6,6 +6,7 @@ import uk.l3si.eclipse.mcp.debugging.model.ListVariablesResult;
 import uk.l3si.eclipse.mcp.debugging.model.VariableResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.jdt.debug.core.IJavaStackFrame;
@@ -42,7 +43,7 @@ public class ListVariablesTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         Long threadId = args.getLong("thread_id");
         Integer frameIndex = args.getInt("frame_index");
 

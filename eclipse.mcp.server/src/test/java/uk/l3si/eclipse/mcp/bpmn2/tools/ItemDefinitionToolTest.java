@@ -40,7 +40,7 @@ class ItemDefinitionToolTest {
     }
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -76,7 +76,7 @@ class ItemDefinitionToolTest {
         args.addProperty("structureRef", "java.lang.String");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("already exists"), ex.getMessage());
     }
 
@@ -107,7 +107,7 @@ class ItemDefinitionToolTest {
         addArgs.addProperty("action", "add");
         addArgs.addProperty("structureRef", "com.example.CustomType");
         addArgs.addProperty("id", "ItemDefinition_Custom");
-        tool.execute(new Args(addArgs));
+        tool.execute(new Args(addArgs), message -> {});
 
         // Remove it
         JsonObject removeArgs = new JsonObject();
@@ -136,7 +136,7 @@ class ItemDefinitionToolTest {
         args.addProperty("id", "NonExistent_ItemDef");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("ItemDefinition not found"), ex.getMessage());
         assertTrue(ex.getMessage().contains("NonExistent_ItemDef"), ex.getMessage());
     }
@@ -152,7 +152,7 @@ class ItemDefinitionToolTest {
         args.addProperty("id", "ItemDefinition_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Cannot remove itemDefinition"), ex.getMessage());
         assertTrue(ex.getMessage().contains("ItemDefinition_1"), ex.getMessage());
         assertTrue(ex.getMessage().contains("myVar"), ex.getMessage());
@@ -168,7 +168,7 @@ class ItemDefinitionToolTest {
         args.addProperty("structureRef", "com.example.MyType");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Invalid action"), ex.getMessage());
     }
 

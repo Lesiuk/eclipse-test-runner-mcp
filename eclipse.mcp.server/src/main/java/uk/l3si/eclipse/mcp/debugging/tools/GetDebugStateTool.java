@@ -5,6 +5,7 @@ import uk.l3si.eclipse.mcp.debugging.VariableCollector;
 import uk.l3si.eclipse.mcp.debugging.model.DebugStateResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.jdt.debug.core.IJavaDebugTarget;
@@ -48,7 +49,7 @@ public class GetDebugStateTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         boolean waitForSuspend = args.getBoolean("wait_for_suspend", true);
 
         if (waitForSuspend) {

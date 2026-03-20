@@ -7,6 +7,7 @@ import uk.l3si.eclipse.mcp.debugging.model.ExpressionResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.StackTraceFilter;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.debug.core.DebugEvent;
@@ -91,7 +92,7 @@ public class EvaluateExpressionTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         String expression = args.requireString("expression", "Java expression");
         if (expression.isBlank()) {
             throw new IllegalArgumentException("'expression' must not be blank. Provide a Java expression (e.g. 'myList.size()', 'x > 0').");

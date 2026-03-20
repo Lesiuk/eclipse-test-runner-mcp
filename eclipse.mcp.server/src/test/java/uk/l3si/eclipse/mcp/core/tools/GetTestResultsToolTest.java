@@ -21,7 +21,7 @@ public class GetTestResultsToolTest {
     private static final Gson GSON = new Gson();
 
     private JsonObject executeAndSerialize(GetTestResultsTool tool, JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     /** Stub DebugPlugin so checkNoActiveDebugLaunch() passes (no launches). */
@@ -50,7 +50,7 @@ public class GetTestResultsToolTest {
             args.addProperty("method", "testSomething");
 
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                    () -> tool.execute(new Args(args)));
+                    () -> tool.execute(new Args(args), message -> {}));
             assertTrue(ex.getMessage().contains("'class' is required"));
         }
     }
@@ -89,7 +89,7 @@ public class GetTestResultsToolTest {
             args.addProperty("method", "testBar");
 
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                    () -> tool.execute(new Args(args)));
+                    () -> tool.execute(new Args(args), message -> {}));
             assertTrue(ex.getMessage().contains("No failure trace found"));
             assertTrue(ex.getMessage().contains("com.example.FooTest#testBar"));
         }
@@ -132,7 +132,7 @@ public class GetTestResultsToolTest {
             GetTestResultsTool tool = new GetTestResultsTool();
 
             IllegalStateException ex = assertThrows(IllegalStateException.class,
-                    () -> tool.execute(new Args(new JsonObject())));
+                    () -> tool.execute(new Args(new JsonObject()), message -> {}));
             assertTrue(ex.getMessage().contains("No test runs found"));
         }
     }
