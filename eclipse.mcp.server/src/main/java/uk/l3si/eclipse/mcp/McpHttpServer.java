@@ -1,5 +1,7 @@
 package uk.l3si.eclipse.mcp;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
@@ -88,7 +90,7 @@ public class McpHttpServer {
             if (accept == null || !accept.contains("text/event-stream")) {
                 return false;
             }
-            var msg = com.google.gson.JsonParser.parseString(requestBody).getAsJsonObject();
+            JsonObject msg = JsonParser.parseString(requestBody).getAsJsonObject();
             if (!"tools/call".equals(msg.has("method") ? msg.get("method").getAsString() : null)) {
                 return false;
             }
