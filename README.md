@@ -49,7 +49,7 @@ Parameters marked with **\*** are required. All others are optional.
 
 | Tool | Description |
 |------|-------------|
-| `run_test` | Full pipeline — refresh, build, check errors, launch test |
+| `run_test` | Full pipeline — refresh, build, check errors, launch test. Supports `methods` array for multi-method execution in a single JVM. |
 | `get_test_results` | Results from the most recent test run (pass class+method for full stack trace) |
 | `get_coverage` | Per-line and per-method code coverage for a class |
 | `list_test_configs` | All JUnit launch configurations in the workspace |
@@ -145,11 +145,13 @@ bpmn2_get_process          → verify the complete process structure
 
 #### Test Execution
 
-**`run_test`** `(config*, class*, method, project, dependencies[], mode)` → `{steps, success, compilationErrors[], launchResult{status, totalTests, passed, failed, failures[]}}`
+**`run_test`** `(config*, class*, method, methods[], project, dependencies[], mode)` → `{steps, success, compilationErrors[], launchResult{status, totalTests, passed, failed, failures[]}}`
 
 Full pipeline — refresh projects from disk, build (dependencies first, in order), check for compilation errors, then launch the test. Fails fast if compilation errors are found. Rejects the call if another test is already running. The `mode` parameter controls how the test launches: `run` (default), `coverage` (EclEmma/JaCoCo — use `get_coverage` afterwards), or `debug` (set breakpoints first).
 
 Uses an existing launch configuration as a template — inheriting VM arguments, classpath, and environment — while overriding just the test target (class/method).
+
+**Multi-method execution:** Pass `methods` (array of method names) to run multiple specific test methods in a single JVM launch, sharing build and initialization time. Both `method` and `methods` can be provided — they are merged and deduplicated. Uses a bundled Java agent that intercepts Eclipse's `RemoteTestRunner` to execute only the specified methods. Requires Eclipse 2019-06 or newer.
 
 #### Test Results
 
