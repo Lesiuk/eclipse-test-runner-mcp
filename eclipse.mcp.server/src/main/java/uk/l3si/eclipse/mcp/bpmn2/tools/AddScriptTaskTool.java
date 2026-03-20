@@ -7,6 +7,7 @@ import uk.l3si.eclipse.mcp.bpmn2.model.AddNodeResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
 import java.util.List;
@@ -40,7 +41,7 @@ public class AddScriptTaskTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         String file = args.requireString("file", "path to .bpmn2 file");
         String name = args.requireString("name", "display name");
         String script = args.requireString("script", "Java code");

@@ -8,5 +8,5 @@ public interface McpTool {
 
     InputSchema getInputSchema();
 
-    Object execute(Args args) throws Exception;
+    Object execute(Args args, ProgressReporter progress) throws Exception;
 }

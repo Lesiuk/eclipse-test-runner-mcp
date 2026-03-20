@@ -28,7 +28,7 @@ class GetStackTraceToolTest {
     }
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -83,7 +83,7 @@ class GetStackTraceToolTest {
         when(debugContext.resolveThread(null)).thenReturn(thread);
 
         IllegalStateException ex = assertThrows(IllegalStateException.class,
-                () -> tool.execute(new Args(null)));
+                () -> tool.execute(new Args(null), message -> {}));
         assertTrue(ex.getMessage().contains("not suspended"));
     }
 
@@ -93,7 +93,7 @@ class GetStackTraceToolTest {
                 .thenThrow(new IllegalStateException("No debug session active."));
 
         IllegalStateException ex = assertThrows(IllegalStateException.class,
-                () -> tool.execute(new Args(null)));
+                () -> tool.execute(new Args(null), message -> {}));
         assertTrue(ex.getMessage().contains("No debug session"));
     }
 

@@ -4,6 +4,7 @@ import uk.l3si.eclipse.mcp.model.ListTestConfigsResult;
 import uk.l3si.eclipse.mcp.model.TestConfigInfo;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunchConfiguration;
@@ -30,7 +31,7 @@ public class ListLaunchConfigsTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         ILaunchConfiguration[] allConfigs = DebugPlugin.getDefault().getLaunchManager().getLaunchConfigurations();
 
         List<TestConfigInfo> junitConfigs = Arrays.stream(allConfigs)

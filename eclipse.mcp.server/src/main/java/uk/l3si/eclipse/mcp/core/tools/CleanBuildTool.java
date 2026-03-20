@@ -3,6 +3,7 @@ package uk.l3si.eclipse.mcp.core.tools;
 import uk.l3si.eclipse.mcp.model.CleanBuildResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
@@ -28,7 +29,7 @@ public class CleanBuildTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         List<String> projectNames = args.getStringList("projects");
         List<String> builtProjects = ProjectBuilder.cleanAndBuild(projectNames);
         return CleanBuildResult.builder().projects(builtProjects).build();

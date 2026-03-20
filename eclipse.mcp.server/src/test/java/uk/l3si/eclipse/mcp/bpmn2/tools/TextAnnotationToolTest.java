@@ -40,7 +40,7 @@ class TextAnnotationToolTest {
     }
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -93,7 +93,7 @@ class TextAnnotationToolTest {
         args.addProperty("attachTo", "NonExistent_1");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Target element not found"), ex.getMessage());
     }
 
@@ -109,7 +109,7 @@ class TextAnnotationToolTest {
         addArgs.addProperty("action", "add");
         addArgs.addProperty("text", "Test comment");
         addArgs.addProperty("id", "TextAnnotation_1");
-        tool.execute(new Args(addArgs));
+        tool.execute(new Args(addArgs), message -> {});
 
         // Remove it
         JsonObject removeArgs = new JsonObject();
@@ -172,7 +172,7 @@ class TextAnnotationToolTest {
         args.addProperty("id", "NonExistent_Annotation");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Text annotation not found"), ex.getMessage());
         assertTrue(ex.getMessage().contains("NonExistent_Annotation"), ex.getMessage());
     }
@@ -187,7 +187,7 @@ class TextAnnotationToolTest {
         args.addProperty("text", "Some note");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Invalid action"), ex.getMessage());
     }
 

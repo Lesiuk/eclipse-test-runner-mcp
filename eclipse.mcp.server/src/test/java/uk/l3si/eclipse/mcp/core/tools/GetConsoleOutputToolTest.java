@@ -22,7 +22,7 @@ public class GetConsoleOutputToolTest {
     private static final Gson GSON = new Gson();
 
     private JsonObject executeAndSerialize(GetConsoleOutputTool tool, JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -44,7 +44,7 @@ public class GetConsoleOutputToolTest {
             args.addProperty("name", "MyApp");
 
             IllegalArgumentException ex = assertThrows(
-                    IllegalArgumentException.class, () -> tool.execute(new Args(args)));
+                    IllegalArgumentException.class, () -> tool.execute(new Args(args), message -> {}));
             assertTrue(ex.getMessage().contains("No launch found for: MyApp"));
         }
     }
@@ -137,7 +137,7 @@ public class GetConsoleOutputToolTest {
 
             GetConsoleOutputTool tool = new GetConsoleOutputTool();
             IllegalArgumentException ex = assertThrows(
-                    IllegalArgumentException.class, () -> tool.execute(new Args(null)));
+                    IllegalArgumentException.class, () -> tool.execute(new Args(null), message -> {}));
             assertTrue(ex.getMessage().contains("No launches found"));
         }
     }

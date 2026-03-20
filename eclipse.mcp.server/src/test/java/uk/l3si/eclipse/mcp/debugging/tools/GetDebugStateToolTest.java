@@ -31,7 +31,7 @@ class GetDebugStateToolTest {
     private JsonObject executeNoWait() throws Exception {
         JsonObject args = new JsonObject();
         args.addProperty("wait_for_suspend", false);
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -157,7 +157,7 @@ class GetDebugStateToolTest {
         when(debugContext.getCurrentThread()).thenReturn(thread);
         when(debugContext.getSuspendReason()).thenReturn("breakpoint");
 
-        JsonObject result = GSON.toJsonTree(tool.execute(new Args(null))).getAsJsonObject();
+        JsonObject result = GSON.toJsonTree(tool.execute(new Args(null), message -> {})).getAsJsonObject();
         assertTrue(result.get("active").getAsBoolean());
         assertTrue(result.get("suspended").getAsBoolean());
     }
@@ -167,7 +167,7 @@ class GetDebugStateToolTest {
         when(debugContext.getCurrentTarget()).thenReturn(null);
         when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TERMINATED);
 
-        JsonObject result = GSON.toJsonTree(tool.execute(new Args(null))).getAsJsonObject();
+        JsonObject result = GSON.toJsonTree(tool.execute(new Args(null), message -> {})).getAsJsonObject();
         assertFalse(result.get("active").getAsBoolean());
     }
 
@@ -180,7 +180,7 @@ class GetDebugStateToolTest {
         args.addProperty("wait_for_suspend", true);
         args.addProperty("timeout", "2");
 
-        JsonObject result = GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        JsonObject result = GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
         assertFalse(result.get("active").getAsBoolean());
     }
 
@@ -204,7 +204,7 @@ class GetDebugStateToolTest {
         args.addProperty("wait_for_suspend", true);
         args.addProperty("timeout", "5");
 
-        JsonObject result = GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        JsonObject result = GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
         assertTrue(result.get("active").getAsBoolean());
         assertTrue(result.get("suspended").getAsBoolean());
         assertEquals("breakpoint", result.get("reason").getAsString());

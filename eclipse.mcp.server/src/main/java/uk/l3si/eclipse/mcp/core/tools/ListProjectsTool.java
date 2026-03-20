@@ -3,6 +3,7 @@ package uk.l3si.eclipse.mcp.core.tools;
 import uk.l3si.eclipse.mcp.model.ListProjectsResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -28,7 +29,7 @@ public class ListProjectsTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         List<String> openProjects = Arrays.stream(ResourcesPlugin.getWorkspace().getRoot().getProjects())
                 .filter(IProject::isOpen)
                 .map(IProject::getName)

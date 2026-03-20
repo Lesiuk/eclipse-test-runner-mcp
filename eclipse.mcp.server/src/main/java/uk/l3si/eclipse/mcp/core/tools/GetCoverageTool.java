@@ -2,6 +2,7 @@ package uk.l3si.eclipse.mcp.core.tools;
 
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
@@ -32,7 +33,7 @@ public class GetCoverageTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         String className = args.requireString("class", "fully qualified source class name");
         return CoverageHelper.getCoverageForClass(className);
     }

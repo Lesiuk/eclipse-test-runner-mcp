@@ -12,6 +12,7 @@ import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.JavaTypeValidator;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
 import java.util.ArrayList;
@@ -79,7 +80,7 @@ public class NodeTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         String action = args.requireString("action", "action to perform");
         if (!"add".equals(action) && !"update".equals(action) && !"remove".equals(action)) {
             throw new IllegalArgumentException(

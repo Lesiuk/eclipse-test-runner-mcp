@@ -3,6 +3,7 @@ package uk.l3si.eclipse.mcp.debugging.tools;
 import uk.l3si.eclipse.mcp.debugging.BreakpointManager;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
@@ -46,7 +47,7 @@ public class BreakpointTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         String action = args.requireString("action", "Breakpoint action: set, remove, clear, or list");
 
         return switch (action) {

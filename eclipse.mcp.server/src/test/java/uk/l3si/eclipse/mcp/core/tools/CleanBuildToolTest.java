@@ -19,7 +19,7 @@ public class CleanBuildToolTest {
     private static final Gson GSON = new Gson();
 
     private JsonObject executeAndSerialize(CleanBuildTool tool, JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -124,7 +124,7 @@ public class CleanBuildToolTest {
             args.add("projects", projects);
 
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                    () -> tool.execute(new Args(args)));
+                    () -> tool.execute(new Args(args), message -> {}));
             assertTrue(ex.getMessage().contains("ghost"));
         }
     }

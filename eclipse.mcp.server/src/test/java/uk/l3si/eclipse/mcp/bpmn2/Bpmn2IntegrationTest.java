@@ -43,7 +43,7 @@ class Bpmn2IntegrationTest {
     // ---- Helpers ----
 
     private JsonObject exec(Object tool, JsonObject args) throws Exception {
-        Object result = ((uk.l3si.eclipse.mcp.tools.McpTool) tool).execute(new Args(args));
+        Object result = ((uk.l3si.eclipse.mcp.tools.McpTool) tool).execute(new Args(args), message -> {});
         return GSON.toJsonTree(result).getAsJsonObject();
     }
 

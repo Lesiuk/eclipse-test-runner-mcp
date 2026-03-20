@@ -22,6 +22,7 @@ import uk.l3si.eclipse.mcp.model.ReferenceFileGroup;
 import uk.l3si.eclipse.mcp.model.ReferenceMatch;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
@@ -57,7 +58,7 @@ public class FindReferencesTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         String className = args.requireString("class", "fully qualified class name");
         String memberName = args.getString("member");
 

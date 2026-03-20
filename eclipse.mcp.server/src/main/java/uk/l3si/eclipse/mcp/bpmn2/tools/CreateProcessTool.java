@@ -5,6 +5,7 @@ import uk.l3si.eclipse.mcp.bpmn2.model.CreateProcessResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 
 import java.util.List;
@@ -40,7 +41,7 @@ public class CreateProcessTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         String file = args.requireString("file", "absolute path for new file");
         String processId = args.requireString("processId", "process identifier");
         String processName = args.requireString("processName", "human-readable name");

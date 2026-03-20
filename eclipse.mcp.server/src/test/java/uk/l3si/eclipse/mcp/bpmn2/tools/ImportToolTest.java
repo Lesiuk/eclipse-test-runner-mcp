@@ -40,7 +40,7 @@ class ImportToolTest {
     }
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -72,10 +72,10 @@ class ImportToolTest {
         args.addProperty("file", file.toString());
         args.addProperty("action", "add");
         args.addProperty("name", "com.example.MyUtils");
-        tool.execute(new Args(args));
+        tool.execute(new Args(args), message -> {});
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Import already exists"), ex.getMessage());
     }
 
@@ -90,7 +90,7 @@ class ImportToolTest {
         addArgs.addProperty("file", file.toString());
         addArgs.addProperty("action", "add");
         addArgs.addProperty("name", "com.example.MyUtils");
-        tool.execute(new Args(addArgs));
+        tool.execute(new Args(addArgs), message -> {});
 
         // Now remove it
         JsonObject removeArgs = new JsonObject();
@@ -131,7 +131,7 @@ class ImportToolTest {
         args.addProperty("name", "com.example.NonExistent");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Import not found"), ex.getMessage());
         assertTrue(ex.getMessage().contains("com.example.NonExistent"), ex.getMessage());
     }
@@ -146,7 +146,7 @@ class ImportToolTest {
         args.addProperty("name", "com.example.MyUtils");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Invalid action"), ex.getMessage());
     }
 

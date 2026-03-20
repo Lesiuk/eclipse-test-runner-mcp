@@ -34,7 +34,7 @@ class StepToolTest {
     }
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -47,7 +47,7 @@ class StepToolTest {
         JsonObject args = new JsonObject();
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("action"));
     }
 
@@ -57,7 +57,7 @@ class StepToolTest {
         args.addProperty("action", "jump");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("jump"));
         assertTrue(ex.getMessage().contains("over"));
     }
@@ -73,7 +73,7 @@ class StepToolTest {
         args.addProperty("action", "over");
 
         IllegalStateException ex = assertThrows(IllegalStateException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("not suspended"));
     }
 
@@ -122,7 +122,7 @@ class StepToolTest {
         JsonObject args = new JsonObject();
         args.addProperty("action", "into");
 
-        tool.execute(new Args(args));
+        tool.execute(new Args(args), message -> {});
         verify(thread).stepInto();
     }
 
@@ -138,7 +138,7 @@ class StepToolTest {
         JsonObject args = new JsonObject();
         args.addProperty("action", "return");
 
-        tool.execute(new Args(args));
+        tool.execute(new Args(args), message -> {});
         verify(thread).stepReturn();
     }
 

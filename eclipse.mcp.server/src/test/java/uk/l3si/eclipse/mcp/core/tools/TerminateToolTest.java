@@ -20,7 +20,7 @@ public class TerminateToolTest {
     private static final Gson GSON = new Gson();
 
     private JsonObject executeAndSerialize(TerminateTool tool, JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -43,7 +43,7 @@ public class TerminateToolTest {
             args.addProperty("name", "MyApp");
 
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                    () -> tool.execute(new Args(args)));
+                    () -> tool.execute(new Args(args), message -> {}));
             assertTrue(ex.getMessage().contains("MyApp"));
             verify(launch, never()).terminate();
         }

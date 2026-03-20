@@ -5,6 +5,7 @@ import uk.l3si.eclipse.mcp.model.ProblemInfo;
 import uk.l3si.eclipse.mcp.model.ProblemsResult;
 import uk.l3si.eclipse.mcp.tools.Args;
 import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import org.eclipse.core.resources.IMarker;
@@ -38,7 +39,7 @@ public class GetProblemsTool implements McpTool {
     }
 
     @Override
-    public Object execute(Args args) throws Exception {
+    public Object execute(Args args, ProgressReporter progress) throws Exception {
         String projectName = args.getString("project");
         boolean includeWarnings = args.getBoolean("includeWarnings");
 

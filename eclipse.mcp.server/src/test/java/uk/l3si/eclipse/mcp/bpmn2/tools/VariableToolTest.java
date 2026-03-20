@@ -40,7 +40,7 @@ class VariableToolTest {
     }
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -127,7 +127,7 @@ class VariableToolTest {
         args.addProperty("type", "java.lang.Integer");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("myVar"), ex.getMessage());
         assertTrue(ex.getMessage().contains("already exists"), ex.getMessage());
     }
@@ -143,7 +143,7 @@ class VariableToolTest {
         args.addProperty("type", "java.lang.String");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Invalid variable name"), ex.getMessage());
         assertTrue(ex.getMessage().contains("1invalid"), ex.getMessage());
     }
@@ -159,7 +159,7 @@ class VariableToolTest {
         args.addProperty("type", "java.lang.String");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Invalid variable name"), ex.getMessage());
     }
 
@@ -171,7 +171,7 @@ class VariableToolTest {
         args.addProperty("type", "java.lang.String");
 
         assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
     }
 
     @Test
@@ -184,7 +184,7 @@ class VariableToolTest {
         args.addProperty("type", "java.lang.String");
 
         assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
     }
 
     @Test
@@ -197,7 +197,7 @@ class VariableToolTest {
         args.addProperty("name", "newVar");
 
         assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
     }
 
     @Test
@@ -210,7 +210,7 @@ class VariableToolTest {
         args.addProperty("name", "myVar");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Invalid action"), ex.getMessage());
     }
 
@@ -265,7 +265,7 @@ class VariableToolTest {
         addArgs.addProperty("action", "add");
         addArgs.addProperty("name", "otherStringVar");
         addArgs.addProperty("type", "java.lang.String");
-        tool.execute(new Args(addArgs));
+        tool.execute(new Args(addArgs), message -> {});
 
         // Now remove myVar
         JsonObject removeArgs = new JsonObject();
@@ -299,7 +299,7 @@ class VariableToolTest {
         args.addProperty("name", "nonExistent");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("Variable not found"), ex.getMessage());
         assertTrue(ex.getMessage().contains("nonExistent"), ex.getMessage());
     }

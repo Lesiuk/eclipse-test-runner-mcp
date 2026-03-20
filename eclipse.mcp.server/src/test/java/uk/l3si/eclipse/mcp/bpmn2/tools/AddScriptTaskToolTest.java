@@ -40,7 +40,7 @@ class AddScriptTaskToolTest {
     }
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -95,7 +95,7 @@ class AddScriptTaskToolTest {
         args.addProperty("name", "Missing Script");
 
         assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
     }
 
     private static Element findChildElement(Element parent, String ns, String localName) {

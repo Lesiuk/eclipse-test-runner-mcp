@@ -118,7 +118,7 @@ public class ToolRegistry {
             }
             validateParameters(name, tool, arguments);
         }
-        return tool.execute(new Args(arguments));
+        return tool.execute(new Args(arguments), message -> {});
     }
 
     public synchronized Map<String, List<McpTool>> getToolsByGroup() {

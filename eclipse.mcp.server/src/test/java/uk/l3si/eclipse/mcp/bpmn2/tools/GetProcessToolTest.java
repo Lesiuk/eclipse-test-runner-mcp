@@ -38,7 +38,7 @@ class GetProcessToolTest {
     }
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
-        return GSON.toJsonTree(tool.execute(new Args(args))).getAsJsonObject();
+        return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
     }
 
     @Test
@@ -151,13 +151,13 @@ class GetProcessToolTest {
         args.addProperty("file", tempDir.resolve("nonexistent.bpmn2").toString());
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(args)));
+                () -> tool.execute(new Args(args), message -> {}));
         assertTrue(ex.getMessage().contains("File not found"), ex.getMessage());
     }
 
     @Test
     void missingFileParameterThrowsError() {
         assertThrows(IllegalArgumentException.class,
-                () -> tool.execute(new Args(null)));
+                () -> tool.execute(new Args(null), message -> {}));
     }
 }
