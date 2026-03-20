@@ -28,7 +28,7 @@ public class TestResultsHelper {
 
     private static final long POST_TERMINATION_GRACE_MS = 5 * 1000;
     private static final long POLL_INTERVAL_MS = 100;
-    private static final long KEEPALIVE_INTERVAL_MS = 10_000;
+    private static final long KEEPALIVE_INTERVAL_MS = 60_000;
 
     public static TestRunResult waitAndCollect(ILaunch launch, ProgressReporter progress) throws InterruptedException {
         JUnitModel model = JUnitCorePlugin.getModel();
