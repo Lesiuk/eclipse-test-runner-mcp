@@ -69,7 +69,7 @@ public class McpProtocolHandler {
         JsonObject toolArgs = params.has("arguments") ? params.getAsJsonObject("arguments") : new JsonObject();
 
         try {
-            Object result = registry.callTool(toolName, toolArgs);
+            Object result = registry.callTool(toolName, toolArgs, message -> {});
             return Map.of(
                     "content", List.of(Map.of("type", "text", "text", GSON.toJson(result)))
             );

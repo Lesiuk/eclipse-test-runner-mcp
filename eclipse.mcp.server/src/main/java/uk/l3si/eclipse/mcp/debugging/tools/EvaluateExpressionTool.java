@@ -117,6 +117,7 @@ public class EvaluateExpressionTool implements McpTool {
         }
 
         // Serialize evaluations — Eclipse JDT does not support concurrent evals
+        progress.report("Waiting for previous evaluation...");
         if (!EVAL_LOCK.tryAcquire(EVAL_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
             throw new IllegalStateException(
                     "Timed out waiting for a previous evaluation to complete.");

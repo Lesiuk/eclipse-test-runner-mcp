@@ -2,6 +2,7 @@ package uk.l3si.eclipse.mcp.core.tools;
 
 import uk.l3si.eclipse.mcp.model.TestFailureInfo;
 import uk.l3si.eclipse.mcp.model.TestRunResult;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.StackTraceFilter;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunch;
@@ -25,6 +26,7 @@ public class TestResultsHelper {
 
     private static final long POST_TERMINATION_GRACE_MS = 5 * 1000;
     private static final long POLL_INTERVAL_MS = 100;
+    private static final long KEEPALIVE_INTERVAL_MS = 10_000;
 
     public static TestRunResult waitAndCollect(ILaunch launch) throws InterruptedException {
         JUnitModel model = JUnitCorePlugin.getModel();
@@ -33,11 +35,11 @@ public class TestResultsHelper {
             return null;
         }
 
-        waitForCompletion(session, launch);
+        waitForCompletion(session, launch, message -> {});
         return buildResult(session);
     }
 
-    public static TestRunResult collect(boolean wait) throws InterruptedException {
+    public static TestRunResult collect(boolean wait, ProgressReporter progress) throws InterruptedException {
         JUnitModel model = JUnitCorePlugin.getModel();
         TestRunSession session;
 
@@ -49,7 +51,7 @@ public class TestResultsHelper {
             }
             ILaunch sessionLaunch = null;
             try { sessionLaunch = session.getLaunch(); } catch (Exception e) { /* best effort */ }
-            waitForCompletion(session, sessionLaunch != null ? sessionLaunch : runningLaunch);
+            waitForCompletion(session, sessionLaunch != null ? sessionLaunch : runningLaunch, progress);
         } else {
             List<TestRunSession> sessions = model.getTestRunSessions();
             session = sessions.isEmpty() ? null : sessions.get(0);
@@ -77,13 +79,20 @@ public class TestResultsHelper {
         return null;
     }
 
-    private static void waitForCompletion(TestRunSession session, ILaunch launch) throws InterruptedException {
+    private static void waitForCompletion(TestRunSession session, ILaunch launch,
+            ProgressReporter progress) throws InterruptedException {
         if (launch == null) return;
 
         long terminatedAt = -1;
+        long lastReportTime = System.currentTimeMillis();
         while (isStillRunning(session)) {
             if (!launch.isTerminated()) {
                 // Launch still alive — keep waiting
+                long now = System.currentTimeMillis();
+                if (now - lastReportTime >= KEEPALIVE_INTERVAL_MS) {
+                    progress.report("Waiting for test to complete...");
+                    lastReportTime = now;
+                }
             } else {
                 if (terminatedAt < 0) terminatedAt = System.currentTimeMillis();
                 if (System.currentTimeMillis() - terminatedAt > POST_TERMINATION_GRACE_MS) {

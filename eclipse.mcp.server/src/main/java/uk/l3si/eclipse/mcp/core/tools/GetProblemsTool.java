@@ -55,7 +55,7 @@ public class GetProblemsTool implements McpTool {
         }
 
         List<String> projects = projectName != null ? List.of(projectName) : null;
-        ProjectBuilder.refreshAndBuild(projects);
+        ProjectBuilder.refreshAndBuild(projects, progress);
 
         // Only Java compilation problems — filters out jBPM, XML, and other marker types
         IMarker[] markers = scope.findMarkers(JAVA_PROBLEM_MARKER, true, IResource.DEPTH_INFINITE);

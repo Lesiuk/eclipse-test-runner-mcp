@@ -14,10 +14,12 @@ import uk.l3si.eclipse.mcp.debugging.model.LocationInfo;
 import uk.l3si.eclipse.mcp.model.TestFailureInfo;
 import uk.l3si.eclipse.mcp.model.TestRunResult;
 import uk.l3si.eclipse.mcp.tools.Args;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class StepToolTest {
@@ -178,7 +180,7 @@ class StepToolTest {
                 .build();
 
         try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
-            mocked.when(() -> TestResultsHelper.collect(false)).thenReturn(testRunResult);
+            mocked.when(() -> TestResultsHelper.collect(eq(false), any(ProgressReporter.class))).thenReturn(testRunResult);
 
             JsonObject args = new JsonObject();
             args.addProperty("action", "over");
@@ -223,7 +225,7 @@ class StepToolTest {
                 .build();
 
         try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
-            mocked.when(() -> TestResultsHelper.collect(false)).thenReturn(testRunResult);
+            mocked.when(() -> TestResultsHelper.collect(eq(false), any(ProgressReporter.class))).thenReturn(testRunResult);
 
             JsonObject args = new JsonObject();
             args.addProperty("action", "return");
@@ -254,7 +256,7 @@ class StepToolTest {
         when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TERMINATED);
 
         try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
-            mocked.when(() -> TestResultsHelper.collect(false)).thenReturn(null);
+            mocked.when(() -> TestResultsHelper.collect(eq(false), any(ProgressReporter.class))).thenReturn(null);
 
             JsonObject args = new JsonObject();
             args.addProperty("action", "over");
@@ -274,7 +276,7 @@ class StepToolTest {
         when(debugContext.waitForSuspendOrTerminate(anyInt())).thenReturn(WaitResult.TERMINATED);
 
         try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
-            mocked.when(() -> TestResultsHelper.collect(false))
+            mocked.when(() -> TestResultsHelper.collect(eq(false), any(ProgressReporter.class)))
                     .thenThrow(new RuntimeException("JUnit model unavailable"));
 
             JsonObject args = new JsonObject();
@@ -453,7 +455,7 @@ class StepToolTest {
                 .build();
 
         try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
-            mocked.when(() -> TestResultsHelper.collect(false)).thenReturn(testRunResult);
+            mocked.when(() -> TestResultsHelper.collect(eq(false), any(ProgressReporter.class))).thenReturn(testRunResult);
 
             JsonObject args = new JsonObject();
             args.addProperty("action", "resume");

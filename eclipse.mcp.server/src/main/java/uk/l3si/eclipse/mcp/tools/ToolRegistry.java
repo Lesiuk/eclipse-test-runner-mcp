@@ -109,7 +109,7 @@ public class ToolRegistry {
         return schemas;
     }
 
-    public Object callTool(String name, JsonObject arguments) throws Exception {
+    public Object callTool(String name, JsonObject arguments, ProgressReporter progress) throws Exception {
         McpTool tool;
         synchronized (this) {
             tool = toolsByName.get(name);
@@ -118,7 +118,7 @@ public class ToolRegistry {
             }
             validateParameters(name, tool, arguments);
         }
-        return tool.execute(new Args(arguments), message -> {});
+        return tool.execute(new Args(arguments), progress);
     }
 
     public synchronized Map<String, List<McpTool>> getToolsByGroup() {

@@ -55,7 +55,7 @@ public class CleanBuildToolTest {
     @Test
     void executeWithSpecificProjectsForwardsThem() throws Exception {
         try (MockedStatic<ProjectBuilder> mocked = mockStatic(ProjectBuilder.class)) {
-            mocked.when(() -> ProjectBuilder.cleanAndBuild(List.of("projA", "projB")))
+            mocked.when(() -> ProjectBuilder.cleanAndBuild(eq(List.of("projA", "projB")), any()))
                     .thenReturn(List.of("projA", "projB"));
 
             CleanBuildTool tool = new CleanBuildTool();
@@ -72,14 +72,14 @@ public class CleanBuildToolTest {
             assertEquals("projA", builtProjects.get(0).getAsString());
             assertEquals("projB", builtProjects.get(1).getAsString());
 
-            mocked.verify(() -> ProjectBuilder.cleanAndBuild(List.of("projA", "projB")));
+            mocked.verify(() -> ProjectBuilder.cleanAndBuild(eq(List.of("projA", "projB")), any()));
         }
     }
 
     @Test
     void executeWithNoArgsPassesNull() throws Exception {
         try (MockedStatic<ProjectBuilder> mocked = mockStatic(ProjectBuilder.class)) {
-            mocked.when(() -> ProjectBuilder.cleanAndBuild(null))
+            mocked.when(() -> ProjectBuilder.cleanAndBuild(isNull(), any()))
                     .thenReturn(List.of("all-project"));
 
             CleanBuildTool tool = new CleanBuildTool();
@@ -89,14 +89,14 @@ public class CleanBuildToolTest {
             assertEquals(1, builtProjects.size());
             assertEquals("all-project", builtProjects.get(0).getAsString());
 
-            mocked.verify(() -> ProjectBuilder.cleanAndBuild(null));
+            mocked.verify(() -> ProjectBuilder.cleanAndBuild(isNull(), any()));
         }
     }
 
     @Test
     void executeWithEmptyProjectsArrayPassesEmptyList() throws Exception {
         try (MockedStatic<ProjectBuilder> mocked = mockStatic(ProjectBuilder.class)) {
-            mocked.when(() -> ProjectBuilder.cleanAndBuild(List.of()))
+            mocked.when(() -> ProjectBuilder.cleanAndBuild(eq(List.of()), any()))
                     .thenReturn(List.of("workspace-project"));
 
             CleanBuildTool tool = new CleanBuildTool();
@@ -114,7 +114,7 @@ public class CleanBuildToolTest {
     @Test
     void executePropagatesException() throws Exception {
         try (MockedStatic<ProjectBuilder> mocked = mockStatic(ProjectBuilder.class)) {
-            mocked.when(() -> ProjectBuilder.cleanAndBuild(any()))
+            mocked.when(() -> ProjectBuilder.cleanAndBuild(any(), any()))
                     .thenThrow(new IllegalArgumentException("Project not found: ghost"));
 
             CleanBuildTool tool = new CleanBuildTool();
@@ -132,7 +132,7 @@ public class CleanBuildToolTest {
     @Test
     void resultContainsAllBuiltProjects() throws Exception {
         try (MockedStatic<ProjectBuilder> mocked = mockStatic(ProjectBuilder.class)) {
-            mocked.when(() -> ProjectBuilder.cleanAndBuild(any()))
+            mocked.when(() -> ProjectBuilder.cleanAndBuild(any(), any()))
                     .thenReturn(List.of("alpha", "beta", "gamma"));
 
             CleanBuildTool tool = new CleanBuildTool();

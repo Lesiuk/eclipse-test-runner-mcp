@@ -64,7 +64,7 @@ public class GetTestResultsTool implements McpTool {
 
         // Summary mode: return test run results
         boolean wait = args.getBoolean("wait");
-        TestRunResult result = TestResultsHelper.collect(wait);
+        TestRunResult result = TestResultsHelper.collect(wait, progress);
         if (result == null) {
             throw new IllegalStateException("No test runs found. Run a JUnit launch configuration first.");
         }
