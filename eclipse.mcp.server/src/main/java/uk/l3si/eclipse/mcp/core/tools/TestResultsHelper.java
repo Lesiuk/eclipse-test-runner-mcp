@@ -19,23 +19,24 @@ import org.eclipse.jdt.junit.model.ITestElementContainer;
 import org.eclipse.jdt.junit.model.ITestRunSession;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @SuppressWarnings("restriction")
 public class TestResultsHelper {
 
     private static final long POST_TERMINATION_GRACE_MS = 5 * 1000;
     private static final long POLL_INTERVAL_MS = 100;
-    private static final long KEEPALIVE_INTERVAL_MS = 10_000;
 
-    public static TestRunResult waitAndCollect(ILaunch launch) throws InterruptedException {
+    public static TestRunResult waitAndCollect(ILaunch launch, ProgressReporter progress) throws InterruptedException {
         JUnitModel model = JUnitCorePlugin.getModel();
         TestRunSession session = findSession(model, launch);
         if (session == null) {
             return null;
         }
 
-        waitForCompletion(session, launch, message -> {});
+        waitForCompletion(session, launch, progress);
         return buildResult(session);
     }
 
@@ -83,16 +84,12 @@ public class TestResultsHelper {
             ProgressReporter progress) throws InterruptedException {
         if (launch == null) return;
 
+        Set<String> reported = new HashSet<>();
         long terminatedAt = -1;
-        long lastReportTime = System.currentTimeMillis();
         while (isStillRunning(session)) {
+            reportNewTestResults(session, reported, progress);
             if (!launch.isTerminated()) {
-                // Launch still alive — keep waiting
-                long now = System.currentTimeMillis();
-                if (now - lastReportTime >= KEEPALIVE_INTERVAL_MS) {
-                    progress.report("Waiting for test to complete...");
-                    lastReportTime = now;
-                }
+                // keep waiting
             } else {
                 if (terminatedAt < 0) terminatedAt = System.currentTimeMillis();
                 if (System.currentTimeMillis() - terminatedAt > POST_TERMINATION_GRACE_MS) {
@@ -101,6 +98,7 @@ public class TestResultsHelper {
             }
             Thread.sleep(POLL_INTERVAL_MS);
         }
+        reportNewTestResults(session, reported, progress);
     }
 
     private static TestRunResult buildResult(TestRunSession session) {
@@ -170,6 +168,45 @@ public class TestResultsHelper {
     private static boolean isStillRunning(ITestRunSession session) {
         ProgressState state = session.getProgressState();
         return state == ProgressState.RUNNING || state == ProgressState.NOT_STARTED;
+    }
+
+    private static void reportNewTestResults(ITestRunSession session, Set<String> reported,
+            ProgressReporter progress) {
+        reportNewTestResults((ITestElementContainer) session, reported, progress);
+    }
+
+    private static void reportNewTestResults(ITestElementContainer container, Set<String> reported,
+            ProgressReporter progress) {
+        for (ITestElement child : container.getChildren()) {
+            if (child instanceof ITestCaseElement testCase) {
+                String key = testCase.getTestClassName() + "#" + testCase.getTestMethodName();
+                if (reported.contains(key)) continue;
+                Result result = testCase.getTestResult(false);
+                if (result == Result.UNDEFINED) continue;
+                reported.add(key);
+                progress.report(formatTestProgress(testCase, result));
+            } else if (child instanceof ITestElementContainer nested) {
+                reportNewTestResults(nested, reported, progress);
+            }
+        }
+    }
+
+    static String formatTestProgress(ITestCaseElement testCase, Result result) {
+        String method = testCase.getTestMethodName();
+        double elapsed = testCase.getElapsedTimeInSeconds();
+        String time = Double.isNaN(elapsed) ? "" : " (" + Math.round(elapsed * 10.0) / 10.0 + "s)";
+        if (result == Result.OK) {
+            return "PASSED: " + method + time;
+        } else if (result == Result.IGNORED) {
+            return "SKIPPED: " + method;
+        }
+        String prefix = result == Result.ERROR ? "ERROR: " : "FAILED: ";
+        FailureTrace trace = testCase.getFailureTrace();
+        if (trace != null && trace.getTrace() != null) {
+            String firstLine = trace.getTrace().split("\n")[0].trim();
+            return prefix + method + " — " + firstLine;
+        }
+        return prefix + method + time;
     }
 
     private static void collectResults(ITestElement element, List<TestFailureInfo> failures, int[] stats) {

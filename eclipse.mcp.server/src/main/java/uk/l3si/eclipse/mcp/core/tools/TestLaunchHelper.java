@@ -20,6 +20,8 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.PlatformUI;
 
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
+
 import java.util.List;
 
 @SuppressWarnings("restriction")
@@ -101,7 +103,7 @@ public class TestLaunchHelper {
      */
     private static final int DEBUG_TIMEOUT_SECONDS = 300;
 
-    public static LaunchTestResult launchTest(String configName, String className, String methodName, String projectName, String mode, DebugContext debugContext) throws Exception {
+    public static LaunchTestResult launchTest(String configName, String className, String methodName, String projectName, String mode, DebugContext debugContext, ProgressReporter progress) throws Exception {
         ILaunchConfiguration config = findTestConfig(configName);
 
         // Resolve project: user-provided or from existing config
@@ -188,7 +190,7 @@ public class TestLaunchHelper {
 
         // Wait for test results
         try {
-            TestRunResult testResults = TestResultsHelper.waitAndCollect(launchResult[0]);
+            TestRunResult testResults = TestResultsHelper.waitAndCollect(launchResult[0], progress);
             if (testResults != null) {
                 builder.testResults(testResults);
             }
