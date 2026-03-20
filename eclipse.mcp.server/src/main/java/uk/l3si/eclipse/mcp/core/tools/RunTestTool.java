@@ -54,7 +54,8 @@ public class RunTestTool implements McpTool {
              + "In debug mode, waits for the first breakpoint hit or termination and returns the stop location. "
              + "If 'compilationErrors' is returned, fix the errors and retry. "
              + "If tests fail, the returned stack trace is usually sufficient — use 'get_test_results' with class and method to get the full untruncated stack trace if needed. "
-             + "Use 'methods' to run multiple specific test methods in a single launch, sharing JVM initialization.";
+             + "Use 'method' to re-run only the failed test instead of the whole class — this saves significant time for slow tests (Selenium, SWTBot). "
+             + "Use 'methods' to run multiple specific test methods in a single launch, sharing JVM initialization — ideal for re-running just the failures.";
     }
 
     @Override
