@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.83.0
+
+- **Debug mode returns test results on termination** — `run_test` in debug mode now collects and returns pass/fail results when the test finishes without hitting a breakpoint
+- **Debug wait keepalive** — `run_test` (debug mode) and `step` (resume) send keepalive progress events every 60s while waiting for a breakpoint, preventing client timeouts
+- Keepalive interval reduced from 10s to 60s to save tokens
+
 ## 0.82.0
 
 - **Streamable HTTP with progress notifications** — long-running tools (`run_test`, `clean_build`, `get_test_results`) now stream progress events via SSE, preventing MCP client timeouts. Individual test pass/fail results are streamed in real-time during test execution.
