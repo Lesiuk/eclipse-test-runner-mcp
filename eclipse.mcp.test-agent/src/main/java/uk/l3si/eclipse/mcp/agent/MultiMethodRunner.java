@@ -6,7 +6,15 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Label;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 
 /**
  * Reflection-based helper that executes multiple specific test methods within a
@@ -20,6 +28,12 @@ public class MultiMethodRunner {
 
     private static final String RUNNER_CLASS_NAME =
             "org.eclipse.jdt.internal.junit.runner.RemoteTestRunner";
+
+    private static final String JUNIT5_LOADER =
+            "org.eclipse.jdt.internal.junit5.runner.JUnit5TestLoader";
+
+    private static final String JUNIT4_LOADER =
+            "org.eclipse.jdt.internal.junit4.runner.JUnit4TestLoader";
 
     /**
      * Parses a comma-separated list of method names.
@@ -76,25 +90,22 @@ public class MultiMethodRunner {
         Class<?>[] classes = (Class<?>[]) loadClassesMethod.invoke(runner,
                 (Object) testClassNames);
 
-        // 6. For each method, call loader.loadTests(classes, method, null, null, tags, null, runner)
-        // The last param type must be RemoteTestRunner, not the actual runtime class.
-        Class<?> loaderClass = loader.getClass();
-        Class<?> remoteTestRunnerType = Class.forName(RUNNER_CLASS_NAME);
-        Method loadTestsMethod = findLoadTestsMethod(loaderClass,
-                remoteTestRunnerType);
-
+        // 6. Build test references — try to create a single reference for
+        //    all methods so the JUnit view groups them under one class node.
         Class<?> refClass = Class.forName(
                 "org.eclipse.jdt.internal.junit.runner.ITestReference");
 
-        List<Object> allRefs = new ArrayList<>();
-        for (String method : methods) {
-            Object[] refs = (Object[]) loadTestsMethod.invoke(loader,
-                    classes, method, null, null, tags, null, runner);
-            if (refs != null) {
-                for (Object ref : refs) {
-                    allRefs.add(ref);
-                }
-            }
+        String loaderClassName = loader.getClass().getName();
+        String className = testClassNames[0];
+
+        List<Object> allRefs;
+        if (JUNIT5_LOADER.equals(loaderClassName)) {
+            allRefs = buildJUnit5Refs(loader, className, methods, tags, runner);
+        } else if (JUNIT4_LOADER.equals(loaderClassName)) {
+            allRefs = buildJUnit4Refs(loader, className, methods, classes);
+        } else {
+            allRefs = buildFallbackRefs(loader, classes, methods, tags,
+                    runner, runnerClass);
         }
 
         // 7. Combine into typed array
@@ -174,6 +185,289 @@ public class MultiMethodRunner {
         // 18. shutDown()
         Method shutDown = findMethod(runnerClass, "shutDown");
         shutDown.invoke(runner);
+    }
+
+    // ------------------------------------------------------------------
+    // JUnit 5: single LauncherDiscoveryRequest with multiple method selectors
+    // ------------------------------------------------------------------
+
+    private static List<Object> buildJUnit5Refs(Object loader,
+            String className, String[] methods, String[][] tags,
+            Object runner) throws Exception {
+
+        ClassLoader cl = loader.getClass().getClassLoader();
+
+        // DiscoverySelectors.selectMethod(String)
+        Class<?> selectorsClass = cl.loadClass(
+                "org.junit.platform.engine.discovery.DiscoverySelectors");
+        Method selectMethod = selectorsClass.getMethod("selectMethod",
+                String.class);
+        Class<?> selectorClass = cl.loadClass(
+                "org.junit.platform.engine.DiscoverySelector");
+
+        // Build selectors array
+        Object selectorsArray = Array.newInstance(selectorClass, methods.length);
+        for (int i = 0; i < methods.length; i++) {
+            Object selector = selectMethod.invoke(null,
+                    className + "#" + methods[i]);
+            Array.set(selectorsArray, i, selector);
+        }
+
+        // LauncherDiscoveryRequestBuilder.request()
+        Class<?> builderClass = cl.loadClass(
+                "org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder");
+        Method requestFactory = builderClass.getMethod("request");
+        Object builder = requestFactory.invoke(null);
+
+        // builder.selectors(DiscoverySelector[])
+        Method selectorsMethod = builderClass.getMethod("selectors",
+                selectorsArray.getClass());
+        selectorsMethod.invoke(builder, selectorsArray);
+
+        // Apply tag filters if present
+        if (tags != null) {
+            try {
+                Method getTagFilters = loader.getClass().getDeclaredMethod(
+                        "getTagFilters", String[][].class);
+                getTagFilters.setAccessible(true);
+                Object[] tagFilters = (Object[]) getTagFilters.invoke(loader,
+                        (Object) tags);
+                if (tagFilters != null && tagFilters.length > 0) {
+                    Class<?> filterClass = cl.loadClass(
+                            "org.junit.platform.launcher.Filter");
+                    Object filtersArray = Array.newInstance(filterClass,
+                            tagFilters.length);
+                    for (int i = 0; i < tagFilters.length; i++) {
+                        Array.set(filtersArray, i, tagFilters[i]);
+                    }
+                    Method filtersMethod = builderClass.getMethod("filters",
+                            filtersArray.getClass());
+                    filtersMethod.invoke(builder, filtersArray);
+                }
+            } catch (NoSuchMethodException e) {
+                // getTagFilters not available, skip tag filtering
+            }
+        }
+
+        // builder.build()
+        Method buildMethod = builderClass.getMethod("build");
+        Object request = buildMethod.invoke(builder);
+
+        // Get fLauncher from the loader
+        Field launcherField = findField(loader.getClass(), "fLauncher");
+        Object launcher = launcherField.get(loader);
+
+        // Get fRemoteTestRunner from the loader
+        Field remoteRunnerField = findField(loader.getClass(),
+                "fRemoteTestRunner");
+        Object remoteRunner = remoteRunnerField.get(loader);
+
+        // Create JUnit5TestReference(LauncherDiscoveryRequest, Launcher, RemoteTestRunner)
+        Class<?> requestType = cl.loadClass(
+                "org.junit.platform.launcher.LauncherDiscoveryRequest");
+        Class<?> launcherType = cl.loadClass(
+                "org.junit.platform.launcher.Launcher");
+        Class<?> rtrType = Class.forName(RUNNER_CLASS_NAME);
+        Class<?> refClass = cl.loadClass(
+                "org.eclipse.jdt.internal.junit5.runner.JUnit5TestReference");
+
+        Constructor<?> refCtor = refClass.getDeclaredConstructor(
+                requestType, launcherType, rtrType);
+        refCtor.setAccessible(true);
+        Object ref = refCtor.newInstance(request, launcher, remoteRunner);
+
+        List<Object> refs = new ArrayList<>();
+        refs.add(ref);
+        return refs;
+    }
+
+    // ------------------------------------------------------------------
+    // JUnit 4: single Request with ASM-generated multi-method Filter
+    // ------------------------------------------------------------------
+
+    private static List<Object> buildJUnit4Refs(Object loader,
+            String className, String[] methods,
+            Class<?>[] classes) throws Exception {
+
+        ClassLoader cl = loader.getClass().getClassLoader();
+        Class<?> testClass = classes[0];
+
+        // Request.classWithoutSuiteMethod(Class)
+        Class<?> requestClass = cl.loadClass("org.junit.runner.Request");
+        Method classWithoutSuite = requestClass.getMethod(
+                "classWithoutSuiteMethod", Class.class);
+        Object request = classWithoutSuite.invoke(null, testClass);
+
+        // Generate and instantiate the multi-method filter
+        Class<?> filterClass = cl.loadClass(
+                "org.junit.runner.manipulation.Filter");
+        Object filter = createMultiMethodFilter(cl, filterClass, methods);
+
+        // request.filterWith(filter)
+        Method filterWith = requestClass.getMethod("filterWith", filterClass);
+        Object filteredRequest = filterWith.invoke(request, filter);
+
+        // filteredRequest.getRunner()
+        Method getRunner = requestClass.getMethod("getRunner");
+        Object filteredRunner = getRunner.invoke(filteredRequest);
+
+        // filteredRunner.getDescription()
+        Class<?> runnerType = cl.loadClass("org.junit.runner.Runner");
+        Method getDescription = runnerType.getMethod("getDescription");
+        Object rootDescription = getDescription.invoke(filteredRunner);
+
+        // Create JUnit4TestReference(Runner, Description)
+        Class<?> descClass = cl.loadClass("org.junit.runner.Description");
+        Class<?> refClass = cl.loadClass(
+                "org.eclipse.jdt.internal.junit4.runner.JUnit4TestReference");
+        Constructor<?> refCtor = refClass.getDeclaredConstructor(
+                runnerType, descClass);
+        refCtor.setAccessible(true);
+        Object ref = refCtor.newInstance(filteredRunner, rootDescription);
+
+        List<Object> refs = new ArrayList<>();
+        refs.add(ref);
+        return refs;
+    }
+
+    /**
+     * Generates an ASM-based subclass of {@code org.junit.runner.manipulation.Filter}
+     * at runtime. The generated class filters test methods by name, keeping only
+     * those in the provided set. Suite nodes (where getMethodName() returns null)
+     * are always kept so the class container appears in the tree.
+     */
+    static Object createMultiMethodFilter(ClassLoader parentCl,
+            Class<?> filterSuperClass,
+            String[] methods) throws Exception {
+
+        String superInternal = Type.getInternalName(filterSuperClass);
+        String generatedName =
+                "uk/l3si/eclipse/mcp/agent/generated/MultiMethodFilter";
+        String setDesc = Type.getDescriptor(Set.class);
+        String descriptionInternal = "org/junit/runner/Description";
+
+        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES
+                | ClassWriter.COMPUTE_MAXS);
+        cw.visit(Opcodes.V17, Opcodes.ACC_PUBLIC, generatedName, null,
+                superInternal, null);
+
+        // Field: private final Set methodNames
+        cw.visitField(Opcodes.ACC_PRIVATE | Opcodes.ACC_FINAL,
+                "methodNames", setDesc, null, null).visitEnd();
+
+        // Constructor(Set)
+        {
+            MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "<init>",
+                    "(" + setDesc + ")V", null, null);
+            mv.visitCode();
+            mv.visitVarInsn(Opcodes.ALOAD, 0);
+            mv.visitMethodInsn(Opcodes.INVOKESPECIAL, superInternal,
+                    "<init>", "()V", false);
+            mv.visitVarInsn(Opcodes.ALOAD, 0);
+            mv.visitVarInsn(Opcodes.ALOAD, 1);
+            mv.visitFieldInsn(Opcodes.PUTFIELD, generatedName,
+                    "methodNames", setDesc);
+            mv.visitInsn(Opcodes.RETURN);
+            mv.visitMaxs(0, 0);
+            mv.visitEnd();
+        }
+
+        // shouldRun(Description): return desc.getMethodName() == null
+        //                                || methodNames.contains(desc.getMethodName())
+        {
+            MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "shouldRun",
+                    "(L" + descriptionInternal + ";)Z", null, null);
+            mv.visitCode();
+
+            // String name = description.getMethodName()
+            mv.visitVarInsn(Opcodes.ALOAD, 1);
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, descriptionInternal,
+                    "getMethodName", "()Ljava/lang/String;", false);
+            mv.visitVarInsn(Opcodes.ASTORE, 2);
+
+            // if (name == null) return true
+            mv.visitVarInsn(Opcodes.ALOAD, 2);
+            Label notNull = new Label();
+            mv.visitJumpInsn(Opcodes.IFNONNULL, notNull);
+            mv.visitInsn(Opcodes.ICONST_1);
+            mv.visitInsn(Opcodes.IRETURN);
+
+            // return methodNames.contains(name)
+            mv.visitLabel(notNull);
+            mv.visitVarInsn(Opcodes.ALOAD, 0);
+            mv.visitFieldInsn(Opcodes.GETFIELD, generatedName,
+                    "methodNames", setDesc);
+            mv.visitVarInsn(Opcodes.ALOAD, 2);
+            mv.visitMethodInsn(Opcodes.INVOKEINTERFACE,
+                    Type.getInternalName(Set.class), "contains",
+                    "(Ljava/lang/Object;)Z", true);
+            mv.visitInsn(Opcodes.IRETURN);
+
+            mv.visitMaxs(0, 0);
+            mv.visitEnd();
+        }
+
+        // describe(): return "MultiMethodFilter"
+        {
+            MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "describe",
+                    "()Ljava/lang/String;", null, null);
+            mv.visitCode();
+            mv.visitLdcInsn("MultiMethodFilter");
+            mv.visitInsn(Opcodes.ARETURN);
+            mv.visitMaxs(0, 0);
+            mv.visitEnd();
+        }
+
+        cw.visitEnd();
+        byte[] bytecode = cw.toByteArray();
+
+        // Define the class using a custom classloader parented by the
+        // loader's classloader so it can see both Filter and Set.
+        Class<?> filterImplClass = new ByteArrayClassLoader(parentCl)
+                .defineClass(generatedName.replace('/', '.'), bytecode);
+
+        Set<String> methodSet = new HashSet<>(Arrays.asList(methods));
+        Constructor<?> ctor = filterImplClass.getConstructor(Set.class);
+        return ctor.newInstance(methodSet);
+    }
+
+    /**
+     * Simple classloader that defines a single class from a byte array.
+     */
+    private static class ByteArrayClassLoader extends ClassLoader {
+        ByteArrayClassLoader(ClassLoader parent) {
+            super(parent);
+        }
+
+        Class<?> defineClass(String name, byte[] bytes) {
+            return defineClass(name, bytes, 0, bytes.length);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Fallback: per-method loadTests (produces duplicated class nodes)
+    // ------------------------------------------------------------------
+
+    private static List<Object> buildFallbackRefs(Object loader,
+            Class<?>[] classes, String[] methods, String[][] tags,
+            Object runner, Class<?> runnerClass) throws Exception {
+
+        Class<?> loaderClass = loader.getClass();
+        Class<?> remoteTestRunnerType = Class.forName(RUNNER_CLASS_NAME);
+        Method loadTestsMethod = findLoadTestsMethod(loaderClass,
+                remoteTestRunnerType);
+
+        List<Object> allRefs = new ArrayList<>();
+        for (String method : methods) {
+            Object[] refs = (Object[]) loadTestsMethod.invoke(loader,
+                    classes, method, null, null, tags, null, runner);
+            if (refs != null) {
+                for (Object ref : refs) {
+                    allRefs.add(ref);
+                }
+            }
+        }
+        return allRefs;
     }
 
     /**
