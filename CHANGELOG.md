@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.92.0
+
+- **Report `@BeforeClass` / `@BeforeAll` exceptions in test results** — `run_test` and `get_test_results` now capture suite-level setup failures that live on the `ITestSuiteElement` rather than on individual test cases. These appear as `<classSetup>` errors in the failures list with full stack traces.
+
 ## 0.91.0
 
 - **Return compilation problems from `clean_build`** — `clean_build` now returns errors and warnings (grouped, same format as `get_problems`) after rebuilding, eliminating the need for a separate `get_problems` call. Extracted shared `collectProblems` method from `GetProblemsTool` for reuse.

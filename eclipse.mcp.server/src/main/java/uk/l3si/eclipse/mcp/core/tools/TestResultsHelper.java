@@ -17,6 +17,7 @@ import org.eclipse.jdt.junit.model.ITestElement.ProgressState;
 import org.eclipse.jdt.junit.model.ITestElement.Result;
 import org.eclipse.jdt.junit.model.ITestElementContainer;
 import org.eclipse.jdt.junit.model.ITestRunSession;
+import org.eclipse.jdt.junit.model.ITestSuiteElement;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -198,6 +199,18 @@ public class TestResultsHelper {
                 reportNewTestResults(nested, reported, progress);
             }
         }
+        // Report suite-level failures (e.g. @BeforeClass exceptions)
+        if (container instanceof ITestSuiteElement suite) {
+            String key = suite.getSuiteTypeName() + "#<classSetup>";
+            if (!reported.contains(key)) {
+                FailureTrace trace = suite.getFailureTrace();
+                if (trace != null && trace.getTrace() != null) {
+                    reported.add(key);
+                    String firstLine = trace.getTrace().split("\n")[0].trim();
+                    progress.report("ERROR: " + suite.getSuiteTypeName() + " class setup — " + firstLine);
+                }
+            }
+        }
     }
 
     static String formatTestProgress(ITestCaseElement testCase, Result result) {
@@ -234,10 +247,21 @@ public class TestResultsHelper {
                 stats[4]++;
             }
         } else if (element instanceof ITestElementContainer container) {
+            int failuresBefore = failures.size();
             ITestElement[] children = container.getChildren();
             if (children != null) {
                 for (ITestElement child : children) {
                     collectResults(child, failures, stats);
+                }
+            }
+            // Suite-level failures (e.g. @BeforeClass / @BeforeAll exceptions)
+            if (failures.size() == failuresBefore
+                    && element instanceof ITestSuiteElement suite) {
+                FailureTrace trace = suite.getFailureTrace();
+                if (trace != null) {
+                    stats[0]++;
+                    stats[3]++;
+                    addSuiteFailure(suite, failures);
                 }
             }
         }
@@ -252,6 +276,23 @@ public class TestResultsHelper {
         FailureTrace trace = testCase.getFailureTrace();
         if (trace != null) {
             if (trace.getTrace() != null) builder.message(extractMessage(trace.getTrace(), testCase.getTestClassName()));
+            if (trace.getExpected() != null) builder.expected(trace.getExpected());
+            if (trace.getActual() != null) builder.actual(trace.getActual());
+        }
+
+        failures.add(builder.build());
+    }
+
+    private static void addSuiteFailure(ITestSuiteElement suite, List<TestFailureInfo> failures) {
+        String className = suite.getSuiteTypeName();
+        TestFailureInfo.Builder builder = TestFailureInfo.builder()
+                .className(className)
+                .method("<classSetup>")
+                .kind("ERROR");
+
+        FailureTrace trace = suite.getFailureTrace();
+        if (trace != null) {
+            if (trace.getTrace() != null) builder.message(extractMessage(trace.getTrace(), className));
             if (trace.getExpected() != null) builder.expected(trace.getExpected());
             if (trace.getActual() != null) builder.actual(trace.getActual());
         }
@@ -308,6 +349,13 @@ public class TestResultsHelper {
     }
 
     private static String findTrace(ITestElementContainer container, String className, String methodName) {
+        // Check suite-level trace (e.g. @BeforeClass failures reported as <classSetup>)
+        if (container instanceof ITestSuiteElement suite
+                && suite.getSuiteTypeName().equals(className)
+                && "<classSetup>".equals(methodName)) {
+            FailureTrace trace = suite.getFailureTrace();
+            if (trace != null) return trace.getTrace();
+        }
         for (ITestElement child : container.getChildren()) {
             if (child instanceof ITestCaseElement testCase) {
                 if (testCase.getTestClassName().equals(className)
