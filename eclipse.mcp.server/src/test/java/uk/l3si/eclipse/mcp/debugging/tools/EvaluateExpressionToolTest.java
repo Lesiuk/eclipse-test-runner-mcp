@@ -1534,7 +1534,16 @@ class EvaluateExpressionToolTest {
     }
 
     @Test
-    void tryCatchWrapperFails_fallsBackToDirectEvaluation() throws Exception {
+    void wrapVoidInTryCatch_generatesCorrectSnippet() {
+        String wrapped = EvaluateExpressionTool.wrapVoidInTryCatch("System.out.println(\"hi\")");
+        assertEquals(
+                "try { System.out.println(\"hi\"); return null; }"
+                + " catch (Throwable __eval_ex) { return __eval_ex; }",
+                wrapped);
+    }
+
+    @Test
+    void voidWrapperCatchesException() throws Exception {
         IJavaThread thread = mock(IJavaThread.class);
         IJavaStackFrame frame = mock(IJavaStackFrame.class);
         IJavaDebugTarget target = mock(IJavaDebugTarget.class);
@@ -1550,28 +1559,96 @@ class EvaluateExpressionToolTest {
         when(launch.getLaunchConfiguration()).thenReturn(launchConfig);
         when(frame.getLineNumber()).thenReturn(42);
 
-        // First call (wrapped): compilation error
-        IEvaluationResult wrappedResult = mock(IEvaluationResult.class);
-        when(wrappedResult.hasErrors()).thenReturn(true);
+        // Value wrapper fails (void expression)
+        IEvaluationResult valueWrapperResult = mock(IEvaluationResult.class);
+        when(valueWrapperResult.hasErrors()).thenReturn(true);
 
-        // Second call (direct): succeeds
-        IJavaValue resultValue = mock(IJavaValue.class);
-        when(resultValue.getReferenceTypeName()).thenReturn("void");
-        when(resultValue.isNull()).thenReturn(true);
+        // Void wrapper catches the exception
+        IJavaObject caughtException = mock(IJavaObject.class);
+        when(caughtException.isNull()).thenReturn(false);
+        when(caughtException.getReferenceTypeName()).thenReturn("java.lang.IllegalStateException");
 
-        IEvaluationResult directResult = mock(IEvaluationResult.class);
-        when(directResult.hasErrors()).thenReturn(false);
-        when(directResult.getValue()).thenReturn(resultValue);
+        IJavaClassType throwableType = mock(IJavaClassType.class);
+        when(throwableType.getName()).thenReturn("java.lang.Throwable");
+        when(caughtException.getJavaType()).thenReturn(throwableType);
 
-        // Return different results for wrapped vs direct evaluation
+        IJavaValue nullMsg = mock(IJavaValue.class);
+        when(nullMsg.isNull()).thenReturn(true);
+        when(caughtException.sendMessage(eq("getMessage"), anyString(),
+                any(IJavaValue[].class), any(IJavaThread.class), anyBoolean()))
+                .thenReturn(nullMsg);
+        IJavaArray emptyStack = mock(IJavaArray.class);
+        when(emptyStack.getLength()).thenReturn(0);
+        when(caughtException.sendMessage(eq("getStackTrace"), anyString(),
+                any(IJavaValue[].class), any(IJavaThread.class), anyBoolean()))
+                .thenReturn(emptyStack);
+
+        IEvaluationResult voidWrapperResult = mock(IEvaluationResult.class);
+        when(voidWrapperResult.hasErrors()).thenReturn(false);
+        when(voidWrapperResult.getValue()).thenReturn(caughtException);
+
+        java.util.concurrent.atomic.AtomicInteger callCount = new java.util.concurrent.atomic.AtomicInteger();
         doAnswer(invocation -> {
-            String snippet = invocation.getArgument(0);
+            int n = callCount.incrementAndGet();
             IEvaluationListener listener = invocation.getArgument(2);
-            if (snippet.startsWith("try {")) {
-                listener.evaluationComplete(wrappedResult);
-            } else {
-                listener.evaluationComplete(directResult);
-            }
+            listener.evaluationComplete(n == 1 ? valueWrapperResult : voidWrapperResult);
+            return null;
+        }).when(engine).evaluate(anyString(), any(), any(), anyInt(), anyBoolean());
+
+        try (MockedStatic<JavaRuntime> javaRuntimeMock = mockStatic(JavaRuntime.class);
+             MockedStatic<EvaluationManager> evalManagerMock = mockStatic(EvaluationManager.class)) {
+
+            javaRuntimeMock.when(() -> JavaRuntime.getJavaProject(launchConfig))
+                    .thenReturn(javaProject);
+            evalManagerMock.when(() -> EvaluationManager.newAstEvaluationEngine(javaProject, target))
+                    .thenReturn(engine);
+
+            JsonObject args = new JsonObject();
+            args.addProperty("expression", "obj.voidMethodThatThrows()");
+
+            RuntimeException ex = assertThrows(RuntimeException.class,
+                    () -> tool.execute(new Args(args), message -> {}));
+            assertTrue(ex.getMessage().contains("IllegalStateException"));
+            assertTrue(ex.getMessage().contains("stack frame is still valid"));
+            verify(engine, times(2)).evaluate(anyString(), any(), any(), anyInt(), anyBoolean());
+        }
+    }
+
+    @Test
+    void voidWrapperSucceeds_normalCompletion() throws Exception {
+        IJavaThread thread = mock(IJavaThread.class);
+        IJavaStackFrame frame = mock(IJavaStackFrame.class);
+        IJavaDebugTarget target = mock(IJavaDebugTarget.class);
+        ILaunch launch = mock(ILaunch.class);
+        ILaunchConfiguration launchConfig = mock(ILaunchConfiguration.class);
+        IJavaProject javaProject = mock(IJavaProject.class);
+        IAstEvaluationEngine engine = mock(IAstEvaluationEngine.class);
+
+        when(debugContext.resolveThread(null)).thenReturn(thread);
+        when(debugContext.resolveFrame(thread, null)).thenReturn(frame);
+        when(debugContext.getCurrentTarget()).thenReturn(target);
+        when(target.getLaunch()).thenReturn(launch);
+        when(launch.getLaunchConfiguration()).thenReturn(launchConfig);
+        when(frame.getLineNumber()).thenReturn(42);
+
+        // Value wrapper fails (void expression)
+        IEvaluationResult valueWrapperResult = mock(IEvaluationResult.class);
+        when(valueWrapperResult.hasErrors()).thenReturn(true);
+
+        // Void wrapper succeeds, returns null
+        IJavaValue nullValue = mock(IJavaValue.class);
+        when(nullValue.isNull()).thenReturn(true);
+        when(nullValue.getReferenceTypeName()).thenReturn("java.lang.Object");
+
+        IEvaluationResult voidWrapperResult = mock(IEvaluationResult.class);
+        when(voidWrapperResult.hasErrors()).thenReturn(false);
+        when(voidWrapperResult.getValue()).thenReturn(nullValue);
+
+        java.util.concurrent.atomic.AtomicInteger callCount = new java.util.concurrent.atomic.AtomicInteger();
+        doAnswer(invocation -> {
+            int n = callCount.incrementAndGet();
+            IEvaluationListener listener = invocation.getArgument(2);
+            listener.evaluationComplete(n == 1 ? valueWrapperResult : voidWrapperResult);
             return null;
         }).when(engine).evaluate(anyString(), any(), any(), anyInt(), anyBoolean());
 
@@ -1589,14 +1666,12 @@ class EvaluateExpressionToolTest {
             JsonObject result = GSON.toJsonTree(tool.execute(new Args(args), message -> {}))
                     .getAsJsonObject();
             assertEquals("null", result.get("value").getAsString());
-
-            // Verify engine.evaluate was called twice (wrapped + direct)
             verify(engine, times(2)).evaluate(anyString(), any(), any(), anyInt(), anyBoolean());
         }
     }
 
     @Test
-    void tryCatchWrapperFails_directAlsoFails_reportsError() throws Exception {
+    void bothWrappersFail_fallsBackToDirectEvaluation() throws Exception {
         IJavaThread thread = mock(IJavaThread.class);
         IJavaStackFrame frame = mock(IJavaStackFrame.class);
         IJavaDebugTarget target = mock(IJavaDebugTarget.class);
@@ -1612,15 +1687,79 @@ class EvaluateExpressionToolTest {
         when(launch.getLaunchConfiguration()).thenReturn(launchConfig);
         when(frame.getLineNumber()).thenReturn(42);
 
-        // Both wrapped and direct fail
-        IEvaluationResult errorResult = mock(IEvaluationResult.class);
-        when(errorResult.hasErrors()).thenReturn(true);
-        when(errorResult.getErrorMessages()).thenReturn(new String[]{"Cannot resolve 'xyz'"});
-        when(errorResult.getException()).thenReturn(null);
+        // Both wrappers fail
+        IEvaluationResult wrapperError = mock(IEvaluationResult.class);
+        when(wrapperError.hasErrors()).thenReturn(true);
 
+        // Direct evaluation succeeds
+        IJavaValue resultValue = mock(IJavaValue.class);
+        when(resultValue.getReferenceTypeName()).thenReturn("void");
+        when(resultValue.isNull()).thenReturn(true);
+
+        IEvaluationResult directResult = mock(IEvaluationResult.class);
+        when(directResult.hasErrors()).thenReturn(false);
+        when(directResult.getValue()).thenReturn(resultValue);
+
+        java.util.concurrent.atomic.AtomicInteger callCount = new java.util.concurrent.atomic.AtomicInteger();
         doAnswer(invocation -> {
+            int n = callCount.incrementAndGet();
             IEvaluationListener listener = invocation.getArgument(2);
-            listener.evaluationComplete(errorResult);
+            listener.evaluationComplete(n <= 2 ? wrapperError : directResult);
+            return null;
+        }).when(engine).evaluate(anyString(), any(), any(), anyInt(), anyBoolean());
+
+        try (MockedStatic<JavaRuntime> javaRuntimeMock = mockStatic(JavaRuntime.class);
+             MockedStatic<EvaluationManager> evalManagerMock = mockStatic(EvaluationManager.class)) {
+
+            javaRuntimeMock.when(() -> JavaRuntime.getJavaProject(launchConfig))
+                    .thenReturn(javaProject);
+            evalManagerMock.when(() -> EvaluationManager.newAstEvaluationEngine(javaProject, target))
+                    .thenReturn(engine);
+
+            JsonObject args = new JsonObject();
+            args.addProperty("expression", "for (int i = 0; i < 10; i++) {}");
+
+            JsonObject result = GSON.toJsonTree(tool.execute(new Args(args), message -> {}))
+                    .getAsJsonObject();
+            assertEquals("null", result.get("value").getAsString());
+
+            // All three: value wrapper, void wrapper, direct
+            verify(engine, times(3)).evaluate(anyString(), any(), any(), anyInt(), anyBoolean());
+        }
+    }
+
+    @Test
+    void allThreeFail_reportsDirectError() throws Exception {
+        IJavaThread thread = mock(IJavaThread.class);
+        IJavaStackFrame frame = mock(IJavaStackFrame.class);
+        IJavaDebugTarget target = mock(IJavaDebugTarget.class);
+        ILaunch launch = mock(ILaunch.class);
+        ILaunchConfiguration launchConfig = mock(ILaunchConfiguration.class);
+        IJavaProject javaProject = mock(IJavaProject.class);
+        IAstEvaluationEngine engine = mock(IAstEvaluationEngine.class);
+
+        when(debugContext.resolveThread(null)).thenReturn(thread);
+        when(debugContext.resolveFrame(thread, null)).thenReturn(frame);
+        when(debugContext.getCurrentTarget()).thenReturn(target);
+        when(target.getLaunch()).thenReturn(launch);
+        when(launch.getLaunchConfiguration()).thenReturn(launchConfig);
+        when(frame.getLineNumber()).thenReturn(42);
+
+        // All three evaluations fail — use the LAST error for reporting
+        IEvaluationResult wrapperError = mock(IEvaluationResult.class);
+        when(wrapperError.hasErrors()).thenReturn(true);
+        when(wrapperError.getErrorMessages()).thenReturn(new String[]{"wrapper error"});
+
+        IEvaluationResult directError = mock(IEvaluationResult.class);
+        when(directError.hasErrors()).thenReturn(true);
+        when(directError.getErrorMessages()).thenReturn(new String[]{"Cannot resolve 'xyz'"});
+        when(directError.getException()).thenReturn(null);
+
+        java.util.concurrent.atomic.AtomicInteger callCount = new java.util.concurrent.atomic.AtomicInteger();
+        doAnswer(invocation -> {
+            int n = callCount.incrementAndGet();
+            IEvaluationListener listener = invocation.getArgument(2);
+            listener.evaluationComplete(n <= 2 ? wrapperError : directError);
             return null;
         }).when(engine).evaluate(anyString(), any(), any(), anyInt(), anyBoolean());
 
@@ -1637,6 +1776,7 @@ class EvaluateExpressionToolTest {
 
             RuntimeException ex = assertThrows(RuntimeException.class,
                     () -> tool.execute(new Args(args), message -> {}));
+            // Reports the DIRECT evaluation error, not the wrapper errors
             assertTrue(ex.getMessage().contains("Cannot resolve 'xyz'"));
         }
     }

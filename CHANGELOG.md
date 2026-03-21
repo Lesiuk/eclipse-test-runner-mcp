@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.94.0
+
+- **Void expression support for try-catch wrapping** — when the value-returning wrapper `return (expr)` fails to compile (void methods, setters, etc.), a second void-compatible wrapper `expr; return null;` is tried before falling back to direct evaluation. This means void expressions like `System.out.println()` or `obj.setField(value)` are also protected from frame invalidation on exception.
+
 ## 0.93.0
 
 - **Safe expression evaluation via try-catch wrapping** — `evaluate_expression` now wraps expressions in `try { return (expr); } catch (Throwable) { return ex; }` before evaluating. If the expression throws (e.g. `StringIndexOutOfBoundsException`), the exception is caught inside the target VM so the stack frame stays valid for further evaluations. Falls back to direct evaluation for void expressions/statements. Exception details (type, message, filtered stack trace) are extracted from the caught Throwable and reported clearly.

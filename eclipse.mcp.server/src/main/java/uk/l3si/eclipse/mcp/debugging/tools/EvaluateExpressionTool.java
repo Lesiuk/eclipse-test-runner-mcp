@@ -174,8 +174,22 @@ public class EvaluateExpressionTool implements McpTool {
                 return formatResult(expression, value);
             }
 
-            // Wrapper failed to compile (void expression, statement, etc.)
-            // — fall back to direct evaluation.
+            // Value-returning wrapper failed — try void-compatible wrapper
+            // (handles void methods like System.out.println, setters, etc.)
+            IEvaluationResult voidResult = evaluateSnippet(
+                    wrapVoidInTryCatch(expression), frame, engine);
+
+            if (!voidResult.hasErrors()) {
+                IJavaValue voidValue = voidResult.getValue();
+                if (isThrowableInstance(voidValue)) {
+                    throw new RuntimeException(formatCaughtException((IJavaObject) voidValue)
+                            + "\n\nThe stack frame is still valid — you can "
+                            + "evaluate a different expression.");
+                }
+                return formatResult(expression, voidValue);
+            }
+
+            // Both wrappers failed — fall back to direct evaluation.
             IEvaluationResult evalResult = evaluateSnippet(
                     expression, frame, engine);
 
@@ -231,6 +245,11 @@ public class EvaluateExpressionTool implements McpTool {
     static String wrapInTryCatch(String expression) {
         return "try { return (" + expression
                 + "); } catch (Throwable __eval_ex) { return __eval_ex; }";
+    }
+
+    static String wrapVoidInTryCatch(String expression) {
+        return "try { " + expression
+                + "; return null; } catch (Throwable __eval_ex) { return __eval_ex; }";
     }
 
     static boolean isThrowableInstance(IJavaValue value) {
