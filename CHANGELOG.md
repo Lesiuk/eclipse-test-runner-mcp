@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.93.0
+
+- **Safe expression evaluation via try-catch wrapping** — `evaluate_expression` now wraps expressions in `try { return (expr); } catch (Throwable) { return ex; }` before evaluating. If the expression throws (e.g. `StringIndexOutOfBoundsException`), the exception is caught inside the target VM so the stack frame stays valid for further evaluations. Falls back to direct evaluation for void expressions/statements. Exception details (type, message, filtered stack trace) are extracted from the caught Throwable and reported clearly.
+
 ## 0.92.0
 
 - **Report `@BeforeClass` / `@BeforeAll` exceptions in test results** — `run_test` and `get_test_results` now capture suite-level setup failures that live on the `ITestSuiteElement` rather than on individual test cases. These appear as `<classSetup>` errors in the failures list with full stack traces.

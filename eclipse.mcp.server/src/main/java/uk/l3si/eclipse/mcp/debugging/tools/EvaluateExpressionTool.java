@@ -14,10 +14,12 @@ import org.eclipse.debug.core.DebugEvent;
 import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.model.IVariable;
 import org.eclipse.jdt.debug.core.IJavaArray;
+import org.eclipse.jdt.debug.core.IJavaClassType;
 import org.eclipse.jdt.debug.core.IJavaDebugTarget;
 import org.eclipse.jdt.debug.core.IJavaObject;
 import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
+import org.eclipse.jdt.debug.core.IJavaType;
 import org.eclipse.jdt.debug.core.IJavaValue;
 import org.eclipse.jdt.debug.eval.EvaluationManager;
 import org.eclipse.jdt.debug.eval.IAstEvaluationEngine;
@@ -126,8 +128,9 @@ public class EvaluateExpressionTool implements McpTool {
             return doEvaluate(expression, frame, javaProject, target);
         } catch (InvalidStackFrameException e) {
             throw new IllegalStateException(
-                    "Stack frame is no longer valid — the thread may have resumed or the program terminated. "
-                    + "Use 'get_debug_state' to check the current state before retrying.");
+                    "Stack frame is no longer valid — this commonly happens after a previous "
+                    + "expression evaluation threw an exception in the target VM. "
+                    + "Use 'get_debug_state' to check thread state, then 'step' to get a fresh frame.");
         } finally {
             EVAL_LOCK.release();
         }
@@ -135,28 +138,47 @@ public class EvaluateExpressionTool implements McpTool {
 
     private Object doEvaluate(String expression, IJavaStackFrame frame,
             IJavaProject javaProject, IJavaDebugTarget target) throws Exception {
+
+        // Validate frame early — gives a clear message instead of the cryptic
+        // "InvalidStackFrameException occurred retrieving 'this'" from the engine
+        try {
+            frame.getLineNumber();
+        } catch (DebugException e) {
+            if (e.getCause() instanceof InvalidStackFrameException
+                    || e.getStatus().getException() instanceof InvalidStackFrameException) {
+                throw new IllegalStateException(
+                        "Stack frame is no longer valid — this commonly happens after a "
+                        + "previous expression evaluation threw an exception in the target VM. "
+                        + "Use 'get_debug_state' to check thread state, then 'step' to get a fresh frame.");
+            }
+            throw e;
+        }
+
         IAstEvaluationEngine engine = EvaluationManager.newAstEvaluationEngine(
                 javaProject, target);
 
         try {
-            CountDownLatch latch = new CountDownLatch(1);
-            IEvaluationResult[] resultHolder = new IEvaluationResult[1];
+            // Try safe evaluation first: wrap in try-catch so exceptions in the
+            // target VM are caught without invalidating the stack frame.
+            IEvaluationResult safeResult = evaluateSnippet(
+                    wrapInTryCatch(expression), frame, engine);
 
-            IEvaluationListener listener = result -> {
-                resultHolder[0] = result;
-                latch.countDown();
-            };
-
-            engine.evaluate(expression, frame, listener,
-                    DebugEvent.EVALUATION, false);
-
-            if (!latch.await(EVAL_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
-                throw new IllegalStateException(
-                        "Expression evaluation timed out after "
-                        + (EVAL_TIMEOUT_MS / 1000) + " seconds.");
+            if (!safeResult.hasErrors()) {
+                IJavaValue value = safeResult.getValue();
+                if (isThrowableInstance(value)) {
+                    // Expression threw — extract details (frame is still valid!)
+                    throw new RuntimeException(formatCaughtException((IJavaObject) value)
+                            + "\n\nThe stack frame is still valid — you can "
+                            + "evaluate a different expression.");
+                }
+                return formatResult(expression, value);
             }
 
-            IEvaluationResult evalResult = resultHolder[0];
+            // Wrapper failed to compile (void expression, statement, etc.)
+            // — fall back to direct evaluation.
+            IEvaluationResult evalResult = evaluateSnippet(
+                    expression, frame, engine);
+
             if (evalResult.hasErrors()) {
                 String[] messages = evalResult.getErrorMessages();
                 String errorMsg = messages != null && messages.length > 0
@@ -164,14 +186,156 @@ public class EvaluateExpressionTool implements McpTool {
                         : "Expression evaluation failed";
                 if (evalResult.getException() != null) {
                     errorMsg += ": " + unwrapEvalException(evalResult.getException(), frame);
+                    if (isFrameInvalid(frame)) {
+                        errorMsg += "\n\nWARNING: This exception invalidated the "
+                                + "current stack frame. Further evaluations will "
+                                + "fail until you 'step' to a new location.";
+                    }
+                } else if (errorMsg.contains("InvalidStackFrameException")) {
+                    errorMsg += "\n\nThis commonly happens after a previous "
+                            + "expression evaluation threw an exception in the "
+                            + "target VM, which invalidated the stack frame. "
+                            + "Use 'step' or 'get_debug_state' to re-establish "
+                            + "a valid frame before retrying.";
                 }
                 throw new RuntimeException(errorMsg);
             }
 
-            IJavaValue value = evalResult.getValue();
-            return formatResult(expression, value);
+            return formatResult(expression, evalResult.getValue());
         } finally {
             engine.dispose();
+        }
+    }
+
+    private IEvaluationResult evaluateSnippet(String snippet, IJavaStackFrame frame,
+            IAstEvaluationEngine engine) throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+        IEvaluationResult[] resultHolder = new IEvaluationResult[1];
+
+        IEvaluationListener listener = result -> {
+            resultHolder[0] = result;
+            latch.countDown();
+        };
+
+        engine.evaluate(snippet, frame, listener,
+                DebugEvent.EVALUATION, false);
+
+        if (!latch.await(EVAL_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+            throw new IllegalStateException(
+                    "Expression evaluation timed out after "
+                    + (EVAL_TIMEOUT_MS / 1000) + " seconds.");
+        }
+        return resultHolder[0];
+    }
+
+    static String wrapInTryCatch(String expression) {
+        return "try { return (" + expression
+                + "); } catch (Throwable __eval_ex) { return __eval_ex; }";
+    }
+
+    static boolean isThrowableInstance(IJavaValue value) {
+        if (value == null || value.isNull() || !(value instanceof IJavaObject)) {
+            return false;
+        }
+        try {
+            IJavaType type = value.getJavaType();
+            if (!(type instanceof IJavaClassType classType)) {
+                return false;
+            }
+            while (classType != null) {
+                if ("java.lang.Throwable".equals(classType.getName())) {
+                    return true;
+                }
+                classType = classType.getSuperclass();
+            }
+        } catch (DebugException e) {
+            // Can't determine type — assume not a Throwable
+        }
+        return false;
+    }
+
+    /**
+     * Format a caught exception from the try-catch wrapper, extracting the
+     * type name, message (via getMessage()), and filtered stack trace.
+     */
+    private String formatCaughtException(IJavaObject throwable) {
+        String typeName;
+        try {
+            typeName = throwable.getReferenceTypeName();
+        } catch (DebugException e) {
+            typeName = "Unknown";
+        }
+
+        String message = null;
+        try {
+            IJavaThread thread = debugContext.resolveThread(null);
+            IJavaValue msgValue = throwable.sendMessage("getMessage",
+                    "()Ljava/lang/String;", new IJavaValue[0], thread, false);
+            if (msgValue != null && !msgValue.isNull()) {
+                message = msgValue.getValueString();
+            }
+        } catch (Exception ignored) {
+        }
+
+        StringBuilder sb = new StringBuilder("Expression threw ");
+        sb.append(typeName);
+        if (message != null) {
+            sb.append(": ").append(message);
+        }
+
+        appendCaughtStackTrace(sb, throwable);
+        return sb.toString();
+    }
+
+    private void appendCaughtStackTrace(StringBuilder sb, IJavaObject throwable) {
+        try {
+            IJavaThread thread = debugContext.resolveThread(null);
+            IJavaValue stValue = throwable.sendMessage("getStackTrace",
+                    "()[Ljava/lang/StackTraceElement;", new IJavaValue[0],
+                    thread, false);
+            if (!(stValue instanceof IJavaArray array) || array.getLength() == 0) {
+                return;
+            }
+
+            int kept = 0;
+            int omitted = 0;
+            for (int i = 0; i < array.getLength(); i++) {
+                IJavaValue elem = array.getValue(i);
+                if (!(elem instanceof IJavaObject steObj)) continue;
+
+                String steString = invokeToString(steObj);
+                if (steString == null) continue;
+
+                // Extract class name for framework filtering
+                String className = null;
+                int parenIdx = steString.indexOf('(');
+                if (parenIdx > 0) {
+                    int lastDot = steString.lastIndexOf('.', parenIdx);
+                    if (lastDot > 0) {
+                        className = steString.substring(0, lastDot);
+                    }
+                }
+
+                if (StackTraceFilter.isFrameworkFrame(className)) {
+                    omitted++;
+                    continue;
+                }
+                if (kept >= MAX_STACK_FRAMES) {
+                    omitted++;
+                    continue;
+                }
+                if (omitted > 0 && kept > 0) {
+                    sb.append("\n\t... ").append(omitted).append(" more");
+                    omitted = 0;
+                }
+
+                sb.append("\n\tat ").append(steString);
+                kept++;
+            }
+            if (omitted > 0) {
+                sb.append("\n\t... ").append(omitted).append(" more");
+            }
+        } catch (Exception ignored) {
         }
     }
 
@@ -371,6 +535,16 @@ public class EvaluateExpressionTool implements McpTool {
             }
         }
         return raw;
+    }
+
+    /** Quick check whether a stack frame is still valid. */
+    private static boolean isFrameInvalid(IJavaStackFrame frame) {
+        try {
+            frame.getLineNumber();
+            return false;
+        } catch (Exception e) {
+            return true;
+        }
     }
 
     /**
