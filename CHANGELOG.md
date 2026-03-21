@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.91.0
+
+- **Return compilation problems from `clean_build`** — `clean_build` now returns errors and warnings (grouped, same format as `get_problems`) after rebuilding, eliminating the need for a separate `get_problems` call. Extracted shared `collectProblems` method from `GetProblemsTool` for reuse.
+
 ## 0.90.0
 
 - **Refactor test agent for maintainability** — split 562-line `MultiMethodRunner` into three focused classes: `ReflectionUtils` (hierarchy-aware method/field lookup), `MultiMethodFilterGenerator` (ASM-generated JUnit 4 Filter), and `MultiMethodRunner` (orchestration only). All 49 tests pass unchanged.

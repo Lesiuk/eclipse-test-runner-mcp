@@ -6,4 +6,5 @@ import lombok.Builder;
 @Builder
 public class CleanBuildResult {
     private List<String> projects;
+    private ProblemsResult problems;
 }
