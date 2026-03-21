@@ -185,7 +185,7 @@ public class TestResultsHelper {
         reportNewTestResults((ITestElementContainer) session, reported, progress);
     }
 
-    private static void reportNewTestResults(ITestElementContainer container, Set<String> reported,
+    static void reportNewTestResults(ITestElementContainer container, Set<String> reported,
             ProgressReporter progress) {
         for (ITestElement child : container.getChildren()) {
             if (child instanceof ITestCaseElement testCase) {
@@ -231,7 +231,7 @@ public class TestResultsHelper {
         return prefix + method + time;
     }
 
-    private static void collectResults(ITestElement element, List<TestFailureInfo> failures, int[] stats) {
+    static void collectResults(ITestElement element, List<TestFailureInfo> failures, int[] stats) {
         if (element instanceof ITestCaseElement testCase) {
             stats[0]++;
             Result testResult = testCase.getTestResult(false);
@@ -348,7 +348,7 @@ public class TestResultsHelper {
         return findTrace(session, className, methodName);
     }
 
-    private static String findTrace(ITestElementContainer container, String className, String methodName) {
+    static String findTrace(ITestElementContainer container, String className, String methodName) {
         // Check suite-level trace (e.g. @BeforeClass failures reported as <classSetup>)
         if (container instanceof ITestSuiteElement suite
                 && suite.getSuiteTypeName().equals(className)
