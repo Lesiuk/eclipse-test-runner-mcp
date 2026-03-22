@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.95.0
+
+- **Preserve exception details in `run_test` failure messages** — `extractMessage` now keeps message continuation lines (e.g. "Expected status code \<201\> but was \<500\>."), `Suppressed:` and `Caused by:` headers with their messages and application frames. Each cause section gets its own frame allowance. Previously these details were silently dropped, requiring a separate `get_test_results` call to see the actual error.
+
 ## 0.94.0
 
 - **Void expression support for try-catch wrapping** — when the value-returning wrapper `return (expr)` fails to compile (void methods, setters, etc.), a second void-compatible wrapper `expr; return null;` is tried before falling back to direct evaluation. This means void expressions like `System.out.println()` or `obj.setField(value)` are also protected from frame invalidation on exception.

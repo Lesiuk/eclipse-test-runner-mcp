@@ -113,6 +113,71 @@ class ExtractMessageTest {
     }
 
     @Test
+    void multiLineMessagePreserved() {
+        String trace = String.join("\n",
+                "java.lang.AssertionError: 1 expectation failed.",
+                "Expected status code <201> but was <500>.",
+                "",
+                "\tat io.restassured.internal.ValidatableResponseOptionsImpl.statusCode(ValidatableResponseOptionsImpl.java:89)",
+                "\tat com.example.FooTest.testIt(FooTest.java:42)");
+        String result = TestResultsHelper.extractMessage(trace, TEST_CLASS);
+        assertTrue(result.contains("Expected status code <201> but was <500>."),
+                "should preserve message continuation line");
+        assertTrue(result.contains("com.example.FooTest.testIt"),
+                "should keep test class frame");
+    }
+
+    @Test
+    void suppressedExceptionPreserved() {
+        String trace = String.join("\n",
+                "java.lang.AssertionError: 1 expectation failed.",
+                "\tat com.example.FooTest.testIt(FooTest.java:42)",
+                "\tSuppressed: jakarta.data.exceptions.EntityExistsException: could not execute [FK constraint violated]",
+                "\t\tat com.example.Repo.insert(Repo.java:129)",
+                "\t\tat com.example.Service.create(Service.java:66)",
+                "\t\tat org.hibernate.internal.SessionImpl.persist(SessionImpl.java:1)",
+                "\t\tat org.hibernate.internal.SessionImpl.persist(SessionImpl.java:2)",
+                "\tCaused by: org.postgresql.util.PSQLException: ERROR: FK constraint",
+                "\t\tat org.postgresql.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:2875)");
+        String result = TestResultsHelper.extractMessage(trace, TEST_CLASS);
+        assertTrue(result.contains("Suppressed: jakarta.data.exceptions.EntityExistsException"),
+                "should preserve Suppressed header");
+        assertTrue(result.contains("com.example.Repo.insert"),
+                "should keep application frames in Suppressed section");
+        assertTrue(result.contains("com.example.Service.create"),
+                "should keep application frames in Suppressed section");
+        assertTrue(result.contains("Caused by: org.postgresql.util.PSQLException"),
+                "should preserve Caused by header");
+    }
+
+    @Test
+    void causedByResetsFrameCounter() {
+        // Each Caused by: section should get its own MAX_MESSAGE_FRAMES allowance
+        String trace = String.join("\n",
+                "java.lang.RuntimeException: outer",
+                "\tat com.example.A.a(A.java:1)",
+                "\tat com.example.B.b(B.java:2)",
+                "\tat com.example.C.c(C.java:3)",
+                "\tat com.example.D.d(D.java:4)",
+                "Caused by: java.lang.IllegalStateException: inner",
+                "\tat com.example.X.x(X.java:1)",
+                "\tat com.example.Y.y(Y.java:2)",
+                "\tat com.example.Z.z(Z.java:3)",
+                "\tat com.example.W.w(W.java:4)");
+        String result = TestResultsHelper.extractMessage(trace, TEST_CLASS);
+        // First section: 3 kept (A,B,C), D omitted
+        assertTrue(result.contains("com.example.A.a"));
+        assertTrue(result.contains("com.example.C.c"));
+        assertFalse(result.contains("com.example.D.d"));
+        // Caused by header preserved
+        assertTrue(result.contains("Caused by: java.lang.IllegalStateException: inner"));
+        // Second section: counter reset, 3 kept (X,Y,Z), W omitted
+        assertTrue(result.contains("com.example.X.x"));
+        assertTrue(result.contains("com.example.Z.z"));
+        assertFalse(result.contains("com.example.W.w"));
+    }
+
+    @Test
     void omittedCountBetweenNonFrameworkFrames() {
         // non-framework frame, then framework frames, then test-class frame
         String trace = String.join("\n",

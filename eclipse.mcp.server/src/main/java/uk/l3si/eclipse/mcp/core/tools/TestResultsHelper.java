@@ -312,6 +312,22 @@ public class TestResultsHelper {
         boolean hasFrames = false;
         for (int i = 1; i < lines.length; i++) {
             String trimmed = lines[i].trim();
+
+            // Keep non-frame lines: message continuations, Caused by, Suppressed
+            if (!trimmed.startsWith(FRAME_PREFIX) && !trimmed.startsWith("...")) {
+                if (omitted > 0 && hasFrames) {
+                    sb.append("\n\t... ").append(omitted).append(" more");
+                    omitted = 0;
+                }
+                // Reset kept-frame counter on new exception in the chain
+                if (trimmed.startsWith("Caused by:") || trimmed.startsWith("Suppressed:")) {
+                    kept = 0;
+                }
+                sb.append('\n').append(lines[i]);
+                hasFrames = false;
+                continue;
+            }
+
             if (trimmed.startsWith(testClassPrefix)) {
                 if (omitted > 0 && hasFrames) {
                     sb.append("\n\t... ").append(omitted).append(" more");
