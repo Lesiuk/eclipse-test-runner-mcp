@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.96.0
+
+- **Hint to check console output when no tests run** — when `run_test` completes with 0 tests executed and no failure, the result now includes a `hint` field directing the LLM to use `get_console_output` to check for runtime errors (e.g. class loading failures, missing dependencies).
+
 ## 0.95.0
 
 - **Preserve exception details in `run_test` failure messages** — `extractMessage` now keeps message continuation lines (e.g. "Expected status code \<201\> but was \<500\>."), `Suppressed:` and `Caused by:` headers with their messages and application frames. Each cause section gets its own frame allowance. Previously these details were silently dropped, requiring a separate `get_test_results` call to see the actual error.

@@ -220,6 +220,11 @@ public class TestLaunchHelper {
                         TestRunResult testResults = TestResultsHelper.waitAndCollect(launchResult[0], progress);
                         if (testResults != null) {
                             builder.testResults(testResults);
+                            if (testResults.getTotalTests() == 0) {
+                                builder.hint("No tests were executed. This usually indicates a runtime error (e.g. class loading failure, missing dependency). Use 'get_console_output' to check for errors in the test runner output.");
+                            }
+                        } else {
+                            builder.hint("No test session was created. The test runner may have failed to start. Use 'get_console_output' to check for errors.");
                         }
                     } catch (Exception e) {
                         builder.testResultsError("Failed to collect test results: " + e.getMessage());
@@ -237,6 +242,11 @@ public class TestLaunchHelper {
             TestRunResult testResults = TestResultsHelper.waitAndCollect(launchResult[0], progress);
             if (testResults != null) {
                 builder.testResults(testResults);
+                if (testResults.getTotalTests() == 0) {
+                    builder.hint("No tests were executed. This usually indicates a runtime error (e.g. class loading failure, missing dependency). Use 'get_console_output' to check for errors in the test runner output.");
+                }
+            } else {
+                builder.hint("No test session was created. The test runner may have failed to start. Use 'get_console_output' to check for errors.");
             }
         } catch (Exception e) {
             builder.testResultsError("Failed to collect test results: " + e.getMessage());

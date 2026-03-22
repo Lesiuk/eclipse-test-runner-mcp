@@ -6,6 +6,7 @@ import lombok.Builder;
 @Builder(builderClassName = "Builder")
 public class TestRunResult {
     private String status;
+    @lombok.Getter
     private int totalTests;
     private int passed;
     private int failed;

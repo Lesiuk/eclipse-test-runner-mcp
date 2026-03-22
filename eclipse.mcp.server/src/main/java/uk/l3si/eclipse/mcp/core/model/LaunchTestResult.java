@@ -21,4 +21,5 @@ public class LaunchTestResult {
     private String debugReason;
     private LocationInfo debugLocation;
     private List<VariableResult> debugVariables;
+    private String hint;
 }
