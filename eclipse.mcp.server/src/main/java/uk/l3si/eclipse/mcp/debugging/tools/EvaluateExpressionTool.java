@@ -139,57 +139,50 @@ public class EvaluateExpressionTool implements McpTool {
     private Object doEvaluate(String expression, IJavaStackFrame frame,
             IJavaProject javaProject, IJavaDebugTarget target) throws Exception {
 
-        // Validate frame early — gives a clear message instead of the cryptic
-        // "InvalidStackFrameException occurred retrieving 'this'" from the engine
-        try {
-            frame.getLineNumber();
-        } catch (DebugException e) {
-            if (e.getCause() instanceof InvalidStackFrameException
-                    || e.getStatus().getException() instanceof InvalidStackFrameException) {
-                throw new IllegalStateException(
-                        "Stack frame is no longer valid — this commonly happens after a "
-                        + "previous expression evaluation threw an exception in the target VM. "
-                        + "Use 'get_debug_state' to check thread state, then 'step' to get a fresh frame.");
-            }
-            throw e;
-        }
+        // Validate frame early — checks both line-number access AND 'this'
+        // access (for non-static frames).  getLineNumber() alone can succeed
+        // even when the frame is otherwise invalid; the engine will then fail
+        // with "InvalidStackFrameException occurred retrieving 'this'".
+        validateFrame(frame);
 
         IAstEvaluationEngine engine = EvaluationManager.newAstEvaluationEngine(
                 javaProject, target);
 
         try {
-            // Try safe evaluation first: wrap in try-catch so exceptions in the
-            // target VM are caught without invalidating the stack frame.
-            IEvaluationResult safeResult = evaluateSnippet(
-                    wrapInTryCatch(expression), frame, engine);
+            // Try safe evaluation strategies in order.  Each wraps the
+            // expression in a try-catch so target-VM exceptions are caught
+            // without invalidating the stack frame.
+            String[] wrappers = {
+                wrapInTryCatch(expression),        // value wrapper
+                wrapVoidInTryCatch(expression),    // void wrapper
+                wrapInTryCatchAlt(expression),     // alt value wrapper (explicit casts)
+                wrapVoidInTryCatchAlt(expression), // alt void wrapper (explicit casts)
+            };
 
-            if (!safeResult.hasErrors()) {
-                IJavaValue value = safeResult.getValue();
-                if (isThrowableInstance(value)) {
-                    // Expression threw — extract details (frame is still valid!)
-                    throw new RuntimeException(formatCaughtException((IJavaObject) value)
-                            + "\n\nThe stack frame is still valid — you can "
-                            + "evaluate a different expression.");
+            for (String snippet : wrappers) {
+                IEvaluationResult result = evaluateSnippet(snippet, frame, engine);
+                if (!result.hasErrors()) {
+                    IJavaValue value = result.getValue();
+                    if (isThrowableInstance(value)) {
+                        throw new RuntimeException(formatCaughtException((IJavaObject) value)
+                                + "\n\nThe stack frame is still valid — you can "
+                                + "evaluate a different expression.");
+                    }
+                    return formatResult(expression, value);
                 }
-                return formatResult(expression, value);
+                // Wrapper failed to compile — verify frame is still valid
+                // before trying the next approach.
+                if (isFrameInvalid(frame)) {
+                    throw new IllegalStateException(
+                            "Stack frame became invalid during wrapper evaluation. "
+                            + "Use 'step' or 'get_debug_state' to re-establish "
+                            + "a valid frame before retrying.");
+                }
             }
 
-            // Value-returning wrapper failed — try void-compatible wrapper
-            // (handles void methods like System.out.println, setters, etc.)
-            IEvaluationResult voidResult = evaluateSnippet(
-                    wrapVoidInTryCatch(expression), frame, engine);
-
-            if (!voidResult.hasErrors()) {
-                IJavaValue voidValue = voidResult.getValue();
-                if (isThrowableInstance(voidValue)) {
-                    throw new RuntimeException(formatCaughtException((IJavaObject) voidValue)
-                            + "\n\nThe stack frame is still valid — you can "
-                            + "evaluate a different expression.");
-                }
-                return formatResult(expression, voidValue);
-            }
-
-            // Both wrappers failed — fall back to direct evaluation.
+            // All wrappers failed — fall back to direct (unprotected) evaluation.
+            // WARNING: if the expression throws in the target VM, the stack
+            // frame will be invalidated.
             IEvaluationResult evalResult = evaluateSnippet(
                     expression, frame, engine);
 
@@ -218,6 +211,30 @@ public class EvaluateExpressionTool implements McpTool {
             return formatResult(expression, evalResult.getValue());
         } finally {
             engine.dispose();
+        }
+    }
+
+    /**
+     * Validate that the stack frame is usable for evaluation.  Checks both
+     * line-number access and 'this' access (for non-static frames).
+     * {@code getLineNumber()} alone can succeed on an invalidated frame;
+     * the engine then fails with a cryptic "retrieving 'this'" message.
+     */
+    private static void validateFrame(IJavaStackFrame frame) throws Exception {
+        try {
+            frame.getLineNumber();
+            if (!frame.isStatic()) {
+                frame.getThis();
+            }
+        } catch (DebugException e) {
+            if (e.getCause() instanceof InvalidStackFrameException
+                    || e.getStatus().getException() instanceof InvalidStackFrameException) {
+                throw new IllegalStateException(
+                        "Stack frame is no longer valid — this commonly happens after a "
+                        + "previous expression evaluation threw an exception in the target VM. "
+                        + "Use 'get_debug_state' to check thread state, then 'step' to get a fresh frame.");
+            }
+            throw e;
         }
     }
 
@@ -254,6 +271,21 @@ public class EvaluateExpressionTool implements McpTool {
     static String wrapVoidInTryCatch(String expression) {
         return "Object __eval_r = null; try { " + expression
                 + "; } catch (Throwable __eval_t) { __eval_r = __eval_t; } return __eval_r;";
+    }
+
+    static String wrapInTryCatchAlt(String expression) {
+        // Alternate strategy: explicit (Object) casts with dual returns.
+        // Avoids the local-variable declaration that can trip up certain
+        // JDT AST engine compilation paths.  The casts ensure both return
+        // branches have the same type, preventing the inference failures
+        // that the v0.93 dual-return approach suffered from.
+        return "try { return (Object)(" + expression
+                + "); } catch (Throwable __eval_t) { return (Object) __eval_t; }";
+    }
+
+    static String wrapVoidInTryCatchAlt(String expression) {
+        return "try { " + expression
+                + "; return null; } catch (Throwable __eval_t) { return (Object) __eval_t; }";
     }
 
     static boolean isThrowableInstance(IJavaValue value) {

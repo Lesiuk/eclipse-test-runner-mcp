@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.98.0
+
+- **Harden expression evaluation against stack frame corruption** — added alternate try-catch wrappers using explicit `(Object)` casts with dual returns, providing a fallback when the primary variable-based wrappers fail to compile in the JDT AST engine. The evaluation now tries four wrapper strategies before falling back to unprotected direct evaluation. Also improved early frame validation to check `this` access (not just line number), reliably detecting invalid frames before the engine produces cryptic errors. Frame validity is now verified between each wrapper attempt.
+
 ## 0.97.0
 
 - **Fix try-catch wrapper type inference for expression evaluation** — restructured the try-catch wrappers to use a single `Object`-typed local variable and one `return` statement instead of two `return` statements with different types. The JDT AST evaluation engine could not reconcile dual return types (e.g. `List<T>` vs `Throwable`), causing both wrappers to silently fail and fall through to unprotected direct evaluation, which corrupted the stack frame on exception.
