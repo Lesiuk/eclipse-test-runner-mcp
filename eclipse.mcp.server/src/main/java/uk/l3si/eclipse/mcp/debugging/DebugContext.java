@@ -48,7 +48,14 @@ public class DebugContext implements IDebugEventSetListener {
                 }
                 case DebugEvent.SUSPEND -> {
                     if (source instanceof IJavaThread thread) {
-                        currentThread = thread;
+                        // Only update if we're not already tracking a suspended
+                        // thread.  In multi-threaded VMs (Quarkus, Spring Boot,
+                        // etc.), background threads can briefly suspend/resume
+                        // and overwrite the breakpoint thread, causing
+                        // waitForSuspendOrTerminate to miss the suspension.
+                        if (currentThread == null || !currentThread.isSuspended()) {
+                            currentThread = thread;
+                        }
                         try {
                             currentTarget = (IJavaDebugTarget) thread.getDebugTarget();
                         } catch (Exception ignored) {}
@@ -92,7 +99,13 @@ public class DebugContext implements IDebugEventSetListener {
     public synchronized IJavaThread resolveThread(Long threadId) throws Exception {
         if (threadId == null) {
             IJavaThread thread = currentThread;
-            if (thread == null) {
+            if (thread == null || !thread.isSuspended()) {
+                // Fallback: scan threads directly in case events were missed
+                thread = findAnySuspendedThread();
+                if (thread != null) {
+                    currentThread = thread;
+                    return thread;
+                }
                 if (currentTarget != null && !currentTarget.isTerminated()) {
                     throw new IllegalStateException(
                             "Debug session is active but no thread is currently suspended. "
@@ -143,10 +156,39 @@ public class DebugContext implements IDebugEventSetListener {
 
     /**
      * Check if there's an active debug session with a suspended thread.
+     * Falls back to scanning all threads in the target if the tracked
+     * thread reference was lost due to event ordering.
      */
     public synchronized boolean isSuspended() {
         IJavaThread thread = currentThread;
-        return thread != null && thread.isSuspended();
+        if (thread != null && thread.isSuspended()) return true;
+
+        // Fallback: scan the target's threads directly.  This handles
+        // cases where event ordering caused currentThread to be cleared
+        // even though a thread is still suspended at a breakpoint.
+        IJavaThread found = findAnySuspendedThread();
+        if (found != null) {
+            currentThread = found;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Scan the target's threads for any that are currently suspended.
+     * Returns the first suspended thread found, or null.
+     */
+    private IJavaThread findAnySuspendedThread() {
+        IJavaDebugTarget target = currentTarget;
+        if (target == null || target.isTerminated()) return null;
+        try {
+            for (IThread t : target.getThreads()) {
+                if (t instanceof IJavaThread jt && jt.isSuspended()) {
+                    return jt;
+                }
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 
     public enum WaitResult { SUSPENDED, TERMINATED, TIMEOUT }

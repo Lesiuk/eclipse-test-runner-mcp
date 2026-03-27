@@ -173,6 +173,7 @@ class DebugContextTest {
         IJavaThread thread = mock(IJavaThread.class);
         IJavaDebugTarget target = mock(IJavaDebugTarget.class);
         when(thread.getDebugTarget()).thenReturn(target);
+        when(thread.isSuspended()).thenReturn(true);
 
         debugContext.handleDebugEvents(new DebugEvent[]{
                 new DebugEvent(thread, DebugEvent.SUSPEND, DebugEvent.BREAKPOINT)
@@ -333,6 +334,108 @@ class DebugContextTest {
         IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> debugContext.resolveFrame(thread, 0));
         assertTrue(ex.getMessage().contains("not a Java stack frame"));
+    }
+
+    // --- multi-thread race condition ---
+
+    @Test
+    void backgroundThreadSuspendResume_doesNotClobberBreakpointThread() {
+        IJavaThread breakpointThread = mock(IJavaThread.class);
+        IJavaThread backgroundThread = mock(IJavaThread.class);
+        IJavaDebugTarget target = mock(IJavaDebugTarget.class);
+        when(breakpointThread.getDebugTarget()).thenReturn(target);
+        when(backgroundThread.getDebugTarget()).thenReturn(target);
+        when(breakpointThread.isSuspended()).thenReturn(true);
+        when(backgroundThread.isSuspended()).thenReturn(true);
+
+        // Breakpoint thread suspends
+        debugContext.handleDebugEvents(new DebugEvent[]{
+                new DebugEvent(breakpointThread, DebugEvent.SUSPEND, DebugEvent.BREAKPOINT)
+        });
+        assertSame(breakpointThread, debugContext.getCurrentThread());
+
+        // Background thread briefly suspends — should NOT overwrite
+        debugContext.handleDebugEvents(new DebugEvent[]{
+                new DebugEvent(backgroundThread, DebugEvent.SUSPEND, DebugEvent.UNSPECIFIED)
+        });
+        assertSame(breakpointThread, debugContext.getCurrentThread(),
+                "Background thread suspend must not overwrite breakpoint thread");
+
+        // Background thread resumes — should NOT clear breakpoint thread
+        debugContext.handleDebugEvents(new DebugEvent[]{
+                new DebugEvent(backgroundThread, DebugEvent.RESUME, DebugEvent.CLIENT_REQUEST)
+        });
+        assertSame(breakpointThread, debugContext.getCurrentThread(),
+                "Background thread resume must not clear breakpoint thread");
+
+        assertTrue(debugContext.isSuspended());
+    }
+
+    @Test
+    void suspendOverwritesWhenTrackedThreadNoLongerSuspended() {
+        IJavaThread thread1 = mock(IJavaThread.class);
+        IJavaThread thread2 = mock(IJavaThread.class);
+        IJavaDebugTarget target = mock(IJavaDebugTarget.class);
+        when(thread1.getDebugTarget()).thenReturn(target);
+        when(thread2.getDebugTarget()).thenReturn(target);
+
+        // Thread 1 suspends
+        debugContext.handleDebugEvents(new DebugEvent[]{
+                new DebugEvent(thread1, DebugEvent.SUSPEND, DebugEvent.BREAKPOINT)
+        });
+        assertSame(thread1, debugContext.getCurrentThread());
+
+        // Thread 1 is no longer suspended (e.g. resumed by evaluation)
+        when(thread1.isSuspended()).thenReturn(false);
+
+        // Thread 2 suspends — should overwrite since thread 1 is no longer suspended
+        debugContext.handleDebugEvents(new DebugEvent[]{
+                new DebugEvent(thread2, DebugEvent.SUSPEND, DebugEvent.BREAKPOINT)
+        });
+        assertSame(thread2, debugContext.getCurrentThread());
+    }
+
+    @Test
+    void isSuspended_fallbackScansTargetThreads() {
+        IJavaThread thread = mock(IJavaThread.class);
+        IJavaDebugTarget target = mock(IJavaDebugTarget.class);
+        when(thread.getDebugTarget()).thenReturn(target);
+        when(thread.isSuspended()).thenReturn(true);
+        when(target.isTerminated()).thenReturn(false);
+
+        // Set up target with a suspended thread, but don't set currentThread
+        // (simulating the race condition where events cleared it)
+        debugContext.handleDebugEvents(new DebugEvent[]{
+                new DebugEvent(target, DebugEvent.CREATE)
+        });
+        try {
+            when(target.getThreads()).thenReturn(new IThread[]{thread});
+        } catch (Exception ignored) {}
+
+        // currentThread is null but the fallback should find the suspended thread
+        assertTrue(debugContext.isSuspended());
+        assertSame(thread, debugContext.getCurrentThread(),
+                "Fallback should recover the suspended thread");
+    }
+
+    @Test
+    void resolveThread_fallbackScansTargetThreads() throws Exception {
+        IJavaThread thread = mock(IJavaThread.class);
+        IJavaDebugTarget target = mock(IJavaDebugTarget.class);
+        when(thread.getDebugTarget()).thenReturn(target);
+        when(thread.isSuspended()).thenReturn(true);
+        when(target.isTerminated()).thenReturn(false);
+
+        // Set up target with a suspended thread, but clear currentThread
+        debugContext.handleDebugEvents(new DebugEvent[]{
+                new DebugEvent(target, DebugEvent.CREATE)
+        });
+        try {
+            when(target.getThreads()).thenReturn(new IThread[]{thread});
+        } catch (Exception ignored) {}
+
+        // resolveThread should find the suspended thread via fallback
+        assertSame(thread, debugContext.resolveThread(null));
     }
 
     // --- isSuspended ---
