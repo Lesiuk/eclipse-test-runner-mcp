@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.97.0
+
+- **Fix try-catch wrapper type inference for expression evaluation** — restructured the try-catch wrappers to use a single `Object`-typed local variable and one `return` statement instead of two `return` statements with different types. The JDT AST evaluation engine could not reconcile dual return types (e.g. `List<T>` vs `Throwable`), causing both wrappers to silently fail and fall through to unprotected direct evaluation, which corrupted the stack frame on exception.
+
 ## 0.96.0
 
 - **Hint to check console output when no tests run** — when `run_test` completes with 0 tests executed and no failure, the result now includes a `hint` field directing the LLM to use `get_console_output` to check for runtime errors (e.g. class loading failures, missing dependencies).

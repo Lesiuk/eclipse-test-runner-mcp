@@ -243,13 +243,17 @@ public class EvaluateExpressionTool implements McpTool {
     }
 
     static String wrapInTryCatch(String expression) {
-        return "try { return (" + expression
-                + "); } catch (Throwable __eval_ex) { return __eval_ex; }";
+        // Use a single Object variable + single return to avoid type-inference
+        // issues in the JDT AST evaluation engine.  Two return statements with
+        // different types (e.g. List<T> vs Throwable) can cause the engine to
+        // reject the snippet, silently falling through to unprotected evaluation.
+        return "Object __eval_r = null; try { __eval_r = (" + expression
+                + "); } catch (Throwable __eval_t) { __eval_r = __eval_t; } return __eval_r;";
     }
 
     static String wrapVoidInTryCatch(String expression) {
-        return "try { " + expression
-                + "; return null; } catch (Throwable __eval_ex) { return __eval_ex; }";
+        return "Object __eval_r = null; try { " + expression
+                + "; } catch (Throwable __eval_t) { __eval_r = __eval_t; } return __eval_r;";
     }
 
     static boolean isThrowableInstance(IJavaValue value) {

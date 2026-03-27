@@ -1268,7 +1268,8 @@ class EvaluateExpressionToolTest {
     void wrapInTryCatch_generatesCorrectSnippet() {
         String wrapped = EvaluateExpressionTool.wrapInTryCatch("obj.method()");
         assertEquals(
-                "try { return (obj.method()); } catch (Throwable __eval_ex) { return __eval_ex; }",
+                "Object __eval_r = null; try { __eval_r = (obj.method()); }"
+                + " catch (Throwable __eval_t) { __eval_r = __eval_t; } return __eval_r;",
                 wrapped);
     }
 
@@ -1537,8 +1538,8 @@ class EvaluateExpressionToolTest {
     void wrapVoidInTryCatch_generatesCorrectSnippet() {
         String wrapped = EvaluateExpressionTool.wrapVoidInTryCatch("System.out.println(\"hi\")");
         assertEquals(
-                "try { System.out.println(\"hi\"); return null; }"
-                + " catch (Throwable __eval_ex) { return __eval_ex; }",
+                "Object __eval_r = null; try { System.out.println(\"hi\"); }"
+                + " catch (Throwable __eval_t) { __eval_r = __eval_t; } return __eval_r;",
                 wrapped);
     }
 
