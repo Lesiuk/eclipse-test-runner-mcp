@@ -1,12 +1,12 @@
 # Changelog
 
-## 0.98.0
-
-- **Harden expression evaluation against stack frame corruption** — added alternate try-catch wrappers using explicit `(Object)` casts with dual returns, providing a fallback when the primary variable-based wrappers fail to compile in the JDT AST engine. The evaluation now tries four wrapper strategies before falling back to unprotected direct evaluation. Also improved early frame validation to check `this` access (not just line number), reliably detecting invalid frames before the engine produces cryptic errors. Frame validity is now verified between each wrapper attempt.
-
 ## 0.99.0
 
 - **Fix debug suspension detection in multi-threaded VMs** — in application servers (Quarkus, Spring Boot, etc.) background threads can briefly suspend and resume, overwriting the tracked breakpoint thread and causing `run_test` with `mode=debug` to miss the breakpoint hit. The SUSPEND event handler now preserves the tracked thread when it's still suspended, and `isSuspended()`/`resolveThread()` fall back to scanning all target threads directly when the tracked reference is lost.
+
+## 0.98.0
+
+- **Harden expression evaluation against stack frame corruption** — added alternate try-catch wrappers using explicit `(Object)` casts with dual returns, providing a fallback when the primary variable-based wrappers fail to compile in the JDT AST engine. The evaluation now tries four wrapper strategies before falling back to unprotected direct evaluation. Also improved early frame validation to check `this` access (not just line number), reliably detecting invalid frames before the engine produces cryptic errors. Frame validity is now verified between each wrapper attempt.
 
 ## 0.97.0
 
