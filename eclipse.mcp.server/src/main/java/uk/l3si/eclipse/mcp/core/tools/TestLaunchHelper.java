@@ -204,12 +204,7 @@ public class TestLaunchHelper {
         }
 
         // Build result
-        LaunchTestResult.Builder builder = LaunchTestResult.builder()
-                .config(configName)
-                .project(resolvedProject)
-                .className(className)
-                .method(methods != null && methods.size() == 1 ? methods.get(0) : null)
-                .methods(methods);
+        LaunchTestResult.Builder builder = LaunchTestResult.builder();
 
         // In debug mode, wait for breakpoint hit or termination
         if ("debug".equals(mode)) {
