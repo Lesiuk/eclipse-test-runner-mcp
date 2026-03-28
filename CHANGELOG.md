@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.1
+
+- **Fix step tool not detecting termination** — the step tool now passes the `ILaunch` to `waitForSuspendOrTerminate` for reliable termination detection. Previously, after resume the poll loop never detected that the debug target terminated because Eclipse keeps JUnit debug launches alive after the JVM exits. Now checks launch, debug targets, processes, and the event-tracked target. Also keeps `currentTarget` on TERMINATE events (instead of nulling it) so the fallback target check works.
+
 ## 1.3.0
 
 - **Fix debug mode returning immediately on multi-threaded JVMs** — `waitForSuspendOrTerminate` now filters by breakpoint-only suspensions for launch-based calls, ignoring transient JVM startup thread suspensions (class loading, hot-reload, etc.) that are common in Quarkus and Spring Boot. Previously these caused an immediate false-positive return before the real breakpoint was hit.

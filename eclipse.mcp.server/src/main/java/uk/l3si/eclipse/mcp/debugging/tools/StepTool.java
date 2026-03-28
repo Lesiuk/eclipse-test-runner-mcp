@@ -11,6 +11,7 @@ import uk.l3si.eclipse.mcp.tools.McpTool;
 import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 import uk.l3si.eclipse.mcp.tools.InputSchema;
 import uk.l3si.eclipse.mcp.tools.PropertySchema;
+import org.eclipse.debug.core.ILaunch;
 import org.eclipse.jdt.debug.core.IJavaThread;
 
 import java.util.List;
@@ -77,6 +78,9 @@ public class StepTool implements McpTool {
         }
 
         String threadName = thread.getName();
+        // Capture launch before stepping — ILaunch.isTerminated() is the most
+        // reliable termination check (avoids races with event-driven state).
+        ILaunch launch = thread.getDebugTarget().getLaunch();
 
         switch (action) {
             case "over" -> thread.stepOver();
@@ -85,7 +89,7 @@ public class StepTool implements McpTool {
             case "resume" -> thread.resume();
         }
 
-        WaitResult wait = debugContext.waitForSuspendOrTerminate(timeoutSeconds, progress);
+        WaitResult wait = debugContext.waitForSuspendOrTerminate(timeoutSeconds, progress, launch);
 
         StepResult.StepResultBuilder result = StepResult.builder()
                 .action(action)

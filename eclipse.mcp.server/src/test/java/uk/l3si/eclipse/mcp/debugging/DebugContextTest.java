@@ -125,7 +125,9 @@ class DebugContextTest {
         });
 
         assertNull(debugContext.getCurrentThread());
-        assertNull(debugContext.getCurrentTarget());
+        // currentTarget is kept after TERMINATE so isTerminated() can
+        // detect it via target.isTerminated(). reset() clears it.
+        assertNotNull(debugContext.getCurrentTarget());
     }
 
     @Test

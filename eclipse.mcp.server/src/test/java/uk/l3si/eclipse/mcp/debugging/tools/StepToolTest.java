@@ -3,6 +3,8 @@ package uk.l3si.eclipse.mcp.debugging.tools;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import org.eclipse.debug.core.ILaunch;
+import org.eclipse.debug.core.model.IDebugTarget;
 import org.eclipse.jdt.debug.core.IJavaThread;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +39,17 @@ class StepToolTest {
 
     private JsonObject executeAndSerialize(JsonObject args) throws Exception {
         return GSON.toJsonTree(tool.execute(new Args(args), message -> {})).getAsJsonObject();
+    }
+
+    private IJavaThread createSuspendedThread(String name) throws Exception {
+        IJavaThread thread = mock(IJavaThread.class);
+        IDebugTarget debugTarget = mock(IDebugTarget.class);
+        ILaunch launch = mock(ILaunch.class);
+        when(thread.isSuspended()).thenReturn(true);
+        when(thread.getName()).thenReturn(name);
+        when(thread.getDebugTarget()).thenReturn(debugTarget);
+        when(debugTarget.getLaunch()).thenReturn(launch);
+        return thread;
     }
 
     @Test
@@ -81,12 +94,10 @@ class StepToolTest {
 
     @Test
     void stepOverSuccess() throws Exception {
-        IJavaThread thread = mock(IJavaThread.class);
-        when(thread.isSuspended()).thenReturn(true);
-        when(thread.getName()).thenReturn("main");
+        IJavaThread thread = createSuspendedThread("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
 
-        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any(), any())).thenReturn(WaitResult.SUSPENDED);
         when(debugContext.getSuspendReason()).thenReturn("breakpoint");
         when(debugContext.getCurrentLocation()).thenReturn(
                 LocationInfo.builder()
@@ -114,11 +125,9 @@ class StepToolTest {
 
     @Test
     void stepIntoCallsStepInto() throws Exception {
-        IJavaThread thread = mock(IJavaThread.class);
-        when(thread.isSuspended()).thenReturn(true);
-        when(thread.getName()).thenReturn("main");
+        IJavaThread thread = createSuspendedThread("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any(), any())).thenReturn(WaitResult.SUSPENDED);
         when(debugContext.getSuspendReason()).thenReturn("suspended");
 
         JsonObject args = new JsonObject();
@@ -130,11 +139,9 @@ class StepToolTest {
 
     @Test
     void stepReturnCallsStepReturn() throws Exception {
-        IJavaThread thread = mock(IJavaThread.class);
-        when(thread.isSuspended()).thenReturn(true);
-        when(thread.getName()).thenReturn("main");
+        IJavaThread thread = createSuspendedThread("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any(), any())).thenReturn(WaitResult.SUSPENDED);
         when(debugContext.getSuspendReason()).thenReturn("suspended");
 
         JsonObject args = new JsonObject();
@@ -146,11 +153,9 @@ class StepToolTest {
 
     @Test
     void terminationDuringStep() throws Exception {
-        IJavaThread thread = mock(IJavaThread.class);
-        when(thread.isSuspended()).thenReturn(true);
-        when(thread.getName()).thenReturn("main");
+        IJavaThread thread = createSuspendedThread("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.TERMINATED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any(), any())).thenReturn(WaitResult.TERMINATED);
 
         JsonObject args = new JsonObject();
         args.addProperty("action", "over");
@@ -162,11 +167,9 @@ class StepToolTest {
 
     @Test
     void terminationDuringStepWithTestResults() throws Exception {
-        IJavaThread thread = mock(IJavaThread.class);
-        when(thread.isSuspended()).thenReturn(true);
-        when(thread.getName()).thenReturn("main");
+        IJavaThread thread = createSuspendedThread("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.TERMINATED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any(), any())).thenReturn(WaitResult.TERMINATED);
 
         TestRunResult testRunResult = TestRunResult.builder()
                 .status("COMPLETED")
@@ -199,11 +202,9 @@ class StepToolTest {
 
     @Test
     void terminationDuringStepWithFailedTestResults() throws Exception {
-        IJavaThread thread = mock(IJavaThread.class);
-        when(thread.isSuspended()).thenReturn(true);
-        when(thread.getName()).thenReturn("main");
+        IJavaThread thread = createSuspendedThread("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.TERMINATED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any(), any())).thenReturn(WaitResult.TERMINATED);
 
         TestRunResult testRunResult = TestRunResult.builder()
                 .status("COMPLETED")
@@ -249,11 +250,9 @@ class StepToolTest {
 
     @Test
     void terminationDuringStepWithNoTestResults() throws Exception {
-        IJavaThread thread = mock(IJavaThread.class);
-        when(thread.isSuspended()).thenReturn(true);
-        when(thread.getName()).thenReturn("main");
+        IJavaThread thread = createSuspendedThread("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.TERMINATED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any(), any())).thenReturn(WaitResult.TERMINATED);
 
         try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
             mocked.when(() -> TestResultsHelper.collect(eq(false), any(ProgressReporter.class))).thenReturn(null);
@@ -269,11 +268,9 @@ class StepToolTest {
 
     @Test
     void terminationDuringStepCollectionExceptionReturnsNullTestResults() throws Exception {
-        IJavaThread thread = mock(IJavaThread.class);
-        when(thread.isSuspended()).thenReturn(true);
-        when(thread.getName()).thenReturn("main");
+        IJavaThread thread = createSuspendedThread("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.TERMINATED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any(), any())).thenReturn(WaitResult.TERMINATED);
 
         try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
             mocked.when(() -> TestResultsHelper.collect(eq(false), any(ProgressReporter.class)))
@@ -290,11 +287,9 @@ class StepToolTest {
 
     @Test
     void suspendedDoesNotCollectTestResults() throws Exception {
-        IJavaThread thread = mock(IJavaThread.class);
-        when(thread.isSuspended()).thenReturn(true);
-        when(thread.getName()).thenReturn("main");
+        IJavaThread thread = createSuspendedThread("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any(), any())).thenReturn(WaitResult.SUSPENDED);
         when(debugContext.getSuspendReason()).thenReturn("breakpoint");
 
         try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
@@ -308,11 +303,9 @@ class StepToolTest {
 
     @Test
     void stepTimeout() throws Exception {
-        IJavaThread thread = mock(IJavaThread.class);
-        when(thread.isSuspended()).thenReturn(true);
-        when(thread.getName()).thenReturn("main");
+        IJavaThread thread = createSuspendedThread("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.TIMEOUT);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any(), any())).thenReturn(WaitResult.TIMEOUT);
 
         JsonObject args = new JsonObject();
         args.addProperty("action", "over");
@@ -323,11 +316,9 @@ class StepToolTest {
 
     @Test
     void timeoutDoesNotCollectTestResults() throws Exception {
-        IJavaThread thread = mock(IJavaThread.class);
-        when(thread.isSuspended()).thenReturn(true);
-        when(thread.getName()).thenReturn("main");
+        IJavaThread thread = createSuspendedThread("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.TIMEOUT);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any(), any())).thenReturn(WaitResult.TIMEOUT);
 
         try (MockedStatic<TestResultsHelper> mocked = mockStatic(TestResultsHelper.class)) {
             JsonObject args = new JsonObject();
@@ -340,12 +331,10 @@ class StepToolTest {
 
     @Test
     void stepWithBreakpointHit() throws Exception {
-        IJavaThread thread = mock(IJavaThread.class);
-        when(thread.isSuspended()).thenReturn(true);
-        when(thread.getName()).thenReturn("main");
+        IJavaThread thread = createSuspendedThread("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
 
-        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any(), any())).thenReturn(WaitResult.SUSPENDED);
         when(debugContext.getSuspendReason()).thenReturn("breakpoint");
         when(debugContext.getCurrentLocation()).thenReturn(
                 LocationInfo.builder()
@@ -365,11 +354,9 @@ class StepToolTest {
 
     @Test
     void withThreadId() throws Exception {
-        IJavaThread thread = mock(IJavaThread.class);
-        when(thread.isSuspended()).thenReturn(true);
-        when(thread.getName()).thenReturn("worker");
+        IJavaThread thread = createSuspendedThread("worker");
         when(debugContext.resolveThread(55L)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any(), any())).thenReturn(WaitResult.SUSPENDED);
         when(debugContext.getSuspendReason()).thenReturn("suspended");
 
         JsonObject args = new JsonObject();
@@ -385,12 +372,10 @@ class StepToolTest {
 
     @Test
     void resumeCallsThreadResume() throws Exception {
-        IJavaThread thread = mock(IJavaThread.class);
-        when(thread.isSuspended()).thenReturn(true);
-        when(thread.getName()).thenReturn("main");
+        IJavaThread thread = createSuspendedThread("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
 
-        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any(), any())).thenReturn(WaitResult.SUSPENDED);
         when(debugContext.getSuspendReason()).thenReturn("breakpoint");
         when(debugContext.getCurrentLocation()).thenReturn(
                 LocationInfo.builder()
@@ -412,12 +397,10 @@ class StepToolTest {
 
     @Test
     void resumeWithTimeout() throws Exception {
-        IJavaThread thread = mock(IJavaThread.class);
-        when(thread.isSuspended()).thenReturn(true);
-        when(thread.getName()).thenReturn("main");
+        IJavaThread thread = createSuspendedThread("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
 
-        when(debugContext.waitForSuspendOrTerminate(eq(1), any())).thenReturn(WaitResult.TIMEOUT);
+        when(debugContext.waitForSuspendOrTerminate(eq(1), any(), any())).thenReturn(WaitResult.TIMEOUT);
 
         JsonObject args = new JsonObject();
         args.addProperty("action", "resume");
@@ -431,11 +414,9 @@ class StepToolTest {
 
     @Test
     void resumeTerminatesWithTestResults() throws Exception {
-        IJavaThread thread = mock(IJavaThread.class);
-        when(thread.isSuspended()).thenReturn(true);
-        when(thread.getName()).thenReturn("main");
+        IJavaThread thread = createSuspendedThread("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
-        when(debugContext.waitForSuspendOrTerminate(anyInt(), any())).thenReturn(WaitResult.TERMINATED);
+        when(debugContext.waitForSuspendOrTerminate(anyInt(), any(), any())).thenReturn(WaitResult.TERMINATED);
 
         TestRunResult testRunResult = TestRunResult.builder()
                 .status("COMPLETED")
@@ -475,12 +456,10 @@ class StepToolTest {
 
     @Test
     void customTimeoutIsUsed() throws Exception {
-        IJavaThread thread = mock(IJavaThread.class);
-        when(thread.isSuspended()).thenReturn(true);
-        when(thread.getName()).thenReturn("main");
+        IJavaThread thread = createSuspendedThread("main");
         when(debugContext.resolveThread(null)).thenReturn(thread);
 
-        when(debugContext.waitForSuspendOrTerminate(eq(10), any())).thenReturn(WaitResult.SUSPENDED);
+        when(debugContext.waitForSuspendOrTerminate(eq(10), any(), any())).thenReturn(WaitResult.SUSPENDED);
         when(debugContext.getSuspendReason()).thenReturn("breakpoint");
 
         JsonObject args = new JsonObject();
@@ -489,6 +468,6 @@ class StepToolTest {
 
         executeAndSerialize(args);
 
-        verify(debugContext).waitForSuspendOrTerminate(eq(10), any());
+        verify(debugContext).waitForSuspendOrTerminate(eq(10), any(), any());
     }
 }

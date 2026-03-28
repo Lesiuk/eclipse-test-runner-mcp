@@ -81,7 +81,11 @@ public class DebugContext implements IDebugEventSetListener {
                 case DebugEvent.TERMINATE -> {
                     if (source instanceof IDebugTarget) {
                         currentThread = null;
-                        currentTarget = null;
+                        // Keep currentTarget — its isTerminated() returns true,
+                        // which isTerminated(null) checks.  Nulling it caused
+                        // waitForSuspendOrTerminate to miss termination when no
+                        // ILaunch was provided (e.g. from the step tool).
+                        // reset() clears it before the next launch.
                     } else if (source instanceof IJavaThread thread && thread == currentThread) {
                         currentThread = null;
                     }
@@ -237,11 +241,16 @@ public class DebugContext implements IDebugEventSetListener {
      * Poll until a thread suspends, the target terminates, or the timeout expires.
      */
     public WaitResult waitForSuspendOrTerminate(int timeoutSeconds) throws InterruptedException {
-        return waitForSuspendOrTerminate(timeoutSeconds, message -> {}, null);
+        return waitForSuspendOrTerminate(timeoutSeconds, message -> {}, null, false);
     }
 
     public WaitResult waitForSuspendOrTerminate(int timeoutSeconds, ProgressReporter progress) throws InterruptedException {
-        return waitForSuspendOrTerminate(timeoutSeconds, progress, null);
+        return waitForSuspendOrTerminate(timeoutSeconds, progress, null, false);
+    }
+
+    public WaitResult waitForSuspendOrTerminate(int timeoutSeconds, ProgressReporter progress,
+            ILaunch launch) throws InterruptedException {
+        return waitForSuspendOrTerminate(timeoutSeconds, progress, launch, false);
     }
 
     /**
@@ -250,20 +259,15 @@ public class DebugContext implements IDebugEventSetListener {
      * @param launch if provided, termination is checked via the launch directly
      *               (avoids a race where the CREATE event has not yet set
      *               {@code currentTarget} after the launch returns).
-     *               When a launch is provided, only breakpoint-related suspensions
-     *               are considered — transient JVM startup suspensions (common in
-     *               Quarkus, Spring Boot, etc.) are ignored.
      *               Callers launching a new session should call {@link #reset()}
      *               before the launch to clear stale state.
+     * @param breakpointOnly if true, only return SUSPENDED for actual breakpoint
+     *               hits — filtering out transient JVM startup suspensions
+     *               (common in Quarkus, Spring Boot, etc.).  Use true when
+     *               launching a new session; false when stepping.
      */
     public WaitResult waitForSuspendOrTerminate(int timeoutSeconds, ProgressReporter progress,
-            ILaunch launch) throws InterruptedException {
-        // For launch-based calls, only return SUSPENDED for actual breakpoint hits.
-        // During JVM startup (especially in frameworks like Quarkus/Spring Boot),
-        // threads can briefly suspend for class loading, hot-reload, etc.
-        // Without this filter, those transient suspensions cause an immediate
-        // false-positive return before the real breakpoint is ever hit.
-        boolean breakpointOnly = (launch != null);
+            ILaunch launch, boolean breakpointOnly) throws InterruptedException {
 
         if (isSuspended(breakpointOnly)) return WaitResult.SUSPENDED;
 
@@ -271,8 +275,11 @@ public class DebugContext implements IDebugEventSetListener {
         long lastProgressTime = System.currentTimeMillis();
         while (System.currentTimeMillis() < deadline) {
             Thread.sleep(POLL_INTERVAL_MS);
-            if (isSuspended(breakpointOnly)) return WaitResult.SUSPENDED;
+            // Check termination BEFORE suspension — isSuspended() calls
+            // target.getThreads() which can block on a broken JDI connection
+            // that isn't yet marked as terminated.
             if (isTerminated(launch)) return WaitResult.TERMINATED;
+            if (isSuspended(breakpointOnly)) return WaitResult.SUSPENDED;
             if (System.currentTimeMillis() - lastProgressTime >= KEEPALIVE_INTERVAL_MS) {
                 progress.report("Waiting for breakpoint...");
                 lastProgressTime = System.currentTimeMillis();
@@ -288,7 +295,22 @@ public class DebugContext implements IDebugEventSetListener {
      * treated as terminated — it just means the CREATE event hasn't arrived.
      */
     private boolean isTerminated(ILaunch launch) {
-        if (launch != null) return launch.isTerminated();
+        if (launch != null) {
+            if (launch.isTerminated()) return true;
+            // The launch may not be marked terminated yet even after the
+            // debug target or process exits.  Check all indicators.
+            for (var t : launch.getDebugTargets()) {
+                if (t.isTerminated()) return true;
+            }
+            for (var p : launch.getProcesses()) {
+                if (p.isTerminated()) return true;
+            }
+            // Also check our event-tracked target — the TERMINATE event
+            // may have fired before the launch/process objects update.
+            IJavaDebugTarget tracked = getCurrentTarget();
+            if (tracked != null && tracked.isTerminated()) return true;
+            return false;
+        }
         IJavaDebugTarget target = getCurrentTarget();
         return target != null && target.isTerminated();
     }
