@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.0
+
+- **Remove echoed request parameters from tool responses** — tool responses no longer echo back fields the caller already knows from the request, reducing LLM token usage. Removed: `config`/`project`/`class`/`method`/`methods` from `run_test`, `class`/`method` from `get_test_results` (trace mode), `className` from `get_coverage`, `class`/`condition` from `breakpoint` (set), `action` from `step`. Fields that can differ from the request (e.g. adjusted breakpoint `line`, resolved `configName`) are kept.
+
 ## 1.3.1
 
 - **Fix step tool not detecting termination** — the step tool now passes the `ILaunch` to `waitForSuspendOrTerminate` for reliable termination detection. Previously, after resume the poll loop never detected that the debug target terminated because Eclipse keeps JUnit debug launches alive after the JVM exits. Now checks launch, debug targets, processes, and the event-tracked target. Also keeps `currentTarget` on TERMINATE events (instead of nulling it) so the fallback target check works.
