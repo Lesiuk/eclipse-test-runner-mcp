@@ -113,7 +113,7 @@ public class DebugContext implements IDebugEventSetListener {
             IJavaThread thread = currentThread;
             if (thread == null || !thread.isSuspended()) {
                 // Fallback: scan threads directly in case events were missed
-                thread = findAnySuspendedThread();
+                thread = findAnySuspendedThread(false);
                 if (thread != null) {
                     currentThread = thread;
                     return thread;
@@ -172,13 +172,26 @@ public class DebugContext implements IDebugEventSetListener {
      * thread reference was lost due to event ordering.
      */
     public synchronized boolean isSuspended() {
+        return isSuspended(false);
+    }
+
+    /**
+     * Check if there's an active debug session with a suspended thread.
+     * When {@code breakpointOnly} is true, only returns true if the
+     * thread is actually stopped at a breakpoint — filtering out transient
+     * JVM startup suspensions (class loading, hot-reload threads, etc.)
+     * that are common in frameworks like Quarkus and Spring Boot.
+     */
+    public synchronized boolean isSuspended(boolean breakpointOnly) {
         IJavaThread thread = currentThread;
-        if (thread != null && thread.isSuspended()) return true;
+        if (thread != null && thread.isSuspended()) {
+            if (!breakpointOnly || isAtBreakpoint(thread)) return true;
+        }
 
         // Fallback: scan the target's threads directly.  This handles
         // cases where event ordering caused currentThread to be cleared
         // even though a thread is still suspended at a breakpoint.
-        IJavaThread found = findAnySuspendedThread();
+        IJavaThread found = findAnySuspendedThread(breakpointOnly);
         if (found != null) {
             currentThread = found;
             return true;
@@ -187,16 +200,28 @@ public class DebugContext implements IDebugEventSetListener {
     }
 
     /**
-     * Scan the target's threads for any that are currently suspended.
-     * Returns the first suspended thread found, or null.
+     * Check whether the given thread is suspended at a breakpoint.
      */
-    private IJavaThread findAnySuspendedThread() {
+    private static boolean isAtBreakpoint(IJavaThread thread) {
+        try {
+            return thread.getBreakpoints().length > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Scan the target's threads for any that are currently suspended.
+     * When {@code breakpointOnly} is true, only matches threads stopped at a breakpoint.
+     * Returns the first matching suspended thread, or null.
+     */
+    private IJavaThread findAnySuspendedThread(boolean breakpointOnly) {
         IJavaDebugTarget target = currentTarget;
         if (target == null || target.isTerminated()) return null;
         try {
             for (IThread t : target.getThreads()) {
                 if (t instanceof IJavaThread jt && jt.isSuspended()) {
-                    return jt;
+                    if (!breakpointOnly || isAtBreakpoint(jt)) return jt;
                 }
             }
         } catch (Exception ignored) {}
@@ -225,18 +250,28 @@ public class DebugContext implements IDebugEventSetListener {
      * @param launch if provided, termination is checked via the launch directly
      *               (avoids a race where the CREATE event has not yet set
      *               {@code currentTarget} after the launch returns).
+     *               When a launch is provided, only breakpoint-related suspensions
+     *               are considered — transient JVM startup suspensions (common in
+     *               Quarkus, Spring Boot, etc.) are ignored.
      *               Callers launching a new session should call {@link #reset()}
      *               before the launch to clear stale state.
      */
     public WaitResult waitForSuspendOrTerminate(int timeoutSeconds, ProgressReporter progress,
             ILaunch launch) throws InterruptedException {
-        if (isSuspended()) return WaitResult.SUSPENDED;
+        // For launch-based calls, only return SUSPENDED for actual breakpoint hits.
+        // During JVM startup (especially in frameworks like Quarkus/Spring Boot),
+        // threads can briefly suspend for class loading, hot-reload, etc.
+        // Without this filter, those transient suspensions cause an immediate
+        // false-positive return before the real breakpoint is ever hit.
+        boolean breakpointOnly = (launch != null);
+
+        if (isSuspended(breakpointOnly)) return WaitResult.SUSPENDED;
 
         long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
         long lastProgressTime = System.currentTimeMillis();
         while (System.currentTimeMillis() < deadline) {
             Thread.sleep(POLL_INTERVAL_MS);
-            if (isSuspended()) return WaitResult.SUSPENDED;
+            if (isSuspended(breakpointOnly)) return WaitResult.SUSPENDED;
             if (isTerminated(launch)) return WaitResult.TERMINATED;
             if (System.currentTimeMillis() - lastProgressTime >= KEEPALIVE_INTERVAL_MS) {
                 progress.report("Waiting for breakpoint...");

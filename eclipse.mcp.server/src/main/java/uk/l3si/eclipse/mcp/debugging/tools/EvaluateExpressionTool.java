@@ -14,12 +14,10 @@ import org.eclipse.debug.core.DebugEvent;
 import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.model.IVariable;
 import org.eclipse.jdt.debug.core.IJavaArray;
-import org.eclipse.jdt.debug.core.IJavaClassType;
 import org.eclipse.jdt.debug.core.IJavaDebugTarget;
 import org.eclipse.jdt.debug.core.IJavaObject;
 import org.eclipse.jdt.debug.core.IJavaStackFrame;
 import org.eclipse.jdt.debug.core.IJavaThread;
-import org.eclipse.jdt.debug.core.IJavaType;
 import org.eclipse.jdt.debug.core.IJavaValue;
 import org.eclipse.jdt.debug.eval.EvaluationManager;
 import org.eclipse.jdt.debug.eval.IAstEvaluationEngine;
@@ -126,7 +124,28 @@ public class EvaluateExpressionTool implements McpTool {
         }
         try {
             return doEvaluate(expression, frame, javaProject, target);
-        } catch (InvalidStackFrameException e) {
+        } catch (InvalidStackFrameException | IllegalStateException e) {
+            // Frame was invalidated — try to recover with a fresh frame.
+            // The thread is typically still suspended at the same location;
+            // Eclipse's frame objects are just stale after a previous evaluation
+            // that invoked methods on the target VM (e.g. getMessage() for NPEs).
+            // validateFrame throws IllegalStateException wrapping InvalidStackFrameException,
+            // so we must catch both.
+            if (e instanceof IllegalStateException
+                    && (e.getMessage() == null || !e.getMessage().contains("no longer valid"))) {
+                throw e; // unrelated IllegalStateException — propagate
+            }
+            try {
+                // JDI method invocations (e.g. getMessage() for NPEs) resume the
+                // thread with INVOKE_SINGLE_THREADED, which doesn't fire normal
+                // Eclipse debug events.  The thread's frame cache stays stale.
+                // Force a refresh so getStackFrames() returns valid frames.
+                invalidateFrameCache(thread);
+                IJavaStackFrame freshFrame = debugContext.resolveFrame(thread, frameIndex);
+                return doEvaluate(expression, freshFrame, javaProject, target);
+            } catch (InvalidStackFrameException | IllegalStateException e2) {
+                // Recovery failed
+            }
             throw new IllegalStateException(
                     "Stack frame is no longer valid — this commonly happens after a previous "
                     + "expression evaluation threw an exception in the target VM. "
@@ -145,46 +164,16 @@ public class EvaluateExpressionTool implements McpTool {
         // with "InvalidStackFrameException occurred retrieving 'this'".
         validateFrame(frame);
 
+        // Capture thread reference before evaluation — the frame may become
+        // invalid after an evaluation throws, but the thread stays usable
+        // for JDI method invocations (e.g. getMessage() for helpful NPEs).
+        IJavaThread thread = (IJavaThread) frame.getThread();
+
         IAstEvaluationEngine engine = EvaluationManager.newAstEvaluationEngine(
                 javaProject, target);
 
         try {
-            // Try safe evaluation strategies in order.  Each wraps the
-            // expression in a try-catch so target-VM exceptions are caught
-            // without invalidating the stack frame.
-            String[] wrappers = {
-                wrapInTryCatch(expression),        // value wrapper
-                wrapVoidInTryCatch(expression),    // void wrapper
-                wrapInTryCatchAlt(expression),     // alt value wrapper (explicit casts)
-                wrapVoidInTryCatchAlt(expression), // alt void wrapper (explicit casts)
-            };
-
-            for (String snippet : wrappers) {
-                IEvaluationResult result = evaluateSnippet(snippet, frame, engine);
-                if (!result.hasErrors()) {
-                    IJavaValue value = result.getValue();
-                    if (isThrowableInstance(value)) {
-                        throw new RuntimeException(formatCaughtException((IJavaObject) value)
-                                + "\n\nThe stack frame is still valid — you can "
-                                + "evaluate a different expression.");
-                    }
-                    return formatResult(expression, value);
-                }
-                // Wrapper failed to compile — verify frame is still valid
-                // before trying the next approach.
-                if (isFrameInvalid(frame)) {
-                    throw new IllegalStateException(
-                            "Stack frame became invalid during wrapper evaluation. "
-                            + "Use 'step' or 'get_debug_state' to re-establish "
-                            + "a valid frame before retrying.");
-                }
-            }
-
-            // All wrappers failed — fall back to direct (unprotected) evaluation.
-            // WARNING: if the expression throws in the target VM, the stack
-            // frame will be invalidated.
-            IEvaluationResult evalResult = evaluateSnippet(
-                    expression, frame, engine);
+            IEvaluationResult evalResult = evaluateSnippet(expression, frame, engine);
 
             if (evalResult.hasErrors()) {
                 String[] messages = evalResult.getErrorMessages();
@@ -192,18 +181,7 @@ public class EvaluateExpressionTool implements McpTool {
                         ? String.join("; ", Arrays.stream(messages).distinct().toArray(String[]::new))
                         : "Expression evaluation failed";
                 if (evalResult.getException() != null) {
-                    errorMsg += ": " + unwrapEvalException(evalResult.getException(), frame);
-                    if (isFrameInvalid(frame)) {
-                        errorMsg += "\n\nWARNING: This exception invalidated the "
-                                + "current stack frame. Further evaluations will "
-                                + "fail until you 'step' to a new location.";
-                    }
-                } else if (errorMsg.contains("InvalidStackFrameException")) {
-                    errorMsg += "\n\nThis commonly happens after a previous "
-                            + "expression evaluation threw an exception in the "
-                            + "target VM, which invalidated the stack frame. "
-                            + "Use 'step' or 'get_debug_state' to re-establish "
-                            + "a valid frame before retrying.";
+                    errorMsg += ": " + unwrapEvalException(evalResult.getException(), thread);
                 }
                 throw new RuntimeException(errorMsg);
             }
@@ -259,140 +237,6 @@ public class EvaluateExpressionTool implements McpTool {
         return resultHolder[0];
     }
 
-    static String wrapInTryCatch(String expression) {
-        // Use a single Object variable + single return to avoid type-inference
-        // issues in the JDT AST evaluation engine.  Two return statements with
-        // different types (e.g. List<T> vs Throwable) can cause the engine to
-        // reject the snippet, silently falling through to unprotected evaluation.
-        return "Object __eval_r = null; try { __eval_r = (" + expression
-                + "); } catch (Throwable __eval_t) { __eval_r = __eval_t; } return __eval_r;";
-    }
-
-    static String wrapVoidInTryCatch(String expression) {
-        return "Object __eval_r = null; try { " + expression
-                + "; } catch (Throwable __eval_t) { __eval_r = __eval_t; } return __eval_r;";
-    }
-
-    static String wrapInTryCatchAlt(String expression) {
-        // Alternate strategy: explicit (Object) casts with dual returns.
-        // Avoids the local-variable declaration that can trip up certain
-        // JDT AST engine compilation paths.  The casts ensure both return
-        // branches have the same type, preventing the inference failures
-        // that the v0.93 dual-return approach suffered from.
-        return "try { return (Object)(" + expression
-                + "); } catch (Throwable __eval_t) { return (Object) __eval_t; }";
-    }
-
-    static String wrapVoidInTryCatchAlt(String expression) {
-        return "try { " + expression
-                + "; return null; } catch (Throwable __eval_t) { return (Object) __eval_t; }";
-    }
-
-    static boolean isThrowableInstance(IJavaValue value) {
-        if (value == null || value.isNull() || !(value instanceof IJavaObject)) {
-            return false;
-        }
-        try {
-            IJavaType type = value.getJavaType();
-            if (!(type instanceof IJavaClassType classType)) {
-                return false;
-            }
-            while (classType != null) {
-                if ("java.lang.Throwable".equals(classType.getName())) {
-                    return true;
-                }
-                classType = classType.getSuperclass();
-            }
-        } catch (DebugException e) {
-            // Can't determine type — assume not a Throwable
-        }
-        return false;
-    }
-
-    /**
-     * Format a caught exception from the try-catch wrapper, extracting the
-     * type name, message (via getMessage()), and filtered stack trace.
-     */
-    private String formatCaughtException(IJavaObject throwable) {
-        String typeName;
-        try {
-            typeName = throwable.getReferenceTypeName();
-        } catch (DebugException e) {
-            typeName = "Unknown";
-        }
-
-        String message = null;
-        try {
-            IJavaThread thread = debugContext.resolveThread(null);
-            IJavaValue msgValue = throwable.sendMessage("getMessage",
-                    "()Ljava/lang/String;", new IJavaValue[0], thread, false);
-            if (msgValue != null && !msgValue.isNull()) {
-                message = msgValue.getValueString();
-            }
-        } catch (Exception ignored) {
-        }
-
-        StringBuilder sb = new StringBuilder("Expression threw ");
-        sb.append(typeName);
-        if (message != null) {
-            sb.append(": ").append(message);
-        }
-
-        appendCaughtStackTrace(sb, throwable);
-        return sb.toString();
-    }
-
-    private void appendCaughtStackTrace(StringBuilder sb, IJavaObject throwable) {
-        try {
-            IJavaThread thread = debugContext.resolveThread(null);
-            IJavaValue stValue = throwable.sendMessage("getStackTrace",
-                    "()[Ljava/lang/StackTraceElement;", new IJavaValue[0],
-                    thread, false);
-            if (!(stValue instanceof IJavaArray array) || array.getLength() == 0) {
-                return;
-            }
-
-            int kept = 0;
-            int omitted = 0;
-            for (int i = 0; i < array.getLength(); i++) {
-                IJavaValue elem = array.getValue(i);
-                if (!(elem instanceof IJavaObject steObj)) continue;
-
-                String steString = invokeToString(steObj);
-                if (steString == null) continue;
-
-                // Extract class name for framework filtering
-                String className = null;
-                int parenIdx = steString.indexOf('(');
-                if (parenIdx > 0) {
-                    int lastDot = steString.lastIndexOf('.', parenIdx);
-                    if (lastDot > 0) {
-                        className = steString.substring(0, lastDot);
-                    }
-                }
-
-                if (StackTraceFilter.isFrameworkFrame(className)) {
-                    omitted++;
-                    continue;
-                }
-                if (kept >= MAX_STACK_FRAMES) {
-                    omitted++;
-                    continue;
-                }
-                if (omitted > 0 && kept > 0) {
-                    sb.append("\n\t... ").append(omitted).append(" more");
-                    omitted = 0;
-                }
-
-                sb.append("\n\tat ").append(steString);
-                kept++;
-            }
-            if (omitted > 0) {
-                sb.append("\n\t... ").append(omitted).append(" more");
-            }
-        } catch (Exception ignored) {
-        }
-    }
 
     private ExpressionResult formatResult(String expression, IJavaValue value)
             throws DebugException {
@@ -574,6 +418,25 @@ public class EvaluateExpressionTool implements McpTool {
         return elem.getValueString();
     }
 
+    /**
+     * Force JDIThread to recompute its cached stack frames on the next
+     * {@code getStackFrames()} call.  JDI's {@code INVOKE_SINGLE_THREADED}
+     * method invocations don't fire normal Eclipse debug events, so the
+     * frame cache stays stale after such calls.
+     */
+    private static void invalidateFrameCache(IJavaThread thread) {
+        try {
+            // JDIThread.fRefreshChildren controls whether getStackFrames()
+            // recomputes or returns cached frames.
+            java.lang.reflect.Field refreshField =
+                    thread.getClass().getDeclaredField("fRefreshChildren");
+            refreshField.setAccessible(true);
+            refreshField.set(thread, true);
+        } catch (Exception ignored) {
+            // Not a JDIThread or field layout changed — best effort
+        }
+    }
+
     private static String truncate(String s, int maxLen) {
         return s.length() > maxLen ? s.substring(0, maxLen) + "..." : s;
     }
@@ -592,67 +455,71 @@ public class EvaluateExpressionTool implements McpTool {
         return raw;
     }
 
-    /** Quick check whether a stack frame is still valid. */
-    private static boolean isFrameInvalid(IJavaStackFrame frame) {
-        try {
-            frame.getLineNumber();
-            return false;
-        } catch (Exception e) {
-            return true;
-        }
-    }
 
     /**
      * Walk the cause chain of the evaluation exception to find the real
      * target-VM exception type (typically hidden inside an InvocationException).
+     * Uses JDI field reads where possible to preserve the current stack frame.
+     * For NullPointerException, may invoke getMessage() to get JDK 14+ helpful
+     * messages (which can invalidate the frame — handled by recovery in execute).
      */
-    private static String unwrapEvalException(DebugException ex, IJavaStackFrame frame) {
-        Throwable root = ex.getStatus() != null
-                ? ex.getStatus().getException() : ex.getCause();
-        for (Throwable t = root; t != null; t = t.getCause()) {
-            if (t instanceof InvocationException invEx) {
-                try {
-                    ObjectReference objRef = invEx.exception();
-                    String name = objRef.type().name();
-                    String message = readDetailMessage(objRef, frame);
-                    String result = message != null
-                            ? name + ": " + message
-                            : name + " thrown in target VM";
-                    String stackTrace = readExceptionStackTrace(objRef, frame);
-                    if (stackTrace != null) {
-                        result += stackTrace;
-                    }
-                    return result;
-                } catch (Exception ignored) {
-                    break;
+    private static String unwrapEvalException(DebugException ex,
+            IJavaThread thread) {
+        // Walk the exception chain looking for InvocationException.
+        // DebugException nests causes via getStatus().getException(),
+        // not getCause(), so we must check both paths.
+        InvocationException invEx = findInvocationException(ex);
+        if (invEx != null) {
+            try {
+                ObjectReference objRef = invEx.exception();
+                String name = objRef.type().name();
+                String message = readDetailMessage(objRef, thread);
+                String result = message != null
+                        ? name + ": " + message
+                        : name + " thrown in target VM";
+                String stackTrace = readExceptionStackTrace(objRef);
+                if (stackTrace != null) {
+                    result += stackTrace;
                 }
+                return result;
+            } catch (Exception ignored) {
             }
         }
         return ex.getMessage();
     }
 
     /**
-     * Invoke {@code getStackTrace()} on the exception in the target VM and
-     * format the resulting {@code StackTraceElement[]} as a standard Java
-     * stack trace string. Returns {@code null} if the stack trace cannot be
-     * retrieved (best-effort).
+     * Search the exception chain for an {@link InvocationException}.
+     * Walks both {@code getCause()} and {@code DebugException.getStatus().getException()}
+     * chains, since Eclipse nests causes via status rather than standard cause.
      */
-    private static String readExceptionStackTrace(ObjectReference objRef, IJavaStackFrame frame) {
+    private static InvocationException findInvocationException(Throwable ex) {
+        for (Throwable t = ex; t != null; t = t.getCause()) {
+            if (t instanceof InvocationException inv) return inv;
+            if (t instanceof DebugException de && de.getStatus() != null) {
+                Throwable statusEx = de.getStatus().getException();
+                if (statusEx != null && statusEx != t && statusEx != ex) {
+                    InvocationException found = findInvocationException(statusEx);
+                    if (found != null) return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Read the stack trace from an exception object using only JDI field reads
+     * (no method invocations on the target VM) so the current stack frame is
+     * preserved.  Reads the {@code stackTrace} field directly — may return
+     * {@code null} if the JVM lazily initializes the field.
+     */
+    private static String readExceptionStackTrace(ObjectReference objRef) {
         try {
-            IJavaThread javaThread = (IJavaThread) frame.getThread();
-            if (!(javaThread instanceof JDIThread jdiThread)) return null;
-            ThreadReference threadRef = jdiThread.getUnderlyingThread();
+            Field stackTraceField = objRef.referenceType().fieldByName("stackTrace");
+            if (stackTraceField == null) return null;
+            Value stValue = objRef.getValue(stackTraceField);
 
-            if (!(objRef.referenceType() instanceof ClassType classType)) return null;
-            Method getStackTrace = classType.concreteMethodByName(
-                    "getStackTrace", "()[Ljava/lang/StackTraceElement;");
-            if (getStackTrace == null) return null;
-
-            Value result = objRef.invokeMethod(
-                    threadRef, getStackTrace, Collections.emptyList(),
-                    ObjectReference.INVOKE_SINGLE_THREADED);
-
-            if (!(result instanceof ArrayReference stackArray) || stackArray.length() == 0) {
+            if (!(stValue instanceof ArrayReference stackArray) || stackArray.length() == 0) {
                 return null;
             }
 
@@ -730,41 +597,60 @@ public class EvaluateExpressionTool implements McpTool {
     }
 
     /**
-     * Read the exception message by invoking {@code getMessage()} on the
-     * exception object in the target VM.  This is necessary because JDK 14+
-     * helpful NullPointerException messages are computed lazily by
-     * {@code getMessage()} and are NOT stored in the {@code detailMessage}
-     * field.  Falls back to reading the field directly if invocation fails
-     * (e.g. thread not suspended).
+     * Read the exception message.  First tries reading the {@code detailMessage}
+     * field directly (no method invocation, preserves stack frame).  If the
+     * field is null and the exception is a NullPointerException, falls back to
+     * invoking {@code getMessage()} via JDI to capture JDK 14+ helpful NPE
+     * messages that are computed lazily.  The method invocation may invalidate
+     * Eclipse's stack frame objects, but the frame recovery in
+     * {@link #execute} handles that for subsequent evaluations.
      */
     private static String readDetailMessage(ObjectReference objRef,
-            IJavaStackFrame frame) {
-        // Try invoking getMessage() first — captures lazy messages (helpful NPEs)
+            IJavaThread thread) {
+        // Try field read first — does not resume the thread
         try {
-            IJavaThread javaThread = (IJavaThread) frame.getThread();
-            if (javaThread instanceof JDIThread jdiThread) {
-                ThreadReference threadRef = jdiThread.getUnderlyingThread();
-                if (objRef.referenceType() instanceof ClassType classType) {
-                    Method getMessage = classType.concreteMethodByName(
-                            "getMessage", "()Ljava/lang/String;");
-                    if (getMessage != null) {
-                        Value result = objRef.invokeMethod(
-                                threadRef, getMessage, Collections.emptyList(),
-                                ObjectReference.INVOKE_SINGLE_THREADED);
-                        if (result instanceof StringReference strRef) {
-                            return strRef.value();
-                        }
-                    }
+            Field field = objRef.referenceType().fieldByName("detailMessage");
+            if (field != null) {
+                Value value = objRef.getValue(field);
+                if (value instanceof StringReference strRef) {
+                    return strRef.value();
                 }
             }
         } catch (Exception ignored) {
         }
-        // Fallback: read the detailMessage field directly
+
+        // Field is null — for NullPointerException, invoke getMessage() to
+        // get the JDK 14+ helpful message (e.g. "Cannot invoke method X on null").
+        // This resumes the thread briefly, which may invalidate stack frame objects,
+        // but the frame recovery in execute() handles that.
         try {
-            Field field = objRef.referenceType().fieldByName("detailMessage");
-            if (field == null) return null;
-            Value value = objRef.getValue(field);
-            if (value instanceof StringReference strRef) {
+            String typeName = objRef.type().name();
+            if (typeName != null && typeName.contains("NullPointerException")) {
+                return invokeGetMessage(objRef, thread);
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    /**
+     * Invoke {@code getMessage()} on an exception object via JDI.
+     * Uses the thread reference directly (not the frame, which may be invalid
+     * after the evaluation threw).
+     */
+    private static String invokeGetMessage(ObjectReference objRef,
+            IJavaThread thread) {
+        try {
+            if (!(thread instanceof JDIThread jdiThread)) return null;
+            ThreadReference threadRef = jdiThread.getUnderlyingThread();
+            if (!(objRef.referenceType() instanceof ClassType classType)) return null;
+            Method getMessage = classType.concreteMethodByName(
+                    "getMessage", "()Ljava/lang/String;");
+            if (getMessage == null) return null;
+            Value result = objRef.invokeMethod(
+                    threadRef, getMessage, Collections.emptyList(),
+                    ObjectReference.INVOKE_SINGLE_THREADED);
+            if (result instanceof StringReference strRef) {
                 return strRef.value();
             }
         } catch (Exception ignored) {

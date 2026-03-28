@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.0
+
+- **Fix debug mode returning immediately on multi-threaded JVMs** — `waitForSuspendOrTerminate` now filters by breakpoint-only suspensions for launch-based calls, ignoring transient JVM startup thread suspensions (class loading, hot-reload, etc.) that are common in Quarkus and Spring Boot. Previously these caused an immediate false-positive return before the real breakpoint was hit.
+
+- **Fix evaluate_expression corrupting the stack frame on exception** — removed the complex try-catch wrapper approach (4 wrapper strategies + unprotected fallback) and replaced it with direct evaluation. Exception details (type, message, stack trace) are now extracted using JDI field reads instead of method invocations that resumed the thread and invalidated Eclipse's stack frame objects. The frame stays valid for further evaluations after any exception.
+
+- **Helpful NullPointerException messages preserved** — JDK 14+ helpful NPE messages (e.g. `Cannot invoke "String.trim()" because "s" is null`) are extracted via `getMessage()` for method-call exceptions where the `InvocationException` carries the target VM's exception object. The `InvocationException` is now found by walking both `getCause()` and `DebugException.getStatus().getException()` chains.
+
+- **Automatic frame recovery** — if a previous evaluation corrupted the stack frame (e.g. from the NPE `getMessage()` invocation), subsequent evaluations automatically recover by invalidating Eclipse's frame cache and resolving a fresh frame, instead of requiring the user to manually step.
+
+- **Added Maven wrapper** — `mvnw`/`mvnw.cmd` added to the root project for reproducible builds without requiring a system Maven installation.
+
 ## 1.2.0
 
 - **Fix debug launch returning immediately due to stale suspension state** — `DebugContext.reset()` is now called before launching a new debug session, clearing `currentThread` and `currentTarget` from any previous session. Previously, `waitForSuspendOrTerminate` could see stale references and return immediately before the new test JVM had even started.
