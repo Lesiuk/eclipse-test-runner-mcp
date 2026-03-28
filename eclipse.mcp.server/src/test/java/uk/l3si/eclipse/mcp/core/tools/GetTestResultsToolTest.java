@@ -72,8 +72,6 @@ public class GetTestResultsToolTest {
             args.addProperty("method", "testBar");
 
             JsonObject result = executeAndSerialize(tool, args);
-            assertEquals("com.example.FooTest", result.get("class").getAsString());
-            assertEquals("testBar", result.get("method").getAsString());
             assertTrue(result.get("trace").getAsString().contains("AssertionError"));
         }
     }

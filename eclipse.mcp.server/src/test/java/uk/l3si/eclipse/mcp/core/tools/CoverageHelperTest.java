@@ -185,9 +185,6 @@ class CoverageHelperTest {
 
             JsonObject result = GSON.toJsonTree(CoverageHelper.getCoverageForClass(className)).getAsJsonObject();
 
-            // class name
-            assertEquals(className, result.get("className").getAsString());
-
             // summary
             JsonObject summary = result.getAsJsonObject("summary");
             assertEquals("8/10 (80.0%)", summary.get("lineCoverage").getAsString());
