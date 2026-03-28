@@ -8,6 +8,7 @@ import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.debug.core.DebugEvent;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.IDebugEventSetListener;
+import org.eclipse.debug.core.ILaunch;
 import org.eclipse.debug.core.model.IDebugTarget;
 import org.eclipse.debug.core.model.IThread;
 import org.eclipse.jdt.core.IJavaProject;
@@ -200,28 +201,48 @@ public class DebugContext implements IDebugEventSetListener {
      * Poll until a thread suspends, the target terminates, or the timeout expires.
      */
     public WaitResult waitForSuspendOrTerminate(int timeoutSeconds) throws InterruptedException {
-        return waitForSuspendOrTerminate(timeoutSeconds, message -> {});
+        return waitForSuspendOrTerminate(timeoutSeconds, message -> {}, null);
     }
 
     public WaitResult waitForSuspendOrTerminate(int timeoutSeconds, ProgressReporter progress) throws InterruptedException {
-        if (isSuspended()) return WaitResult.SUSPENDED;
+        return waitForSuspendOrTerminate(timeoutSeconds, progress, null);
+    }
 
-        IJavaDebugTarget target = getCurrentTarget();
-        if (target == null || target.isTerminated()) return WaitResult.TERMINATED;
+    /**
+     * Poll until a thread suspends, the launch terminates, or the timeout expires.
+     *
+     * @param launch if provided, termination is checked via the launch directly
+     *               (avoids a race where the CREATE event has not yet set
+     *               {@code currentTarget} after the launch returns).
+     */
+    public WaitResult waitForSuspendOrTerminate(int timeoutSeconds, ProgressReporter progress,
+            ILaunch launch) throws InterruptedException {
+        if (isSuspended()) return WaitResult.SUSPENDED;
 
         long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
         long lastProgressTime = System.currentTimeMillis();
         while (System.currentTimeMillis() < deadline) {
             Thread.sleep(POLL_INTERVAL_MS);
             if (isSuspended()) return WaitResult.SUSPENDED;
-            target = getCurrentTarget();
-            if (target == null || target.isTerminated()) return WaitResult.TERMINATED;
+            if (isTerminated(launch)) return WaitResult.TERMINATED;
             if (System.currentTimeMillis() - lastProgressTime >= KEEPALIVE_INTERVAL_MS) {
                 progress.report("Waiting for breakpoint...");
                 lastProgressTime = System.currentTimeMillis();
             }
         }
         return WaitResult.TIMEOUT;
+    }
+
+    /**
+     * Check whether the debug session has terminated.  Uses the launch if
+     * available (reliable, no event-delivery race); falls back to the
+     * event-tracked {@code currentTarget} otherwise.  A null target is NOT
+     * treated as terminated — it just means the CREATE event hasn't arrived.
+     */
+    private boolean isTerminated(ILaunch launch) {
+        if (launch != null) return launch.isTerminated();
+        IJavaDebugTarget target = getCurrentTarget();
+        return target != null && target.isTerminated();
     }
 
     /**

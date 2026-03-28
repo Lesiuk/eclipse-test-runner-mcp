@@ -206,7 +206,7 @@ public class TestLaunchHelper {
 
         // In debug mode, wait for breakpoint hit or termination
         if ("debug".equals(mode)) {
-            WaitResult wait = debugContext.waitForSuspendOrTerminate(DEBUG_TIMEOUT_SECONDS, progress);
+            WaitResult wait = debugContext.waitForSuspendOrTerminate(DEBUG_TIMEOUT_SECONDS, progress, launchResult[0]);
             switch (wait) {
                 case SUSPENDED -> builder
                         .debugStopped(true)

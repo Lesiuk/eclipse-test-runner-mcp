@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0
+
+- **Fix debug launch returning immediately without waiting for breakpoint** — `waitForSuspendOrTerminate` treated a null `currentTarget` as "terminated", but the `CREATE` event that sets it arrives asynchronously after the launch returns. Now accepts the `ILaunch` directly for reliable termination checks, and a null target is no longer treated as terminated.
+
 ## 0.99.0
 
 - **Fix debug suspension detection in multi-threaded VMs** — in application servers (Quarkus, Spring Boot, etc.) background threads can briefly suspend and resume, overwriting the tracked breakpoint thread and causing `run_test` with `mode=debug` to miss the breakpoint hit. The SUSPEND event handler now preserves the tracked thread when it's still suspended, and `isSuspended()`/`resolveThread()` fall back to scanning all target threads directly when the tracked reference is lost.
