@@ -178,6 +178,13 @@ public class TestLaunchHelper {
             bpManager.setEnabled(true);
         }
 
+        // Clear stale debug state before launching so that
+        // waitForSuspendOrTerminate does not see leftover references
+        // from a previous session.
+        if ("debug".equals(mode)) {
+            debugContext.reset();
+        }
+
         // Launch on UI thread
         final ILaunch[] launchResult = new ILaunch[1];
         final Exception[] error = new Exception[1];

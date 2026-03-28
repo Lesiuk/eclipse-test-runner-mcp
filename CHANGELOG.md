@@ -2,7 +2,7 @@
 
 ## 1.1.0
 
-- **Fix debug launch returning immediately due to stale suspension state** — when `run_test` with `mode=debug` was called, `waitForSuspendOrTerminate` checked `isSuspended()` before the new test JVM had started, picking up stale state from a previous debug session or a JVM startup suspension. The pre-loop check is now skipped for launch-based calls (kept for step-based calls where it's valid).
+- **Fix debug launch returning immediately due to stale suspension state** — `DebugContext.reset()` is now called before launching a new debug session, clearing `currentThread` and `currentTarget` from any previous session. Previously, `waitForSuspendOrTerminate` could see stale references and return immediately before the new test JVM had even started.
 
 ## 1.0.0
 
