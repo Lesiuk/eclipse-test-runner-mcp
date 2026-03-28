@@ -56,10 +56,7 @@ public class GetTestResultsTool implements McpTool {
                         "No failure trace found for " + className + "#" + methodName
                         + ". Make sure a test run has completed and this test actually failed.");
             }
-            return Map.of(
-                    "class", className,
-                    "method", methodName,
-                    "trace", trace);
+            return Map.of("trace", trace);
         }
 
         // Summary mode: return test run results
