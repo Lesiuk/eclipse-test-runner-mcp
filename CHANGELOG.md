@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0
+
+- **Fix debug launch returning immediately due to stale suspension state** — when `run_test` with `mode=debug` was called, `waitForSuspendOrTerminate` checked `isSuspended()` before the new test JVM had started, picking up stale state from a previous debug session or a JVM startup suspension. The pre-loop check is now skipped for launch-based calls (kept for step-based calls where it's valid).
+
 ## 1.0.0
 
 - **Fix debug launch returning immediately without waiting for breakpoint** — `waitForSuspendOrTerminate` treated a null `currentTarget` as "terminated", but the `CREATE` event that sets it arrives asynchronously after the launch returns. Now accepts the `ILaunch` directly for reliable termination checks, and a null target is no longer treated as terminated.

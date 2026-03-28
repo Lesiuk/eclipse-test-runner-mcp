@@ -214,10 +214,18 @@ public class DebugContext implements IDebugEventSetListener {
      * @param launch if provided, termination is checked via the launch directly
      *               (avoids a race where the CREATE event has not yet set
      *               {@code currentTarget} after the launch returns).
+     *               The pre-loop suspension check is also skipped because the
+     *               new test JVM may not have started yet and stale state from
+     *               a previous session could cause a false positive.
      */
     public WaitResult waitForSuspendOrTerminate(int timeoutSeconds, ProgressReporter progress,
             ILaunch launch) throws InterruptedException {
-        if (isSuspended()) return WaitResult.SUSPENDED;
+        // When called after a fresh launch, skip the pre-loop check — the
+        // new JVM has not started yet and isSuspended() could see stale
+        // state from a previous debug session or a JVM startup suspension.
+        // For non-launch callers (e.g. StepTool) the pre-loop check gives
+        // a faster response.
+        if (launch == null && isSuspended()) return WaitResult.SUSPENDED;
 
         long deadline = System.currentTimeMillis() + timeoutSeconds * 1000L;
         long lastProgressTime = System.currentTimeMillis();
