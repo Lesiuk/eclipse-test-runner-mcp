@@ -5,8 +5,6 @@ import lombok.Builder;
 
 @Builder
 public class CoverageResult {
-    @SuppressWarnings("unused")
-    private String className;
     private CoverageSummary summary;
     private List<MethodCoverageInfo> methods;
     private List<LineCoverageInfo> lines;

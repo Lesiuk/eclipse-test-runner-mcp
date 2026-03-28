@@ -86,7 +86,6 @@ class CoverageHelper {
         }
 
         return CoverageResult.builder()
-                .className(className)
                 .summary(buildSummary(classCoverage))
                 .methods(buildMethods(type))
                 .lines(buildLines(classCoverage))

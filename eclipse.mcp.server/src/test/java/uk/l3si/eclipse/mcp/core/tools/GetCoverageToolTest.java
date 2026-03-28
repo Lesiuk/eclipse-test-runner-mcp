@@ -36,7 +36,6 @@ class GetCoverageToolTest {
     void delegatesToCoverageHelper() throws Exception {
         try (MockedStatic<CoverageHelper> ch = mockStatic(CoverageHelper.class)) {
             CoverageResult mockResult = CoverageResult.builder()
-                    .className("com.example.MyService")
                     .methods(Collections.emptyList())
                     .lines(Collections.emptyList())
                     .build();
