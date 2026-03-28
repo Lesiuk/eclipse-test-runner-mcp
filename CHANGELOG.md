@@ -1,8 +1,12 @@
 # Changelog
 
-## 1.1.0
+## 1.2.0
 
 - **Fix debug launch returning immediately due to stale suspension state** — `DebugContext.reset()` is now called before launching a new debug session, clearing `currentThread` and `currentTarget` from any previous session. Previously, `waitForSuspendOrTerminate` could see stale references and return immediately before the new test JVM had even started.
+
+## 1.1.0
+
+- **Skip pre-loop suspension check for launch-based calls** — intermediate fix (superseded by 1.2.0's `reset()` approach).
 
 ## 1.0.0
 
