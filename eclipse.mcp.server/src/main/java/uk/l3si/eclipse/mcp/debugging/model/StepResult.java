@@ -6,7 +6,6 @@ import uk.l3si.eclipse.mcp.model.TestRunResult;
 
 @Builder
 public class StepResult {
-    private String action;
     private String thread;
     private LocationInfo location;
     private List<VariableResult> variables;

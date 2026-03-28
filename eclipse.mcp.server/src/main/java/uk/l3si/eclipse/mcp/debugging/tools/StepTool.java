@@ -92,7 +92,6 @@ public class StepTool implements McpTool {
         WaitResult wait = debugContext.waitForSuspendOrTerminate(timeoutSeconds, progress, launch);
 
         StepResult.StepResultBuilder result = StepResult.builder()
-                .action(action)
                 .thread(threadName);
 
         return switch (wait) {

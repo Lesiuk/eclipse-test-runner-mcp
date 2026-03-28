@@ -111,7 +111,6 @@ class StepToolTest {
         args.addProperty("action", "over");
 
         JsonObject result = executeAndSerialize(args);
-        assertEquals("over", result.get("action").getAsString());
         assertEquals("main", result.get("thread").getAsString());
         assertEquals("breakpoint", result.get("reason").getAsString());
 
@@ -348,7 +347,6 @@ class StepToolTest {
         args.addProperty("action", "over");
 
         JsonObject result = executeAndSerialize(args);
-        assertEquals("over", result.get("action").getAsString());
         assertNotNull(result.getAsJsonObject("location"));
     }
 
@@ -391,7 +389,6 @@ class StepToolTest {
         JsonObject result = executeAndSerialize(args);
 
         verify(thread).resume();
-        assertEquals("resume", result.get("action").getAsString());
         assertEquals("breakpoint", result.get("reason").getAsString());
     }
 
