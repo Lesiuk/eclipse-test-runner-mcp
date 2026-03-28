@@ -49,7 +49,6 @@ class BreakpointToolTest {
         when(breakpointManager.setBreakpoint("com.example.MyService", 42, null))
                 .thenReturn(BreakpointResult.builder()
                         .id(1L)
-                        .className("com.example.MyService")
                         .line(42)
                         .enabled(true)
                         .build());
@@ -61,7 +60,6 @@ class BreakpointToolTest {
 
         JsonObject result = executeAndSerialize(args);
         assertEquals(1L, result.get("id").getAsLong());
-        assertEquals("com.example.MyService", result.get("class").getAsString());
         assertEquals(42, result.get("line").getAsInt());
         assertTrue(result.get("enabled").getAsBoolean());
     }
@@ -71,9 +69,7 @@ class BreakpointToolTest {
         when(breakpointManager.setBreakpoint("com.example.MyService", 10, "x > 5"))
                 .thenReturn(BreakpointResult.builder()
                         .id(2L)
-                        .className("com.example.MyService")
                         .line(10)
-                        .condition("x > 5")
                         .enabled(true)
                         .build());
 
@@ -84,7 +80,7 @@ class BreakpointToolTest {
         args.addProperty("condition", "x > 5");
 
         JsonObject result = executeAndSerialize(args);
-        assertEquals("x > 5", result.get("condition").getAsString());
+        assertEquals(2L, result.get("id").getAsLong());
     }
 
     @Test
@@ -138,7 +134,7 @@ class BreakpointToolTest {
     void setDelegatesToBreakpointManager() throws Exception {
         when(breakpointManager.setBreakpoint(anyString(), anyInt(), any()))
                 .thenReturn(BreakpointResult.builder()
-                        .id(1L).className("A").line(1).enabled(true).build());
+                        .id(1L).line(1).enabled(true).build());
 
         JsonObject args = new JsonObject();
         args.addProperty("action", "set");

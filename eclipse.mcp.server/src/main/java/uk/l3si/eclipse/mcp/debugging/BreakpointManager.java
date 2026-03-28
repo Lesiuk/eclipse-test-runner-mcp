@@ -70,9 +70,7 @@ public class BreakpointManager {
 
         BreakpointResult.BreakpointResultBuilder resultBuilder = BreakpointResult.builder()
                 .id(bp.getMarker().getId())
-                .className(className)
                 .line(validatedLine)
-                .condition(condition != null && !condition.isBlank() ? condition : null)
                 .enabled(bp.isEnabled());
 
         if (validatedLine != line) {
