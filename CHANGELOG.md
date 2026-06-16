@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1
+
+- **Fix `run_test` failing after a concurrent `terminate`** — the MCP server handles each request on its own thread (cached thread pool), so when `terminate` and `run_test` are issued back-to-back they run concurrently. `run_test` could reach its "is a test already running?" preflight while the previous launch was still mid-termination and fail with "test already running", even though `terminate` was actively stopping it. `run_test` now waits up to 5s for any launch that is being terminated to finish terminating before giving up, so terminate→run_test just works instead of racing. (A genuinely running test with no `terminate` in flight still fails, just after the grace period.)
+
 ## 1.4.0
 
 - **Remove echoed request parameters from tool responses** — tool responses no longer echo back fields the caller already knows from the request, reducing LLM token usage. Removed: `config`/`project`/`class`/`method`/`methods` from `run_test`, `class`/`method` from `get_test_results` (trace mode), `className` from `get_coverage`, `class`/`condition` from `breakpoint` (set), `action` from `step`. Fields that can differ from the request (e.g. adjusted breakpoint `line`, resolved `configName`) are kept.

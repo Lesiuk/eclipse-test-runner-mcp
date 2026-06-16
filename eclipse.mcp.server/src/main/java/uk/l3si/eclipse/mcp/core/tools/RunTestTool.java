@@ -28,6 +28,11 @@ public class RunTestTool implements McpTool {
     private static final Semaphore RUN_LOCK = new Semaphore(1, true);
     private static final int LOCK_TIMEOUT_SECONDS = 30;
 
+    // Grace period to wait for a launch that a concurrent 'terminate' call is stopping to finish
+    // terminating, so back-to-back terminate+run_test (dispatched concurrently by the server) does
+    // not fail with "test already running".
+    private static final long TERMINATION_GRACE_MS = 5_000;
+
     private final Map<String, String> launchModes;
     private final DebugContext debugContext;
 
@@ -108,8 +113,11 @@ public class RunTestTool implements McpTool {
                     "Invalid mode: '" + mode + "'. Must be one of: " + String.join(", ", launchModes.keySet()));
         }
 
-        // Block if a test is already running
-        TestLaunchHelper.checkNoTestRunning();
+        // Block if a test is already running. Wait briefly for any launch that a concurrent
+        // 'terminate' call is stopping to finish terminating, so back-to-back terminate+run_test
+        // (which the server dispatches concurrently on separate threads) does not fail with
+        // "test already running" while terminate is still in progress.
+        TestLaunchHelper.ensureNoTestRunning(TERMINATION_GRACE_MS);
 
         // Validate config is JUnit before doing any work
         TestLaunchHelper.findTestConfig(configName);

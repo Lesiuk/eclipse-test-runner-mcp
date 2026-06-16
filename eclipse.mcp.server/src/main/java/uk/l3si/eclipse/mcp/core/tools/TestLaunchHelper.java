@@ -46,6 +46,53 @@ public class TestLaunchHelper {
         }
     }
 
+    private static final long RUNNING_CHECK_POLL_MS = 100;
+
+    /**
+     * Ensure no JUnit test is running, waiting up to {@code gracePeriodMs} for any launch that is
+     * being terminated (e.g. by a concurrent {@code terminate} call) to finish terminating before
+     * giving up.
+     * <p>
+     * This closes the race where {@code terminate} and {@code run_test} are dispatched back-to-back
+     * and run concurrently on the server: {@code run_test} would otherwise observe a launch that is
+     * still mid-termination and fail with "test already running" even though {@code terminate} is
+     * actively stopping it. By waiting briefly, the in-flight termination completes and the new run
+     * proceeds instead of failing.
+     * <p>
+     * Throws if a test is still running once the grace period elapses.
+     */
+    static void ensureNoTestRunning(long gracePeriodMs) throws Exception {
+        long deadline = System.currentTimeMillis() + gracePeriodMs;
+        while (true) {
+            ILaunch running = findRunningJUnitLaunch();
+            if (running == null) {
+                return;
+            }
+            if (System.currentTimeMillis() >= deadline) {
+                throw new IllegalStateException(
+                        "A test is already running: '" + running.getLaunchConfiguration().getName() + "'. "
+                        + "Use 'terminate' to stop it before launching a new test.");
+            }
+            Thread.sleep(RUNNING_CHECK_POLL_MS);
+        }
+    }
+
+    /**
+     * @return the first non-terminated JUnit launch, or {@code null} if none is running.
+     */
+    private static ILaunch findRunningJUnitLaunch() {
+        ILaunchManager manager = DebugPlugin.getDefault().getLaunchManager();
+        for (ILaunch launch : manager.getLaunches()) {
+            if (launch.getLaunchConfiguration() == null || !isJUnitConfig(launch.getLaunchConfiguration())) {
+                continue;
+            }
+            if (!launch.isTerminated()) {
+                return launch;
+            }
+        }
+        return null;
+    }
+
     /**
      * Find a launch configuration by name.
      */

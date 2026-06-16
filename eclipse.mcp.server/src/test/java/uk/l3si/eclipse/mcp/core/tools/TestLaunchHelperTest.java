@@ -10,6 +10,11 @@ import org.eclipse.jdt.core.IType;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -136,6 +141,68 @@ class TestLaunchHelperTest {
         try (MockedStatic<DebugPlugin> mocked = mockStatic(DebugPlugin.class)) {
             mocked.when(DebugPlugin::getDefault).thenReturn(debugPlugin);
             assertDoesNotThrow(() -> TestLaunchHelper.checkNoTestRunning());
+        }
+    }
+
+    @Test
+    void ensureNoTestRunning_waitsForLaunchBeingTerminated() throws Exception {
+        // A launch that is mid-termination: isTerminated() flips to true shortly after,
+        // simulating a concurrent 'terminate' call stopping the running test.
+        ILaunch launch = mockJUnitLaunch("MyTests", false);
+        AtomicBoolean terminated = new AtomicBoolean(false);
+        when(launch.isTerminated()).thenAnswer(inv -> terminated.get());
+
+        ILaunchManager manager = mock(ILaunchManager.class);
+        when(manager.getLaunches()).thenReturn(new ILaunch[]{launch});
+
+        DebugPlugin debugPlugin = mock(DebugPlugin.class);
+        when(debugPlugin.getLaunchManager()).thenReturn(manager);
+
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "terminate-simulator");
+            t.setDaemon(true);
+            return t;
+        });
+        try (MockedStatic<DebugPlugin> mocked = mockStatic(DebugPlugin.class)) {
+            mocked.when(DebugPlugin::getDefault).thenReturn(debugPlugin);
+            scheduler.schedule(() -> terminated.set(true), 150, TimeUnit.MILLISECONDS);
+
+            long start = System.nanoTime();
+            // Should wait for the in-flight termination instead of failing immediately.
+            assertDoesNotThrow(() -> TestLaunchHelper.ensureNoTestRunning(5_000));
+            long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+
+            assertTrue(terminated.get(), "should have observed the launch terminating");
+            assertTrue(elapsedMs >= 100,
+                    "should have waited for the in-flight termination, elapsed=" + elapsedMs + "ms");
+        } finally {
+            scheduler.shutdownNow();
+        }
+    }
+
+    @Test
+    void ensureNoTestRunning_throwsAfterGracePeriodIfStillRunning() throws Exception {
+        // A launch that never terminates — no concurrent 'terminate' is in flight.
+        ILaunch running = mockJUnitLaunch("StuckTest", false);
+
+        ILaunchManager manager = mock(ILaunchManager.class);
+        when(manager.getLaunches()).thenReturn(new ILaunch[]{running});
+
+        DebugPlugin debugPlugin = mock(DebugPlugin.class);
+        when(debugPlugin.getLaunchManager()).thenReturn(manager);
+
+        try (MockedStatic<DebugPlugin> mocked = mockStatic(DebugPlugin.class)) {
+            mocked.when(DebugPlugin::getDefault).thenReturn(debugPlugin);
+
+            long start = System.nanoTime();
+            IllegalStateException ex = assertThrows(IllegalStateException.class,
+                    () -> TestLaunchHelper.ensureNoTestRunning(300));
+            long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+
+            assertTrue(ex.getMessage().contains("StuckTest"));
+            assertTrue(ex.getMessage().contains("terminate"));
+            assertTrue(elapsedMs >= 250,
+                    "should have waited the grace period before failing, elapsed=" + elapsedMs + "ms");
         }
     }
 
