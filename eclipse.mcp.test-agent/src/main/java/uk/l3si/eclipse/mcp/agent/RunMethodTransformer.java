@@ -9,6 +9,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 
 /**
  * ASM-based transformer that injects a preamble into
@@ -82,14 +83,48 @@ public class RunMethodTransformer implements ClassFileTransformer {
             // if (val == null) goto originalStart;
             mv.visitJumpInsn(Opcodes.IFNULL, originalStart);
 
-            // MultiMethodRunner.execute(this);
+            // A -javaagent helper is loaded by the system loader. Eclipse/PDE may
+            // define the runner in a loader that cannot see that helper. Bridge
+            // using only java.base types, without a symbolic helper reference.
+            mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/ClassLoader",
+                    "getSystemClassLoader", "()Ljava/lang/ClassLoader;", false);
+            mv.visitLdcInsn("uk.l3si.eclipse.mcp.agent.MultiMethodRunner");
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/ClassLoader",
+                    "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;", false);
+            mv.visitLdcInsn("execute");
+            mv.visitInsn(Opcodes.ICONST_1);
+            mv.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Class");
+            mv.visitInsn(Opcodes.DUP);
+            mv.visitInsn(Opcodes.ICONST_0);
+            mv.visitLdcInsn(Type.getType(Object.class));
+            mv.visitInsn(Opcodes.AASTORE);
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/Class", "getMethod",
+                    "(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;", false);
+            mv.visitInsn(Opcodes.ACONST_NULL); // static receiver
+            mv.visitInsn(Opcodes.ICONST_1);
+            mv.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
+            mv.visitInsn(Opcodes.DUP);
+            mv.visitInsn(Opcodes.ICONST_0);
             mv.visitVarInsn(Opcodes.ALOAD, 0);
-            mv.visitMethodInsn(Opcodes.INVOKESTATIC,
-                    "uk/l3si/eclipse/mcp/agent/MultiMethodRunner",
-                    "execute", "(Ljava/lang/Object;)V", false);
+            mv.visitInsn(Opcodes.AASTORE);
 
-            // return;
+            Label invokeStart = new Label();
+            Label invokeEnd = new Label();
+            Label failed = new Label();
+            mv.visitTryCatchBlock(invokeStart, invokeEnd, failed,
+                    "java/lang/reflect/InvocationTargetException");
+            mv.visitLabel(invokeStart);
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/reflect/Method", "invoke",
+                    "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;", false);
+            mv.visitLabel(invokeEnd);
+            mv.visitInsn(Opcodes.POP);
             mv.visitInsn(Opcodes.RETURN);
+
+            // Preserve the helper's original failure in the Eclipse console.
+            mv.visitLabel(failed);
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/reflect/InvocationTargetException",
+                    "getCause", "()Ljava/lang/Throwable;", false);
+            mv.visitInsn(Opcodes.ATHROW);
 
             mv.visitLabel(originalStart);
         }

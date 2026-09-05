@@ -246,3 +246,10 @@ Output JAR lands in `eclipse.mcp.server/target/`. Copy to Eclipse `dropins/` and
 ## Acknowledgements
 
 Inspired by [eclipse-mcp-server](https://github.com/maxmart/eclipse-mcp-server) by Max Martinsson.
+
+To verify the test agent independently (including forked `-javaagent` launches
+with isolated Eclipse JUnit 4/5 classloaders), run on Java 17:
+
+```bash
+mvn -f eclipse.mcp.test-agent/pom.xml verify
+```

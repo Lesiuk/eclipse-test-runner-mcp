@@ -8,7 +8,7 @@
     <parent>
         <groupId>uk.l3si.eclipse.mcp</groupId>
         <artifactId>eclipse.mcp.parent</artifactId>
-        <version>1.4.1-SNAPSHOT</version>
+        <version>1.4.2-SNAPSHOT</version>
     </parent>
 
     <artifactId>eclipse.mcp.server</artifactId>

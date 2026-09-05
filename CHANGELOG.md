@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.2
+
+- **Fix multi-method `run_test` failing with `NoClassDefFoundError: MultiMethodRunner`** — Eclipse can load its test runner in an isolated classloader that cannot see the bundled Java agent's helper classes. The agent now invokes its helper through the system classloader, and the helper resolves Eclipse runtime classes through the test runner's own classloader. Multi-method execution keeps using `-javaagent` without requiring `--add-opens` flags. Verified on Java 17 with packaged-agent integration tests for isolated and standard Eclipse JUnit 4/5 runners.
+
 ## 1.4.1
 
 - **Fix `run_test` failing after a concurrent `terminate`** — the MCP server handles each request on its own thread (cached thread pool), so when `terminate` and `run_test` are issued back-to-back they run concurrently. `run_test` could reach its "is a test already running?" preflight while the previous launch was still mid-termination and fail with "test already running", even though `terminate` was actively stopping it. `run_test` now waits up to 5s for any launch that is being terminated to finish terminating before giving up, so terminate→run_test just works instead of racing. (A genuinely running test with no `terminate` in flight still fails, just after the grace period.)

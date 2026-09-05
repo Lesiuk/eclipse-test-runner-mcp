@@ -2,7 +2,6 @@ package uk.l3si.eclipse.mcp.agent;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,7 +63,9 @@ public class MultiMethodRunner {
                     "System property '" + RunMethodTransformer.PROPERTY_NAME + "' is empty or not set");
         }
 
-        Class<?> runnerClass = Class.forName(RUNNER);
+        // Use the actual runner loader; the agent's system loader may not see
+        // Eclipse runtime classes (and must not load a second copy of them).
+        Class<?> runnerClass = runner.getClass().getClassLoader().loadClass(RUNNER);
 
         // Phase 1: connect and gather context
         ReflectionUtils.findMethod(runnerClass, "connect").invoke(runner);
@@ -130,7 +131,7 @@ public class MultiMethodRunner {
         Constructor<?> refCtor = cl.loadClass(testRefClassName).getDeclaredConstructor(
                 cl.loadClass("org.junit.platform.launcher.LauncherDiscoveryRequest"),
                 cl.loadClass("org.junit.platform.launcher.Launcher"),
-                Class.forName(RUNNER));
+                runner.getClass().getClassLoader().loadClass(RUNNER));
         refCtor.setAccessible(true);
 
         return List.of(refCtor.newInstance(request, launcher, runner));
@@ -187,7 +188,7 @@ public class MultiMethodRunner {
     /** Fallback for unknown loaders: one loadTests call per method (duplicates class in JUnit view). */
     private static List<Object> buildFallbackRefs(Object loader, Class<?>[] classes,
             String[] methods, String[][] tags, Object runner) throws Exception {
-        Method loadTests = ReflectionUtils.findLoadTestsMethod(loader.getClass(), Class.forName(RUNNER));
+        Method loadTests = ReflectionUtils.findLoadTestsMethod(loader.getClass(), runner.getClass().getClassLoader().loadClass(RUNNER));
         List<Object> refs = new ArrayList<>();
         for (String method : methods) {
             Object[] result = (Object[]) loadTests.invoke(loader, classes, method, null, null, tags, null, runner);
@@ -202,9 +203,10 @@ public class MultiMethodRunner {
 
     private static void runTestSession(Object runner, Class<?> runnerClass,
             List<Object> refs) throws Exception {
-        Class<?> refClass   = Class.forName(TEST_REF);
-        Class<?> execClass  = Class.forName(EXEC);
-        Class<?> visitorType = Class.forName(VISITOR);
+        ClassLoader cl = runnerClass.getClassLoader();
+        Class<?> refClass   = cl.loadClass(TEST_REF);
+        Class<?> execClass  = cl.loadClass(EXEC);
+        Class<?> visitorType = cl.loadClass(VISITOR);
 
         // Create ITestReference[] array
         Object combined = Array.newInstance(refClass, refs.size());
@@ -214,7 +216,7 @@ public class MultiMethodRunner {
         // Create TestExecution
         Object listener   = ReflectionUtils.findMethod(runnerClass, "firstRunExecutionListener").invoke(runner);
         Object classifier = ReflectionUtils.findMethod(runnerClass, "getClassifier").invoke(runner);
-        Constructor<?> execCtor = execClass.getDeclaredConstructor(Class.forName(LISTENER), Class.forName(CLASSIFIER));
+        Constructor<?> execCtor = execClass.getDeclaredConstructor(cl.loadClass(LISTENER), cl.loadClass(CLASSIFIER));
         execCtor.setAccessible(true);
         Object execution = execCtor.newInstance(listener, classifier);
         ReflectionUtils.findField(runnerClass, "fExecution").set(runner, execution);
