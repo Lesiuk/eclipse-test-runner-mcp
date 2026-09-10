@@ -1,5 +1,8 @@
 package uk.l3si.eclipse.mcp.agent;
 
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
 import org.junit.jupiter.api.Test;
 
 import java.io.InputStream;
@@ -75,6 +78,29 @@ class RunMethodTransformerTest {
         // Preamble injection adds bytecode, so transformed should be larger
         assertTrue(transformed.length > original.length,
                 "Transformed bytecode should be larger due to injected preamble");
+    }
+
+    @Test
+    void transformedJava14RunnerExecutesWithoutConstantPoolVerifyError() throws Exception {
+        System.clearProperty(RunMethodTransformer.PROPERTY_NAME);
+
+        byte[] original = legacyRunnerClassBytes();
+        byte[] transformed = transformer.transform(
+                getClass().getClassLoader(), TARGET_CLASS,
+                null, null, original);
+        assertNotNull(transformed);
+
+        Class<?> clazz = defineClass(transformed);
+        Object instance = clazz.getDeclaredConstructor().newInstance();
+        Method runMethod = clazz.getDeclaredMethod("run");
+        runMethod.setAccessible(true);
+
+        assertDoesNotThrow(() -> runMethod.invoke(instance),
+                "Transformed Java 1.4 bytecode must not use an invalid class literal constant");
+
+        java.lang.reflect.Field field = clazz.getDeclaredField("originalRunCalled");
+        field.setAccessible(true);
+        assertTrue((boolean) field.get(instance));
     }
 
     // -- Error handling -------------------------------------------------------
@@ -193,5 +219,37 @@ class RunMethodTransformerTest {
                 return defineClass(null, bytecode, 0, bytecode.length);
             }
         }.define();
+    }
+
+    private static byte[] legacyRunnerClassBytes() {
+        String name = "legacy/Runner";
+        ClassWriter writer = new ClassWriter(0);
+        writer.visit(Opcodes.V1_4, Opcodes.ACC_PUBLIC, name, null,
+                "java/lang/Object", null);
+        writer.visitField(Opcodes.ACC_PUBLIC, "originalRunCalled", "Z", null, null)
+                .visitEnd();
+
+        MethodVisitor constructor = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
+        constructor.visitCode();
+        constructor.visitVarInsn(Opcodes.ALOAD, 0);
+        constructor.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/Object",
+                "<init>", "()V", false);
+        constructor.visitInsn(Opcodes.RETURN);
+        constructor.visitMaxs(1, 1);
+        constructor.visitEnd();
+
+        MethodVisitor run = writer.visitMethod(
+                Opcodes.ACC_PROTECTED, "run", "()V", null, null);
+        run.visitCode();
+        run.visitVarInsn(Opcodes.ALOAD, 0);
+        run.visitInsn(Opcodes.ICONST_1);
+        run.visitFieldInsn(Opcodes.PUTFIELD, name, "originalRunCalled", "Z");
+        run.visitInsn(Opcodes.RETURN);
+        run.visitMaxs(2, 1);
+        run.visitEnd();
+
+        writer.visitEnd();
+        return writer.toByteArray();
     }
 }

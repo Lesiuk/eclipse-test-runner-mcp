@@ -153,6 +153,8 @@ Uses an existing launch configuration as a template — inheriting VM arguments,
 
 **Multi-method execution:** Pass `methods` (array of method names) to run multiple specific test methods in a single JVM launch, sharing build and initialization time. Both `method` and `methods` can be provided — they are merged and deduplicated. Uses a bundled Java agent that intercepts Eclipse's `RemoteTestRunner` to execute only the specified methods. Requires Eclipse 2019-06 or newer.
 
+The Eclipse plug-in itself requires Java 17+, but the bundled multi-method test agent is compiled for Java 8 and runs in the separately launched test JVM on Java 8 and newer (including Java 11, 17, 21, and 25). JUnit 6 still requires Java 17+.
+
 #### Test Results
 
 **`get_test_results`** `(wait, class, method)` → `{status, totalTests, passed, failed, errors, ignored, failures[]}` or `{class, method, trace}`

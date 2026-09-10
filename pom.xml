@@ -7,7 +7,7 @@
 
     <groupId>uk.l3si.eclipse.mcp</groupId>
     <artifactId>eclipse.mcp.parent</artifactId>
-    <version>1.4.2-SNAPSHOT</version>
+    <version>1.4.3-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <modules>

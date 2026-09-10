@@ -9,7 +9,6 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
 
 /**
  * ASM-based transformer that injects a preamble into
@@ -96,7 +95,13 @@ public class RunMethodTransformer implements ClassFileTransformer {
             mv.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Class");
             mv.visitInsn(Opcodes.DUP);
             mv.visitInsn(Opcodes.ICONST_0);
-            mv.visitLdcInsn(Type.getType(Object.class));
+            // Do not use ldc Object.class here.  Class literals are not valid
+            // ldc constants in pre-Java-5 class files, and older Eclipse
+            // runners still use those class-file versions.
+            mv.visitTypeInsn(Opcodes.NEW, "java/lang/Object");
+            mv.visitInsn(Opcodes.DUP);
+            mv.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/Object", "getClass", "()Ljava/lang/Class;", false);
             mv.visitInsn(Opcodes.AASTORE);
             mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/Class", "getMethod",
                     "(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;", false);

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.3
+
+- **Fix multi-method `run_test` verifier failures on older test JVMs** — the injected runner no longer uses a class literal that is invalid in pre-Java-5 class files, and generated JUnit 4 filters now use Java 8-compatible bytecode. The bundled test agent is compiled for Java 8, while the Eclipse plug-in remains Java 17+. Verified with older and current Eclipse JUnit runtimes, isolated and standard classloaders, and Java 11/17/21/25 test JVMs.
+
 ## 1.4.2
 
 - **Fix multi-method `run_test` failing with `NoClassDefFoundError: MultiMethodRunner`** — Eclipse can load its test runner in an isolated classloader that cannot see the bundled Java agent's helper classes. The agent now invokes its helper through the system classloader, and the helper resolves Eclipse runtime classes through the test runner's own classloader. Multi-method execution keeps using `-javaagent` without requiring `--add-opens` flags. Verified on Java 17 with packaged-agent integration tests for isolated and standard Eclipse JUnit 4/5 runners.

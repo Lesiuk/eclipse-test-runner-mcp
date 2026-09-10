@@ -5,6 +5,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -40,7 +41,7 @@ public class MultiMethodRunner {
      * Parse comma-separated method names, trimming whitespace and filtering blanks.
      */
     static String[] parseMethods(String value) {
-        if (value == null || value.isBlank()) return new String[0];
+        if (value == null || value.trim().isEmpty()) return new String[0];
         return Arrays.stream(value.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
@@ -134,7 +135,7 @@ public class MultiMethodRunner {
                 runner.getClass().getClassLoader().loadClass(RUNNER));
         refCtor.setAccessible(true);
 
-        return List.of(refCtor.newInstance(request, launcher, runner));
+        return Collections.singletonList(refCtor.newInstance(request, launcher, runner));
     }
 
     private static void applyTagFilters(Object loader, Object builder,
@@ -182,7 +183,7 @@ public class MultiMethodRunner {
                 cl.loadClass("org.junit.runner.Description"));
         refCtor.setAccessible(true);
 
-        return List.of(refCtor.newInstance(filteredRunner, rootDesc));
+        return Collections.singletonList(refCtor.newInstance(filteredRunner, rootDesc));
     }
 
     /** Fallback for unknown loaders: one loadTests call per method (duplicates class in JUnit view). */

@@ -49,7 +49,9 @@ final class MultiMethodFilterGenerator {
         String setDesc = Type.getDescriptor(Set.class);
 
         ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-        cw.visit(Opcodes.V17, Opcodes.ACC_PUBLIC, GENERATED_NAME, null, superInternal, null);
+        // The agent is intentionally Java 8-compatible so it can run in
+        // older Eclipse test JVMs as well as current ones.
+        cw.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, GENERATED_NAME, null, superInternal, null);
 
         cw.visitField(Opcodes.ACC_PRIVATE | Opcodes.ACC_FINAL,
                 "methodNames", setDesc, null, null).visitEnd();

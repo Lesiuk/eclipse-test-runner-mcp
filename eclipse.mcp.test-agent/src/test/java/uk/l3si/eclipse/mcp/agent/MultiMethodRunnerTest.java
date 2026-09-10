@@ -1,5 +1,7 @@
 package uk.l3si.eclipse.mcp.agent;
 
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.Opcodes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -190,6 +192,19 @@ class MultiMethodRunnerTest {
 
     @Nested
     class CreateMultiMethodFilter {
+
+        @Test
+        void generatedFilterUsesJava8CompatibleClassFile() throws Exception {
+            Method generator = MultiMethodFilterGenerator.class.getDeclaredMethod(
+                    "generateFilterBytecode", Class.class);
+            generator.setAccessible(true);
+
+            byte[] bytecode = (byte[]) generator.invoke(null, Filter.class);
+            int majorVersion = new ClassReader(bytecode).readUnsignedShort(6);
+
+            assertTrue(majorVersion <= Opcodes.V1_8,
+                    "Generated filter must run on Java 8+; class-file major was " + majorVersion);
+        }
 
         @Test
         void filterAllowsMatchingMethods() throws Exception {
