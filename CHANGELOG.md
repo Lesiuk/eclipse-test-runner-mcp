@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.0
+
+- **Run tests from a package** — `run_test` now accepts a fully qualified `package` target for mostly short-running unit-test batches. Use class and method targets for long-running integration tests such as Selenium or SWTBot; package targets cannot be combined with method selectors.
+
 ## 1.4.3
 
 - **Fix multi-method `run_test` verifier failures on older test JVMs** — the injected runner no longer uses a class literal that is invalid in pre-Java-5 class files, and generated JUnit 4 filters now use Java 8-compatible bytecode. The bundled test agent is compiled for Java 8, while the Eclipse plug-in remains Java 17+. Verified with older and current Eclipse JUnit runtimes, isolated and standard classloaders, and Java 11/17/21/25 test JVMs.

@@ -15,8 +15,11 @@ import org.eclipse.debug.core.ILaunchManager;
 import org.eclipse.eclemma.core.CoverageTools;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
+import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.junit.JUnitCore;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.PlatformUI;
 
@@ -165,7 +168,7 @@ public class TestLaunchHelper {
     }
 
     /**
-     * Launch a test configuration with class/method overrides.
+     * Launch a test configuration with class/method or package overrides.
      * Creates an in-memory working copy (never saved) with the overridden test target,
      * launches it, waits for test results, and returns structured results.
      *
@@ -174,7 +177,22 @@ public class TestLaunchHelper {
      */
     private static final int DEBUG_TIMEOUT_SECONDS = 300;
 
+    /**
+     * Backwards-compatible class-target overload for callers that predate package targets.
+     */
     public static LaunchTestResult launchTest(String configName, String className, List<String> methods, String projectName, String mode, DebugContext debugContext, ProgressReporter progress) throws Exception {
+        return launchTest(configName, className, null, methods, projectName, mode, debugContext, progress);
+    }
+
+    public static LaunchTestResult launchTest(String configName, String className, String packageName, List<String> methods, String projectName, String mode, DebugContext debugContext, ProgressReporter progress) throws Exception {
+        if (className != null && packageName != null) {
+            throw new IllegalArgumentException(
+                    "Test targets 'class' and 'package' are mutually exclusive; provide only one.");
+        }
+        if (packageName != null && methods != null && !methods.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Package targets cannot be combined with 'method' or 'methods'; use a class target for method-level runs.");
+        }
         ILaunchConfiguration config = findTestConfig(configName);
 
         // Resolve project: user-provided or from existing config
@@ -183,37 +201,49 @@ public class TestLaunchHelper {
             resolvedProject = config.getAttribute(ATTR_PROJECT_NAME, (String) null);
         }
 
-        // Validate test class and methods exist in the project
+        // Validate the selected target exists in the project
+        IPackageFragment testPackage = null;
         if (resolvedProject != null) {
-            validateTestClassExists(resolvedProject, className);
-            if (methods != null) {
-                for (String m : methods) {
-                    validateTestMethodExists(resolvedProject, className, m);
+            if (packageName != null) {
+                testPackage = validateTestPackageExists(resolvedProject, packageName);
+            } else {
+                validateTestClassExists(resolvedProject, className);
+                if (methods != null) {
+                    for (String m : methods) {
+                        validateTestMethodExists(resolvedProject, className, m);
+                    }
                 }
             }
+        } else if (packageName != null) {
+            throw new IllegalArgumentException(
+                    "Package target '" + packageName + "' requires a project; provide 'project' or use a launch configuration with a project.");
         }
 
         // Create working copy with test target overrides
         ILaunchConfigurationWorkingCopy wc = config.getWorkingCopy();
-        wc.setAttribute(ATTR_MAIN_TYPE, className);
         if (resolvedProject != null) {
             wc.setAttribute(ATTR_PROJECT_NAME, resolvedProject);
         }
-        if (methods != null && methods.size() == 1) {
-            // Single method — use standard JUnit test name
-            wc.setAttribute(ATTR_TEST_NAME, methods.get(0));
-        } else if (isMultiMethod(methods)) {
-            // Multi-method — run whole class, inject agent via VM args
-            wc.setAttribute(ATTR_TEST_NAME, "");
-            String agentPath = AgentJarLocator.getAgentJarPath();
-            String existingVmArgs = config.getAttribute(ATTR_VM_ARGUMENTS, (String) null);
-            wc.setAttribute(ATTR_VM_ARGUMENTS, buildMultiMethodVmArgs(agentPath, methods, existingVmArgs));
+        if (packageName != null) {
+            configurePackageTarget(wc, testPackage.getHandleIdentifier());
         } else {
-            // No methods — run all tests in the class
-            wc.setAttribute(ATTR_TEST_NAME, "");
+            wc.setAttribute(ATTR_MAIN_TYPE, className);
+            if (methods != null && methods.size() == 1) {
+                // Single method — use standard JUnit test name
+                wc.setAttribute(ATTR_TEST_NAME, methods.get(0));
+            } else if (isMultiMethod(methods)) {
+                // Multi-method — run whole class, inject agent via VM args
+                wc.setAttribute(ATTR_TEST_NAME, "");
+                String agentPath = AgentJarLocator.getAgentJarPath();
+                String existingVmArgs = config.getAttribute(ATTR_VM_ARGUMENTS, (String) null);
+                wc.setAttribute(ATTR_VM_ARGUMENTS, buildMultiMethodVmArgs(agentPath, methods, existingVmArgs));
+            } else {
+                // No methods — run all tests in the class
+                wc.setAttribute(ATTR_TEST_NAME, "");
+            }
+            // Clear container — running a specific class, not a package/project
+            wc.removeAttribute(ATTR_CONTAINER);
         }
-        // Clear container — running a specific class, not a package/project
-        wc.removeAttribute(ATTR_CONTAINER);
 
         // In debug mode, require at least one breakpoint and ensure they are not globally skipped
         if ("debug".equals(mode)) {
@@ -321,6 +351,19 @@ public class TestLaunchHelper {
      * "The input type of the launch configuration does not exist".
      */
     private static void validateTestClassExists(String projectName, String className) throws Exception {
+        IJavaProject javaProject = requireJavaProject(projectName);
+        IType type = javaProject.findType(className);
+        if (type == null || !type.exists()) {
+            throw new IllegalArgumentException(
+                    "Test class '" + className + "' not found in project '" + projectName + "'. "
+                    + "Check that the fully qualified class name is correct and the project has been built.");
+        }
+    }
+
+    /**
+     * Resolve a Java project and provide the same clear validation used by class targets.
+     */
+    private static IJavaProject requireJavaProject(String projectName) throws Exception {
         IProject project = ResourcesPlugin.getWorkspace().getRoot().getProject(projectName);
         if (!project.exists()) {
             throw new IllegalArgumentException(ProjectBuilder.projectNotFoundMessage(projectName));
@@ -332,11 +375,19 @@ public class TestLaunchHelper {
         if (javaProject == null || !javaProject.exists()) {
             throw new IllegalArgumentException("Not a Java project: " + projectName);
         }
-        IType type = javaProject.findType(className);
-        if (type == null || !type.exists()) {
-            throw new IllegalArgumentException(
-                    "Test class '" + className + "' not found in project '" + projectName + "'. "
-                    + "Check that the fully qualified class name is correct and the project has been built.");
+        return javaProject;
+    }
+
+    private static IPackageFragment validateTestPackageExists(String projectName, String packageName) throws Exception {
+        try {
+            return findTestPackage(requireJavaProject(projectName), packageName);
+        } catch (IllegalArgumentException e) {
+            if (e.getMessage() != null && e.getMessage().contains("was not found")) {
+                throw new IllegalArgumentException(
+                        "Test package '" + packageName + "' not found in project '" + projectName + "'. "
+                        + "Check that the fully qualified package name is correct and the project has been built.", e);
+            }
+            throw e;
         }
     }
 
@@ -344,7 +395,7 @@ public class TestLaunchHelper {
      * Validate that a test method exists in the given test class.
      */
     private static void validateTestMethodExists(String projectName, String className, String methodName) throws Exception {
-        IJavaProject javaProject = JavaCore.create(ResourcesPlugin.getWorkspace().getRoot().getProject(projectName));
+        IJavaProject javaProject = requireJavaProject(projectName);
         IType type = javaProject.findType(className);
         validateMethodOnType(type, className, methodName);
     }
@@ -365,6 +416,51 @@ public class TestLaunchHelper {
         throw new IllegalArgumentException(
                 "Test method '" + methodName + "' not found in class '" + className + "'. "
                 + "Available methods: " + getMethodNames(type));
+    }
+
+    /**
+     * Find a package in one of the project's source roots for use as a JUnit container target.
+     */
+    static IPackageFragment findTestPackage(IJavaProject javaProject, String packageName) throws Exception {
+        IPackageFragment firstExisting = null;
+        for (IPackageFragmentRoot root : javaProject.getPackageFragmentRoots()) {
+            if (root.getKind() != IPackageFragmentRoot.K_SOURCE) {
+                continue;
+            }
+            IPackageFragment packageFragment = root.getPackageFragment(packageName);
+            if (packageFragment != null && packageFragment.exists()) {
+                if (firstExisting == null) {
+                    firstExisting = packageFragment;
+                }
+                if (containsJUnitTests(packageFragment)) {
+                    return packageFragment;
+                }
+            }
+        }
+        if (firstExisting != null) {
+            return firstExisting;
+        }
+        throw new IllegalArgumentException(
+                "Test package '" + packageName + "' was not found in a source root.");
+    }
+
+    private static boolean containsJUnitTests(IPackageFragment packageFragment) {
+        try {
+            return JUnitCore.findTestTypes(packageFragment, null).length > 0;
+        } catch (Exception e) {
+            // Package discovery is a best-effort disambiguation when the same package exists
+            // in multiple source roots. Let the launch provide the authoritative test result.
+            return false;
+        }
+    }
+
+    /**
+     * Configure an in-memory launch for a package/container target.
+     */
+    static void configurePackageTarget(ILaunchConfigurationWorkingCopy workingCopy, String packageHandle) {
+        workingCopy.setAttribute(ATTR_CONTAINER, packageHandle);
+        workingCopy.setAttribute(ATTR_TEST_NAME, "");
+        workingCopy.removeAttribute(ATTR_MAIN_TYPE);
     }
 
     private static String getMethodNames(IType type) throws Exception {

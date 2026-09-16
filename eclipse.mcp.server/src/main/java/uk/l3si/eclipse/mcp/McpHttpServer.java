@@ -19,14 +19,24 @@ public class McpHttpServer {
     private static final String ENDPOINT = "/mcp";
 
     private final McpProtocolHandler protocolHandler;
+    private final int port;
     private HttpServer httpServer;
 
     public McpHttpServer(ToolRegistry registry) {
+        this(registry, PORT);
+    }
+
+    McpHttpServer(ToolRegistry registry, int port) {
         this.protocolHandler = new McpProtocolHandler(registry);
+        this.port = port;
+    }
+
+    int getPort() {
+        return httpServer != null ? httpServer.getAddress().getPort() : port;
     }
 
     public void start() throws IOException {
-        httpServer = HttpServer.create(new InetSocketAddress(BIND_ADDRESS, PORT), 0);
+        httpServer = HttpServer.create(new InetSocketAddress(BIND_ADDRESS, port), 0);
         httpServer.setExecutor(Executors.newCachedThreadPool(this::createDaemonThread));
         httpServer.createContext(ENDPOINT, this::handleRequest);
         httpServer.start();

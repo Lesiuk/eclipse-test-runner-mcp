@@ -48,10 +48,12 @@ public class RunTestTool implements McpTool {
 
     @Override
     public String getDescription() {
-        return "Refresh, build, then run a JUnit test. Use this after editing Java files externally — "
+        return "Refresh, build, then run JUnit tests. Use this after editing Java files externally — "
              + "it refreshes projects from the filesystem, rebuilds, checks for compilation errors, and then runs the test. "
              + "Requires an existing JUnit launch configuration (regular JUnit or JUnit Plug-in Test) which provides "
-             + "all runtime settings (VM args, classpath, environment). Overrides the test target to run the specified class/method. "
+             + "all runtime settings (VM args, classpath, environment). Override the test target with either a class/method "
+             + "or a package. Package targets are intended for mostly short-running unit-test packages; use class/method "
+             + "targets for long-running integration tests such as Selenium or SWTBot. "
              + "When source and tests live in different projects, use 'dependencies' to refresh and build dependency projects in order "
              + "(e.g. build 'mocks' before 'ui_tests'). "
              + "Fails if a test is already running — use 'terminate' to stop it first. "
@@ -60,7 +62,8 @@ public class RunTestTool implements McpTool {
              + "If 'compilationErrors' is returned, fix the errors and retry. "
              + "If tests fail, the returned stack trace is usually sufficient — use 'get_test_results' with class and method to get the full untruncated stack trace if needed. "
              + "Use 'method' to re-run only the failed test instead of the whole class — this saves significant time for slow tests (Selenium, SWTBot). "
-             + "Use 'methods' to run multiple specific test methods in a single launch, sharing JVM initialization — ideal for re-running just the failures.";
+             + "Use 'methods' to run multiple specific test methods in a single launch, sharing JVM initialization — ideal for re-running just the failures. "
+             + "Provide exactly one of 'class' or 'package'; package targets cannot be combined with 'method' or 'methods'.";
     }
 
     @Override
@@ -68,12 +71,13 @@ public class RunTestTool implements McpTool {
         return InputSchema.builder()
                 .property("config", PropertySchema.string("Name of an existing JUnit launch configuration to use as template"))
                 .property("class", PropertySchema.string("Fully qualified test class name (e.g. 'com.example.FooTest')"))
+                .property("package", PropertySchema.string("Fully qualified test package name for a package-scoped unit-test run (e.g. 'com.example.unit')"))
                 .property("method", PropertySchema.string("Optional: specific test method name to run. If omitted, runs all tests in the class."))
                 .property("methods", PropertySchema.array(
                         "Optional: specific test method names to run. Can be combined with 'method'. If omitted, runs all tests in the class.",
                         PropertySchema.builder().type("string").build()
                 ))
-                .property("project", PropertySchema.string("Project containing the test class. Sets the project on the launch config and is used for compilation error checking."))
+                .property("project", PropertySchema.string("Project containing the test class or package. Sets the project on the launch config and is used for compilation error checking."))
                 .property("dependencies", PropertySchema.array(
                         "Dependency projects that were modified externally and need refreshing/rebuilding before running tests. "
                         + "Only list projects where you changed files — not the full dependency graph. "
@@ -81,7 +85,7 @@ public class RunTestTool implements McpTool {
                         PropertySchema.builder().type("string").build()
                 ))
                 .property("mode", PropertySchema.stringEnum(buildModeDescription(), new ArrayList<>(launchModes.keySet())))
-                .required(List.of("config", "class"))
+                .required(List.of("config"))
                 .build();
     }
 
@@ -103,8 +107,10 @@ public class RunTestTool implements McpTool {
 
     private Object doExecute(Args args, ProgressReporter progress) throws Exception {
         String configName = args.requireString("config", "launch configuration name");
-        String className = args.requireString("class", "fully qualified test class name");
+        String className = args.getString("class");
+        String packageName = args.getString("package");
         List<String> methods = resolveMethods(args);
+        validateTarget(className, packageName, methods);
         String projectName = args.getString("project");
         List<String> dependencies = args.getStringList("dependencies");
         String mode = args.getString("mode", "run");
@@ -140,8 +146,12 @@ public class RunTestTool implements McpTool {
         }
 
         // Launch test
-        progress.report("Launching " + className.substring(className.lastIndexOf('.') + 1) + "...");
-        LaunchTestResult launchResult = TestLaunchHelper.launchTest(configName, className, methods, projectName, mode, debugContext, progress);
+        String targetLabel = packageName != null
+                ? packageName
+                : className.substring(className.lastIndexOf('.') + 1);
+        progress.report("Launching " + targetLabel + "...");
+        LaunchTestResult launchResult = TestLaunchHelper.launchTest(
+                configName, className, packageName, methods, projectName, mode, debugContext, progress);
         return RunTestResult.builder()
                 .refreshedAndBuilt(builtProjects)
                 .launchResult(launchResult)
@@ -167,6 +177,21 @@ public class RunTestTool implements McpTool {
             return null;
         }
         return new ArrayList<>(merged);
+    }
+
+    /**
+     * Validate the mutually exclusive test target parameters before any workspace work starts.
+     */
+    static void validateTarget(String className, String packageName, List<String> methods) {
+        if (className == null && packageName == null) {
+            throw new IllegalArgumentException("Provide exactly one test target: 'class' or 'package'.");
+        }
+        if (className != null && packageName != null) {
+            throw new IllegalArgumentException("Test targets 'class' and 'package' are mutually exclusive; provide only one.");
+        }
+        if (packageName != null && methods != null && !methods.isEmpty()) {
+            throw new IllegalArgumentException("Package targets cannot be combined with 'method' or 'methods'; use a class target for method-level runs.");
+        }
     }
 
     private String buildModeDescription() {

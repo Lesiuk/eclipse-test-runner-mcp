@@ -5,7 +5,14 @@ import com.google.gson.JsonParser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import uk.l3si.eclipse.mcp.tools.Args;
+import uk.l3si.eclipse.mcp.tools.InputSchema;
+import uk.l3si.eclipse.mcp.tools.McpTool;
+import uk.l3si.eclipse.mcp.tools.ProgressReporter;
+import uk.l3si.eclipse.mcp.tools.PropertySchema;
 import uk.l3si.eclipse.mcp.tools.ToolRegistry;
+
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -131,6 +138,61 @@ public class McpProtocolHandlerTest {
         assertTrue(sse.contains("event: message"), "should have SSE event type");
         assertTrue(sse.contains("\"id\":1"), "should contain the response id");
         assertTrue(sse.contains("data: "), "should be SSE formatted");
+    }
+
+    @Test
+    void packageRunProgressIsStreamedBeforeFinalResponse() throws Exception {
+        var packageSeen = new String[1];
+        ToolRegistry packageRegistry = new ToolRegistry();
+        packageRegistry.addTool(new McpTool() {
+            @Override
+            public String getName() {
+                return "run_test";
+            }
+
+            @Override
+            public String getDescription() {
+                return "package test stream fixture";
+            }
+
+            @Override
+            public InputSchema getInputSchema() {
+                return InputSchema.builder()
+                        .property("config", PropertySchema.string("configuration"))
+                        .property("package", PropertySchema.string("test package"))
+                        .property("project", PropertySchema.string("test project"))
+                        .build();
+            }
+
+            @Override
+            public Object execute(Args args, ProgressReporter progress) {
+                packageSeen[0] = args.getString("package");
+                progress.report("Refreshing unit-project...");
+                progress.report("PASSED: UnitTest.testFast (0.1s)");
+                return Map.of("package", packageSeen[0], "success", true);
+            }
+        });
+
+        McpProtocolHandler packageHandler = new McpProtocolHandler(packageRegistry);
+        String json = "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"tools/call\","
+                + "\"params\":{\"name\":\"run_test\",\"arguments\":{"
+                + "\"config\":\"Unit tests\",\"package\":\"com.example.unit\","
+                + "\"project\":\"unit-project\"},"
+                + "\"_meta\":{\"progressToken\":\"pkg-live\"}}}";
+
+        var out = new java.io.ByteArrayOutputStream();
+        packageHandler.handleMessage(json, out);
+        String[] events = out.toString(java.nio.charset.StandardCharsets.UTF_8).split("\\n\\n");
+
+        assertEquals("com.example.unit", packageSeen[0]);
+        assertEquals(3, events.length, "two live updates followed by the final response");
+        assertTrue(events[0].contains("notifications/progress"));
+        assertTrue(events[0].contains("pkg-live"));
+        assertTrue(events[0].contains("Refreshing unit-project..."));
+        assertTrue(events[1].contains("PASSED: UnitTest.testFast (0.1s)"));
+        assertTrue(events[1].contains("pkg-live"));
+        assertTrue(events[2].contains("\"id\":7"));
+        assertTrue(events[2].contains("com.example.unit"));
     }
 
     @Test
