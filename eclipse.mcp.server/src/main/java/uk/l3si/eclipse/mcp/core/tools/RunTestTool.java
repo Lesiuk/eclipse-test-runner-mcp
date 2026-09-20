@@ -52,7 +52,8 @@ public class RunTestTool implements McpTool {
              + "it refreshes projects from the filesystem, rebuilds, checks for compilation errors, and then runs the test. "
              + "Requires an existing JUnit launch configuration (regular JUnit or JUnit Plug-in Test) which provides "
              + "all runtime settings (VM args, classpath, environment). Override the test target with either a class/method "
-             + "or a package. Package targets are intended for mostly short-running unit-test packages; use class/method "
+             + "or a package. Package targets include the requested package and all subpackages containing direct JUnit tests, "
+             + "launching each package sequentially and aggregating the results. They are intended for mostly short-running unit-test packages; use class/method "
              + "targets for long-running integration tests such as Selenium or SWTBot. "
              + "When source and tests live in different projects, use 'dependencies' to refresh and build dependency projects in order "
              + "(e.g. build 'mocks' before 'ui_tests'). "
@@ -71,7 +72,7 @@ public class RunTestTool implements McpTool {
         return InputSchema.builder()
                 .property("config", PropertySchema.string("Name of an existing JUnit launch configuration to use as template"))
                 .property("class", PropertySchema.string("Fully qualified test class name (e.g. 'com.example.FooTest')"))
-                .property("package", PropertySchema.string("Fully qualified test package name for a package-scoped unit-test run (e.g. 'com.example.unit')"))
+                .property("package", PropertySchema.string("Fully qualified test package name for a unit-test run; includes matching subpackages with direct JUnit tests (e.g. 'com.example.unit')"))
                 .property("method", PropertySchema.string("Optional: specific test method name to run. If omitted, runs all tests in the class."))
                 .property("methods", PropertySchema.array(
                         "Optional: specific test method names to run. Can be combined with 'method'. If omitted, runs all tests in the class.",

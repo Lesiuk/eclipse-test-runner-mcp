@@ -49,7 +49,7 @@ Parameters marked with **\*** are required. All others are optional.
 
 | Tool | Description |
 |------|-------------|
-| `run_test` | Full pipeline — refresh, build, check errors, launch a class, method(s), or mostly-unit-test package. Supports `methods` array for multi-method execution in a single JVM. |
+| `run_test` | Full pipeline — refresh, build, check errors, launch a class, method(s), or mostly-unit-test package and its subpackages. Supports `methods` array for multi-method execution in a single JVM. |
 | `get_test_results` | Results from the most recent test run (pass class+method for full stack trace) |
 | `get_coverage` | Per-line and per-method code coverage for a class |
 | `list_test_configs` | All JUnit launch configurations in the workspace |
@@ -96,7 +96,7 @@ Parameters marked with **\*** are required. All others are optional.
 ```
 list_test_configs          → discover available JUnit configurations
 run_test                   → edit code, then refresh + build + run
-run_test (package=com.example.unit) → run the short unit-test batch in a package
+run_test (package=com.example.unit) → run the short unit-test batch in a package and its subpackages
 run_test (mode=coverage)   → same, but with code coverage enabled
 run_test (mode=debug)      → run with debugger (set breakpoints first)
 get_test_results           → re-check results or wait for completion
@@ -150,7 +150,7 @@ bpmn2_get_process          → verify the complete process structure
 
 Full pipeline — refresh projects from disk, build (dependencies first, in order), check for compilation errors, then launch the test. Fails fast if compilation errors are found. Rejects the call if another test is already running. The `mode` parameter controls how the test launches: `run` (default), `coverage` (EclEmma/JaCoCo — use `get_coverage` afterwards), or `debug` (set breakpoints first).
 
-Uses an existing launch configuration as a template — inheriting VM arguments, classpath, and environment — while overriding just the test target. Provide exactly one of `class` or `package`. A package is a fully qualified Java package (for example, `com.example.unit`) and runs it as an Eclipse JUnit container. Package runs are intended for mostly short-running unit tests; use `class`, `method`, or `methods` for long-running integration tests such as Selenium or SWTBot. `method` and `methods` cannot be combined with `package`.
+Uses an existing launch configuration as a template — inheriting VM arguments, classpath, and environment — while overriding just the test target. Provide exactly one of `class` or `package`. A package is a fully qualified Java package (for example, `com.example.unit`). The package target includes that package and every descendant source package containing direct JUnit tests; the server launches those exact packages sequentially and aggregates their results because Eclipse's JUnit Plug-in Test package container is not recursive. Empty parent packages are skipped. Package runs are intended for mostly short-running unit tests; use `class`, `method`, or `methods` for long-running integration tests such as Selenium or SWTBot. With `mode=coverage`, each package is a separate EclEmma launch, so use a class or one package for focused coverage inspection. `method` and `methods` cannot be combined with `package`.
 
 **Multi-method execution:** Pass `methods` (array of method names) to run multiple specific test methods in a single JVM launch, sharing build and initialization time. Both `method` and `methods` can be provided — they are merged and deduplicated. Uses a bundled Java agent that intercepts Eclipse's `RemoteTestRunner` to execute only the specified methods. Requires Eclipse 2019-06 or newer.
 

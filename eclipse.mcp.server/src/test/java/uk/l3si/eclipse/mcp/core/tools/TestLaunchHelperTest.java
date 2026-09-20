@@ -6,6 +6,7 @@ import org.eclipse.debug.core.ILaunchConfiguration;
 import org.eclipse.debug.core.ILaunchConfigurationType;
 import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
 import org.eclipse.debug.core.ILaunchManager;
+import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IPackageFragment;
@@ -14,7 +15,11 @@ import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.junit.JUnitCore;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
+import uk.l3si.eclipse.mcp.model.LaunchTestResult;
+import uk.l3si.eclipse.mcp.model.TestFailureInfo;
+import uk.l3si.eclipse.mcp.model.TestRunResult;
 
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -369,5 +374,115 @@ class TestLaunchHelperTest {
                         null, "run", null, message -> { }));
 
         assertTrue(exception.getMessage().contains("mutually exclusive"));
+    }
+
+    @Test
+    void findTestPackages_includesDirectTestsInAllDescendantPackages() throws Exception {
+        IJavaProject javaProject = mock(IJavaProject.class);
+        IPackageFragmentRoot sourceRoot = mock(IPackageFragmentRoot.class);
+        IPackageFragment basePackage = packageFragment("com.example.unit", "base");
+        IPackageFragment childPackage = packageFragment("com.example.unit.api", "child");
+        IPackageFragment grandchildPackage = packageFragment("com.example.unit.api.deep", "grandchild");
+        IPackageFragment siblingPackage = packageFragment("com.example.other", "sibling");
+        IType baseTest = mock(IType.class);
+        IType childTest = mock(IType.class);
+        IType grandchildTest = mock(IType.class);
+
+        when(baseTest.getPackageFragment()).thenReturn(basePackage);
+        when(childTest.getPackageFragment()).thenReturn(childPackage);
+        when(grandchildTest.getPackageFragment()).thenReturn(grandchildPackage);
+        when(sourceRoot.getKind()).thenReturn(IPackageFragmentRoot.K_SOURCE);
+        when(sourceRoot.getPackageFragment("com.example.unit")).thenReturn(basePackage);
+        when(sourceRoot.getChildren()).thenReturn(new IJavaElement[]{
+                basePackage, childPackage, grandchildPackage, siblingPackage});
+        when(javaProject.getPackageFragmentRoots()).thenReturn(new IPackageFragmentRoot[]{sourceRoot});
+
+        try (MockedStatic<JUnitCore> junitCore = mockStatic(JUnitCore.class)) {
+            junitCore.when(() -> JUnitCore.findTestTypes(basePackage, null))
+                    .thenReturn(new IType[]{baseTest});
+            junitCore.when(() -> JUnitCore.findTestTypes(childPackage, null))
+                    .thenReturn(new IType[]{childTest});
+            junitCore.when(() -> JUnitCore.findTestTypes(grandchildPackage, null))
+                    .thenReturn(new IType[]{grandchildTest});
+            junitCore.when(() -> JUnitCore.findTestTypes(siblingPackage, null))
+                    .thenReturn(new IType[]{mock(IType.class)});
+
+            assertEquals(List.of("com.example.unit", "com.example.unit.api", "com.example.unit.api.deep"),
+                    TestLaunchHelper.findTestPackages(javaProject, "com.example.unit")
+                            .stream().map(IPackageFragment::getElementName).toList());
+        }
+    }
+
+    @Test
+    void aggregatePackageResults_combinesAllPackageRuns() {
+        TestFailureInfo failure = TestFailureInfo.builder()
+                .className("com.example.unit.api.ApiTest")
+                .method("fails")
+                .kind("FAILURE")
+                .message("expected true")
+                .build();
+        LaunchTestResult first = LaunchTestResult.builder()
+                .testResults(TestRunResult.builder()
+                        .status("COMPLETED")
+                        .totalTests(2)
+                        .passed(2)
+                        .failed(0)
+                        .errors(0)
+                        .ignored(0)
+                        .elapsedSeconds(1.25)
+                        .failures(List.of())
+                        .build())
+                .build();
+        LaunchTestResult second = LaunchTestResult.builder()
+                .testResults(TestRunResult.builder()
+                        .status("COMPLETED")
+                        .totalTests(3)
+                        .passed(1)
+                        .failed(1)
+                        .errors(0)
+                        .ignored(1)
+                        .elapsedSeconds(2.5)
+                        .failures(List.of(failure))
+                        .build())
+                .build();
+
+        LaunchTestResult aggregate = TestLaunchHelper.aggregatePackageResults(List.of(first, second));
+
+        assertEquals(5, aggregate.getTestResults().getTotalTests());
+        assertEquals(3, aggregate.getTestResults().getPassed());
+        assertEquals(1, aggregate.getTestResults().getFailed());
+        assertEquals(1, aggregate.getTestResults().getIgnored());
+        assertEquals(3.75, aggregate.getTestResults().getElapsedSeconds());
+        assertEquals(1, aggregate.getTestResults().getFailures().size());
+    }
+
+    @Test
+    void aggregatePackageResults_preservesSinglePackageDebugDetails() {
+        LaunchTestResult single = LaunchTestResult.builder()
+                .testResults(TestRunResult.builder()
+                        .status("COMPLETED")
+                        .totalTests(1)
+                        .passed(1)
+                        .failed(0)
+                        .errors(0)
+                        .ignored(0)
+                        .failures(List.of())
+                        .build())
+                .debugStopped(true)
+                .debugReason("suspended")
+                .build();
+
+        LaunchTestResult aggregate = TestLaunchHelper.aggregatePackageResults(List.of(single));
+
+        assertEquals(Boolean.TRUE, aggregate.getDebugStopped());
+        assertEquals("suspended", aggregate.getDebugReason());
+    }
+
+    private static IPackageFragment packageFragment(String name, String handle) {
+        IPackageFragment fragment = mock(IPackageFragment.class);
+        when(fragment.getElementName()).thenReturn(name);
+        when(fragment.getHandleIdentifier()).thenReturn(handle);
+        when(fragment.exists()).thenReturn(true);
+        return fragment;
     }
 }

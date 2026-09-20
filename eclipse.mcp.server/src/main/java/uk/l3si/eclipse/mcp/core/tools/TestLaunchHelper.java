@@ -4,6 +4,7 @@ import uk.l3si.eclipse.mcp.debugging.DebugContext;
 import uk.l3si.eclipse.mcp.debugging.DebugContext.WaitResult;
 import uk.l3si.eclipse.mcp.debugging.VariableCollector;
 import uk.l3si.eclipse.mcp.model.LaunchTestResult;
+import uk.l3si.eclipse.mcp.model.TestFailureInfo;
 import uk.l3si.eclipse.mcp.model.TestRunResult;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -25,7 +26,11 @@ import org.eclipse.ui.PlatformUI;
 
 import uk.l3si.eclipse.mcp.tools.ProgressReporter;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @SuppressWarnings("restriction")
 public class TestLaunchHelper {
@@ -202,10 +207,11 @@ public class TestLaunchHelper {
         }
 
         // Validate the selected target exists in the project
-        IPackageFragment testPackage = null;
         if (resolvedProject != null) {
             if (packageName != null) {
-                testPackage = validateTestPackageExists(resolvedProject, packageName);
+                IJavaProject javaProject = requireJavaProject(resolvedProject);
+                List<IPackageFragment> testPackages = findTestPackages(javaProject, packageName);
+                return launchPackageTests(config, resolvedProject, testPackages, mode, debugContext, progress);
             } else {
                 validateTestClassExists(resolvedProject, className);
                 if (methods != null) {
@@ -219,13 +225,110 @@ public class TestLaunchHelper {
                     "Package target '" + packageName + "' requires a project; provide 'project' or use a launch configuration with a project.");
         }
 
+        return launchSingleTest(config, className, null, methods, resolvedProject, mode, debugContext, progress);
+    }
+
+    private static LaunchTestResult launchPackageTests(ILaunchConfiguration config, String projectName,
+            List<IPackageFragment> testPackages, String mode, DebugContext debugContext,
+            ProgressReporter progress) throws Exception {
+        if ("debug".equals(mode) && testPackages.size() > 1) {
+            throw new IllegalArgumentException(
+                    "Recursive package targets are not supported in debug mode; use a class target for debugging.");
+        }
+
+        List<LaunchTestResult> packageResults = new ArrayList<>();
+        for (int i = 0; i < testPackages.size(); i++) {
+            IPackageFragment testPackage = testPackages.get(i);
+            progress.report("Launching package " + testPackage.getElementName()
+                    + " (" + (i + 1) + "/" + testPackages.size() + ")...");
+            packageResults.add(launchSingleTest(config, null, testPackage.getHandleIdentifier(), null,
+                    projectName, mode, debugContext, progress));
+        }
+        return aggregatePackageResults(packageResults);
+    }
+
+    static LaunchTestResult aggregatePackageResults(List<LaunchTestResult> packageResults) {
+        if (packageResults != null && packageResults.size() == 1 && packageResults.get(0) != null) {
+            return packageResults.get(0);
+        }
+
+        List<TestRunResult> testResults = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
+        List<String> hints = new ArrayList<>();
+        for (LaunchTestResult packageResult : packageResults) {
+            if (packageResult == null) continue;
+            if (packageResult.getTestResults() != null) {
+                testResults.add(packageResult.getTestResults());
+            }
+            if (packageResult.getTestResultsError() != null && !packageResult.getTestResultsError().isBlank()) {
+                errors.add(packageResult.getTestResultsError());
+            }
+            if (packageResult.getHint() != null && !packageResult.getHint().isBlank()) {
+                hints.add(packageResult.getHint());
+            }
+        }
+
+        LaunchTestResult.Builder builder = LaunchTestResult.builder();
+        if (!testResults.isEmpty()) {
+            builder.testResults(aggregateTestResults(testResults));
+        }
+        if (!errors.isEmpty()) {
+            builder.testResultsError(String.join("\n", errors));
+        }
+        if (!hints.isEmpty()) {
+            builder.hint(String.join("\n", hints));
+        }
+        return builder.build();
+    }
+
+    private static TestRunResult aggregateTestResults(List<TestRunResult> testResults) {
+        String status = null;
+        int totalTests = 0;
+        int passed = 0;
+        int failed = 0;
+        int errors = 0;
+        int ignored = 0;
+        double elapsedSeconds = 0;
+        boolean hasElapsed = false;
+        List<TestFailureInfo> failures = new ArrayList<>();
+
+        for (TestRunResult result : testResults) {
+            if (result == null) continue;
+            if (result.getStatus() != null) status = result.getStatus();
+            totalTests += result.getTotalTests();
+            passed += result.getPassed();
+            failed += result.getFailed();
+            errors += result.getErrors();
+            ignored += result.getIgnored();
+            if (result.getElapsedSeconds() != null) {
+                elapsedSeconds += result.getElapsedSeconds();
+                hasElapsed = true;
+            }
+            if (result.getFailures() != null) failures.addAll(result.getFailures());
+        }
+
+        TestRunResult.Builder builder = TestRunResult.builder()
+                .status(status)
+                .totalTests(totalTests)
+                .passed(passed)
+                .failed(failed)
+                .errors(errors)
+                .ignored(ignored)
+                .failures(failures);
+        if (hasElapsed) builder.elapsedSeconds(elapsedSeconds);
+        return builder.build();
+    }
+
+    private static LaunchTestResult launchSingleTest(ILaunchConfiguration config, String className,
+            String packageHandle, List<String> methods, String resolvedProject, String mode,
+            DebugContext debugContext, ProgressReporter progress) throws Exception {
         // Create working copy with test target overrides
         ILaunchConfigurationWorkingCopy wc = config.getWorkingCopy();
         if (resolvedProject != null) {
             wc.setAttribute(ATTR_PROJECT_NAME, resolvedProject);
         }
-        if (packageName != null) {
-            configurePackageTarget(wc, testPackage.getHandleIdentifier());
+        if (packageHandle != null) {
+            configurePackageTarget(wc, packageHandle);
         } else {
             wc.setAttribute(ATTR_MAIN_TYPE, className);
             if (methods != null && methods.size() == 1) {
@@ -442,6 +545,64 @@ public class TestLaunchHelper {
         }
         throw new IllegalArgumentException(
                 "Test package '" + packageName + "' was not found in a source root.");
+    }
+
+    /**
+     * Find every source package at or below the requested package that has direct JUnit tests.
+     * PDE's modern JUnit Plug-in Test launcher treats a package container as non-recursive, so
+     * callers launch these exact package fragments one at a time and aggregate the results.
+     */
+    static List<IPackageFragment> findTestPackages(IJavaProject javaProject, String packageName) throws Exception {
+        Map<String, IPackageFragment> candidates = new LinkedHashMap<>();
+        for (IPackageFragmentRoot root : javaProject.getPackageFragmentRoots()) {
+            if (root.getKind() != IPackageFragmentRoot.K_SOURCE) continue;
+
+            addPackageCandidate(candidates, root.getPackageFragment(packageName), packageName);
+            for (var child : root.getChildren()) {
+                if (child instanceof IPackageFragment packageFragment) {
+                    addPackageCandidate(candidates, packageFragment, packageName);
+                }
+            }
+        }
+
+        List<IPackageFragment> testPackages = candidates.values().stream()
+                .filter(TestLaunchHelper::containsDirectJUnitTests)
+                .sorted(Comparator.comparing(IPackageFragment::getElementName)
+                        .thenComparing(IPackageFragment::getHandleIdentifier))
+                .toList();
+        if (testPackages.isEmpty()) {
+            if (candidates.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Test package '" + packageName + "' was not found in a source root.");
+            }
+            throw new IllegalArgumentException(
+                    "No JUnit tests found in package '" + packageName + "' or its subpackages.");
+        }
+        return testPackages;
+    }
+
+    private static void addPackageCandidate(Map<String, IPackageFragment> candidates,
+            IPackageFragment packageFragment, String requestedPackage) {
+        if (packageFragment == null || !packageFragment.exists()) return;
+        String name = packageFragment.getElementName();
+        boolean matches = name.equals(requestedPackage)
+                || (!requestedPackage.isEmpty() && name.startsWith(requestedPackage + "."));
+        if (matches) candidates.putIfAbsent(packageFragment.getHandleIdentifier(), packageFragment);
+    }
+
+    private static boolean containsDirectJUnitTests(IPackageFragment packageFragment) {
+        try {
+            String packageHandle = packageFragment.getHandleIdentifier();
+            for (IType testType : JUnitCore.findTestTypes(packageFragment, null)) {
+                IPackageFragment declaringPackage = testType.getPackageFragment();
+                if (declaringPackage != null && packageHandle.equals(declaringPackage.getHandleIdentifier())) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            // Package discovery is best effort; the launch will report any authoritative runner error.
+        }
+        return false;
     }
 
     private static boolean containsJUnitTests(IPackageFragment packageFragment) {

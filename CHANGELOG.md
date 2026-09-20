@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.1
+
+- **Run package tests recursively** — `run_test` now executes direct JUnit tests in the requested package and all subpackages sequentially, then aggregates their results. Use class and method targets for long-running integration tests such as Selenium or SWTBot.
+
 ## 1.5.0
 
 - **Run tests from a package** — `run_test` now accepts a fully qualified `package` target for mostly short-running unit-test batches. Use class and method targets for long-running integration tests such as Selenium or SWTBot; package targets cannot be combined with method selectors.
